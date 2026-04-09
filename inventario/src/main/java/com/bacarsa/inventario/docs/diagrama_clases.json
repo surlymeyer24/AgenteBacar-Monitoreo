@@ -1,0 +1,155 @@
+{
+  "diagrama": "Sistema de Inventario Informático",
+  "clases": [
+    {
+      "nombre": "Computadora",
+      "tipo": "class",
+      "atributos": [
+        { "nombre": "uuid", "tipo": "String", "carga": "automatica" },
+        { "nombre": "hostname", "tipo": "String", "carga": "automatica" },
+        { "nombre": "usuarioActual", "tipo": "String", "carga": "automatica", "fuente": "usuarios.usuario_actual" },
+        { "nombre": "ubicacion", "tipo": "String", "carga": "manual" },
+        { "nombre": "sistemaOperativo", "tipo": "String", "carga": "automatica" },
+        { "nombre": "estadoActual", "tipo": "Estado", "carga": "manual" }
+      ],
+      "metodos": [
+        "getEstadoActual() : Estado",
+        "addComponente(ComponenteHW)",
+        "getComponentes() : List<ComponenteHW>"
+      ],
+      "relaciones": [
+        { "tipo": "composicion", "con": "ComponenteHW", "multiplicidad": "1..*" },
+        { "tipo": "asociacion", "con": "CambioEstado", "multiplicidad": "0..*", "rol": "historialEstados" },
+        { "tipo": "asociacion", "con": "Estado", "multiplicidad": "1", "rol": "estadoActual" }
+      ]
+    },
+    {
+      "nombre": "ComponenteHW",
+      "tipo": "abstract class",
+      "atributos": [
+        { "nombre": "nombre", "tipo": "String", "carga": "automatica" },
+        { "nombre": "marca", "tipo": "String", "carga": "automatica" },
+        { "nombre": "descripcion", "tipo": "String", "carga": "automatica" }
+      ],
+      "metodos": [
+        "getInfo() : String"
+      ]
+    },
+    {
+      "nombre": "Disco",
+      "tipo": "class",
+      "hereda": "ComponenteHW",
+      "atributos": [
+        { "nombre": "tipo", "tipo": "String", "carga": "automatica", "ejemplo": "SSD, HDD, NVMe" },
+        { "nombre": "totalGB", "tipo": "double", "carga": "automatica" },
+        { "nombre": "libreGB", "tipo": "double", "carga": "automatica" },
+        { "nombre": "puntoMontaje", "tipo": "String", "carga": "automatica" }
+      ],
+      "metodos": [
+        "getEspacioUsado() : double",
+        "getInfo() : String"
+      ]
+    },
+    {
+      "nombre": "Procesador",
+      "tipo": "class",
+      "hereda": "ComponenteHW",
+      "atributos": [
+        { "nombre": "nombreRaw", "tipo": "String", "carga": "automatica", "nota": "string crudo del agente" },
+        { "nombre": "nucleosFisicos", "tipo": "int", "carga": "automatica" },
+        { "nombre": "arquitectura", "tipo": "String", "carga": "automatica" }
+      ],
+      "metodos": [
+        "getInfo() : String"
+      ]
+    },
+    {
+      "nombre": "Ram",
+      "tipo": "class",
+      "hereda": "ComponenteHW",
+      "nota": "una instancia por módulo físico",
+      "atributos": [
+        { "nombre": "capacidadGB", "tipo": "int", "carga": "automatica" },
+        { "nombre": "velocidadMHz", "tipo": "int", "carga": "automatica" },
+        { "nombre": "modelo", "tipo": "String", "carga": "automatica" }
+      ],
+      "metodos": [
+        "getInfo() : String"
+      ]
+    },
+    {
+      "nombre": "Periferico",
+      "tipo": "class",
+      "hereda": "ComponenteHW",
+      "atributos": [
+        { "nombre": "tipo", "tipo": "String", "carga": "automatica", "ejemplo": "impresora, teclado, mouse" },
+        { "nombre": "driver", "tipo": "String", "carga": "automatica" },
+        { "nombre": "puerto", "tipo": "String", "carga": "automatica" },
+        { "nombre": "computadora", "tipo": "Computadora", "carga": "automatica", "multiplicidad": "0..1", "nota": "null si no está asignado a una PC" },
+        { "nombre": "estadoActual", "tipo": "Estado", "carga": "manual" }
+      ],
+      "metodos": [
+        "isAsignado() : boolean",
+        "getInfo() : String"
+      ],
+      "relaciones": [
+        { "tipo": "asociacion", "con": "CambioEstado", "multiplicidad": "0..*", "rol": "historialEstados" },
+        { "tipo": "asociacion", "con": "Estado", "multiplicidad": "1", "rol": "estadoActual" }
+      ]
+    },
+    {
+      "nombre": "Camara",
+      "tipo": "class",
+      "nota": "entidad separada, carga completamente manual",
+      "atributos": [
+        { "nombre": "nombre", "tipo": "String", "carga": "manual" },
+        { "nombre": "marca", "tipo": "String", "carga": "manual" },
+        { "nombre": "descripcion", "tipo": "String", "carga": "manual" },
+        { "nombre": "ubicacion", "tipo": "String", "carga": "manual" },
+        { "nombre": "fechaAlta", "tipo": "LocalDate", "carga": "manual" },
+        { "nombre": "estadoActual", "tipo": "Estado", "carga": "manual" }
+      ],
+      "metodos": [
+        "getEstadoActual() : Estado"
+      ],
+      "relaciones": [
+        { "tipo": "asociacion", "con": "CambioEstado", "multiplicidad": "0..*", "rol": "historialEstados" },
+        { "tipo": "asociacion", "con": "Estado", "multiplicidad": "1", "rol": "estadoActual" }
+      ]
+    },
+    {
+      "nombre": "Estado",
+      "tipo": "class",
+      "atributos": [
+        { "nombre": "nombre", "tipo": "String", "carga": "manual" },
+        { "nombre": "ambito", "tipo": "Ambito", "carga": "manual", "nota": "enum: COMPUTADORA, CAMARA, PERIFERICO" },
+        { "nombre": "descripcion", "tipo": "String", "carga": "manual" }
+      ],
+      "metodos": [
+        "getNombre() : String"
+      ]
+    },
+    {
+      "nombre": "Ambito",
+      "tipo": "enum",
+      "valores": ["COMPUTADORA", "CAMARA", "PERIFERICO"]
+    },
+    {
+      "nombre": "CambioEstado",
+      "tipo": "class",
+      "atributos": [
+        { "nombre": "fechaHoraInicio", "tipo": "LocalDateTime", "carga": "automatica" },
+        { "nombre": "fechaHoraFin", "tipo": "LocalDateTime", "carga": "automatica", "nota": "null si es el estado actual" },
+        { "nombre": "motivo", "tipo": "String", "carga": "manual" },
+        { "nombre": "estado", "tipo": "Estado", "carga": "manual" }
+      ],
+      "metodos": [
+        "esEstadoActual() : boolean",
+        "getDuracion() : Duration"
+      ],
+      "relaciones": [
+        { "tipo": "asociacion", "con": "Estado", "multiplicidad": "1" }
+      ]
+    }
+  ]
+}
