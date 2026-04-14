@@ -1,0 +1,147 @@
+@startuml Diagrama de Clases - Inventario
+
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+
+' ==================== ENUMS ====================
+
+enum Ubicacion {
+    ADMINISTRACION
+    MONITOREO
+    TESORERIA
+    CAPITAL_HUMANO
+    SISTEMAS
+    SEGURIDADPRIVAD
+}
+
+enum UbicacionCamara {
+    GUARDIA
+    MONITOREO
+    ADMINISTRACION
+    TESORERIA
+    CAPITAL_HUMANO
+    SISTEMAS
+    SEGURIDADPRIVADA
+    ESTACIONAMIENTO
+    CALLE1
+    CALLE2
+}
+
+enum TipoPeriferico {
+    ENTRADA
+    SALIDA
+}
+
+enum FabricanteProcesador {
+    INTEL
+    AMD
+    DESCONOCIDO
+    --
+    +{static} fromString(nombreRaw: String): FabricanteProcesador
+}
+
+' ==================== CLASES ====================
+
+class Estado {
+    -nombre: String
+    -descripcion: String
+    -ambito: String
+}
+
+class CambioEstado {
+    -fechaHoraInicio: LocalDateTime
+    -fechaHoraFin: LocalDateTime
+    -motivo: String
+    -estado: Estado
+    --
+    +esEstadoActual(): boolean
+    +getDuracion(): Duration
+}
+
+class Disco {
+    -tipo: String
+    -modeloDisco: String
+    -totalGB: double
+    -libreGB: double
+    -usadoGB: double
+    -puntoMontaje: String
+    -dispositivo: String
+    -porcentajeUsado: double
+    -discoFisicoIndex: String
+}
+
+class Ram {
+    -capacidadGB: int
+    -velocidadMHz: int
+    -modelo: String
+    -fabricante: String
+}
+
+class Procesador {
+    -nombreRaw: String
+    -nucleosFisicos: int
+    -arquitectura: String
+    -fabricante: FabricanteProcesador
+}
+
+class Computadora {
+    -uuid: String
+    -hostname: String
+    -usuarioActual: String
+    -sistemaOperativo: String
+    -arquitectura: String
+    --
+    +getEstadoActual(): Estado
+}
+
+class Camara {
+    -nombre: String
+    -marca: String
+    -descripcion: String
+    -fechaAlta: LocalDate
+    --
+    +getEstadoActual(): Estado
+}
+
+class ComponenteHW {
+    -nombre: String
+    -marca: String
+    -descripcion: String
+}
+
+class Periferico {
+    -tipo: String
+    --
+    +isAsignado(): boolean
+}
+
+' ==================== RELACIONES ====================
+
+' Herencia
+ComponenteHW <|-- Periferico
+
+' Computadora - composiciones y agregaciones
+Computadora *-- "0..*" Disco : discos
+Computadora *-- "0..*" Ram : modulos
+Computadora *-- "1" Procesador : procesador
+Computadora --> "1" Ubicacion : ubicacion
+Computadora --> "1" Estado : estadoActual
+Computadora --> "0..*" CambioEstado : historialEstados
+
+' Camara
+Camara --> "1" UbicacionCamara : ubicacion
+Camara --> "1" Estado : estadoActual
+Camara --> "0..*" CambioEstado : historialEstados
+
+' Periferico
+Periferico --> "0..1" Computadora : computadora
+Periferico --> "1" Estado : estadoActual
+Periferico --> "0..*" CambioEstado : historialEstados
+
+' CambioEstado -> Estado
+CambioEstado --> "1" Estado : estado
+
+' Procesador -> FabricanteProcesador
+Procesador --> "1" FabricanteProcesador : fabricante
+
+@enduml

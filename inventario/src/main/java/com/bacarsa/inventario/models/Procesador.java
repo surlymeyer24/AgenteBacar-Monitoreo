@@ -5,11 +5,12 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class Procesador extends ComponenteHW {
+public class Procesador {
 
     private String nombreRaw;
     private int nucleosFisicos;
     private String arquitectura;
+    private FabricanteProcesador fabricante;
 
     @Override
     public String toString() {

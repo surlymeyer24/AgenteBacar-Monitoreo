@@ -1,4 +1,4 @@
-# Reglas operativas — CyberWatch
+# Reglas operativas
 
 - Discutir antes de implementar cualquier cambio
 - Explicar qué se hará, por qué y cómo

@@ -1,0 +1,75 @@
+rules_version = '2';
+// Reglas para el dashboard React (Front) y los agentes .NET.
+// El dashboard necesita leer instancias/alertas/config y escribir comandos en instancias.
+// En producción considera restringir read/write con request.auth != null (Firebase Auth).
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Ruta explícita para auditoría ransomware (además del match anidado abajo y del wildcard collection group).
+    // Si solo desplegaste reglas antiguas sin la subcolección, el dashboard verá permission-denied.
+    match /cyberwatch_instancias/{machineId}/logs_amenazas/{logId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Instancias: dashboard lee todo y escribe comando/comando_ua; Service y UserAgent escriben el resto
+    match /cyberwatch_instancias/{machineId} {
+      allow read, write: if true;
+
+      // Subcolección alertas: solo el Service escribe; dashboard y Collection group leen
+      match /alertas/{alertId} {
+        allow read: if true;
+        allow create: if true;
+        allow update, delete: if false;
+      }
+
+      // Subcolección historial de navegación: UserAgent escribe; dashboard lee
+      match /historial_navegacion/{entryId} {
+        allow read, write: if true;
+      }
+
+      // Historial append-only de detecciones ransomware (Service Admin SDK escribe; dashboard solo lee)
+      match /logs_amenazas/{logId} {
+        allow read: if true;
+        allow write: if false;
+      }
+    }
+
+    // Configuración global: solo backend (o manual) escribe; dashboard lee
+    match /config/{doc} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Necesario para consultas por collection group (vista Alertas del dashboard)
+    match /{path=**}/alertas/{alertId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /{path=**}/logs_amenazas/{logId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // HW Agente (AgenteBacar) - misma BD, colecciones computadoras y tareas
+    match /computadoras/{id} {
+      allow read, write: if true;
+    }
+    match /tareas/{id} {
+      allow read, write: if true;
+    }
+
+    // Logs de actualización del agente: el agente escribe, el dashboard lee
+    match /logs_actualizaciones/{id} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Logs centralizados (Service, UserAgent, MiniAgente) — dashboard en tiempo real
+    match /cyberwatch_logs/{logId} {
+      allow read, write: if true;
+    }
+  }
+}

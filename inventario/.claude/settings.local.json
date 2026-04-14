@@ -1,7 +1,16 @@
 {
   "permissions": {
     "allow": [
-      "Bash(./mvnw compile:*)"
+      "Bash(./mvnw compile:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(./mvnw -q compile)",
+      "Bash(./mvnw clean:*)",
+      "Bash(java -version 2>&1 && ./mvnw -version 2>&1)",
+      "Bash(tasklist | grep -i java)",
+      "Bash(taskkill //PID 9344 //F && taskkill //PID 22392 //F && rm -rf target/ && ./mvnw compile 2>&1)",
+      "Bash(cat > lombok.config << 'EOF'\nconfig.stopBubbling = true\nlombok.copyableAnnotations += com.google.cloud.firestore.annotation.PropertyName\nEOF)",
+      "Bash(./mvnw.cmd compile:*)"
     ]
   }
 }

@@ -7,6 +7,7 @@ import lombok.Setter;
 @Setter
 public class ComponenteHW {
 
+    private String id;
     private String nombre;
     private String marca;
     private String descripcion;

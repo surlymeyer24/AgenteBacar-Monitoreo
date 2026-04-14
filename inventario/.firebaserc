@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "devbac-42d14"
+  },
+  "targets": {
+    "devbac-42d14": {
+      "hosting": {
+        "inventario": [
+          "agentebacar-inventario"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

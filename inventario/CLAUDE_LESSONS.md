@@ -1,4 +1,4 @@
-# Lecciones aprendidas — CyberWatch
+# Lecciones aprendidas
 
 ## Firebase Storage
 - No usar PredefinedObjectAcl.PublicRead (falla con Uniform access)

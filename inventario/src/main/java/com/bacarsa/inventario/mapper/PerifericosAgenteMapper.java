@@ -1,0 +1,109 @@
+package com.bacarsa.inventario.mapper;
+
+import com.bacarsa.inventario.dto.AudioAgenteDTO;
+import com.bacarsa.inventario.dto.DispositivoAudioAgenteDTO;
+import com.bacarsa.inventario.dto.DispositivoUsbAgenteDTO;
+import com.bacarsa.inventario.dto.ImpresoraAgenteDTO;
+import com.bacarsa.inventario.dto.MonitorAgenteDTO;
+import com.bacarsa.inventario.dto.PerifericoAgenteDTO;
+import com.bacarsa.inventario.models.AudioFirestore;
+import com.bacarsa.inventario.models.DispositivoAudioFirestore;
+import com.bacarsa.inventario.models.DispositivoUsbFirestore;
+import com.bacarsa.inventario.models.ImpresoraFirestore;
+import com.bacarsa.inventario.models.MonitorFirestore;
+import com.bacarsa.inventario.models.PerifericosFirestore;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
+
+
+public class PerifericosAgenteMapper {
+
+    private PerifericosAgenteMapper() {
+        // Constructor privado para evitar instanciación
+    }
+
+    public static PerifericoAgenteDTO toDTO(PerifericosFirestore perifericos) {
+        if (perifericos == null) {
+            return null;
+        }
+
+        PerifericoAgenteDTO dto = new PerifericoAgenteDTO();
+        dto.setImpresoras(mapearLista(perifericos.getImpresoras(), PerifericosAgenteMapper::mapImpresora));
+        dto.setDispositivosUsb(mapearLista(perifericos.getDispositivosUsb(), PerifericosAgenteMapper::mapUsb));
+        dto.setMonitores(mapearLista(perifericos.getMonitores(), PerifericosAgenteMapper::mapMonitor));
+        dto.setAudio(mapAudio(perifericos.getAudio()));
+        return dto;
+    }
+
+    // --- Mapeo individual por tipo ---
+
+    private static ImpresoraAgenteDTO mapImpresora(ImpresoraFirestore imp) {
+        ImpresoraAgenteDTO dto = new ImpresoraAgenteDTO();
+        dto.setNombre(imp.getNombre());
+        dto.setDriver(imp.getDriver());
+        dto.setPuerto(imp.getPuerto());
+        dto.setTipoImpresora(imp.getTipoImpresora());
+        dto.setEstado(imp.getEstado());
+        dto.setCompartida(imp.getCompartida());
+        dto.setPredeterminada(imp.getPredeterminada());
+        return dto;
+    }
+
+    private static DispositivoUsbAgenteDTO mapUsb(DispositivoUsbFirestore usb) {
+        DispositivoUsbAgenteDTO dto = new DispositivoUsbAgenteDTO();
+        dto.setNombre(usb.getNombre());
+        dto.setFabricante(usb.getFabricante());
+        dto.setCategoria(usb.getCategoria());
+        dto.setClase(usb.getClase());
+        dto.setConexion(usb.getConexion());
+        return dto;
+    }
+
+    private static MonitorAgenteDTO mapMonitor(MonitorFirestore mon) {
+        MonitorAgenteDTO dto = new MonitorAgenteDTO();
+        dto.setNombre(sanitizarNombre(mon.getNombre()));
+        dto.setResolucion(mon.getResolucion());
+        dto.setPulgadas(mon.getPulgadas());
+        dto.setAnchoCm(mon.getAnchoCm());
+        dto.setAltoCm(mon.getAltoCm());
+        return dto;
+    }
+
+    private static AudioAgenteDTO mapAudio(AudioFirestore audio) {
+        if (audio == null) {
+            return null;
+        }
+        AudioAgenteDTO dto = new AudioAgenteDTO();
+        dto.setEntrada(mapearLista(audio.getEntrada(), PerifericosAgenteMapper::mapDispositivoAudio));
+        dto.setSalida(mapearLista(audio.getSalida(), PerifericosAgenteMapper::mapDispositivoAudio));
+        return dto;
+    }
+
+    private static DispositivoAudioAgenteDTO mapDispositivoAudio(DispositivoAudioFirestore da) {
+        DispositivoAudioAgenteDTO dto = new DispositivoAudioAgenteDTO();
+        dto.setNombre(da.getNombre());
+        dto.setFabricante(da.getFabricante());
+        dto.setEstado(da.getEstado());
+        return dto;
+    }
+
+    // --- Helpers ---
+
+    /** Mapea una lista null-safe: si la fuente es null, retorna lista vacía. */
+    private static <S, D> List<D> mapearLista(List<S> fuente, java.util.function.Function<S, D> mapper) {
+        if (fuente == null) {
+            return Collections.emptyList();
+        }
+        return fuente.stream().map(mapper).collect(Collectors.toList());
+    }
+
+    /** Limpia caracteres nulos (\0) que el agente puede incluir en nombres de monitor. */
+    private static String sanitizarNombre(String nombre) {
+        if (nombre == null) {
+            return null;
+        }
+        return nombre.replace("\0", "").trim();
+    }
+}
