@@ -30,7 +30,12 @@ public class PerifericosAgenteMapper {
         }
 
         PerifericoAgenteDTO dto = new PerifericoAgenteDTO();
-        dto.setImpresoras(mapearLista(perifericos.getImpresoras(), PerifericosAgenteMapper::mapImpresora));
+        dto.setImpresoras(perifericos.getImpresoras() == null
+                ? Collections.emptyList()
+                : perifericos.getImpresoras().stream()
+                        .filter(PerifericosAgenteMapper::esImpresoraFisica)
+                        .map(PerifericosAgenteMapper::mapImpresora)
+                        .collect(Collectors.toList()));
         dto.setDispositivosUsb(mapearLista(perifericos.getDispositivosUsb(), PerifericosAgenteMapper::mapUsb));
         dto.setMonitores(mapearLista(perifericos.getMonitores(), PerifericosAgenteMapper::mapMonitor));
         dto.setAudio(mapAudio(perifericos.getAudio()));
@@ -97,6 +102,28 @@ public class PerifericosAgenteMapper {
             return Collections.emptyList();
         }
         return fuente.stream().map(mapper).collect(Collectors.toList());
+    }
+
+    private static boolean esImpresoraFisica(ImpresoraFirestore imp) {
+        if (imp == null) return false;
+        String ti = normLower(imp.getTipoImpresora());
+        String t  = normLower(imp.getTipo());
+        if (ti.contains("virtual") || t.contains("virtual")) return false;
+        String nombre = normLower(imp.getNombre());
+        String driver = normLower(imp.getDriver());
+        String puerto = normLower(imp.getPuerto());
+        if ((nombre + " " + driver + " " + puerto).contains("anydesk") || puerto.contains("ad_port")) return false;
+        if (nombre.contains("microsoft print to pdf")) return false;
+        if (nombre.contains("microsoft xps document writer")) return false;
+        if (nombre.contains("onenote") || nombre.contains("send to onenote")) return false;
+        if (driver.contains("send to microsoft onenote")) return false;
+        if (driver.contains("microsoft shared fax driver")) return false;
+        if ("fax".equals(nombre) && driver.contains("fax")) return false;
+        return true;
+    }
+
+    private static String normLower(String s) {
+        return s == null ? "" : s.trim().toLowerCase();
     }
 
     /** Limpia caracteres nulos (\0) que el agente puede incluir en nombres de monitor. */

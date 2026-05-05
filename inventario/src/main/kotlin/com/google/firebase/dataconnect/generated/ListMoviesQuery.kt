@@ -76,8 +76,11 @@ public fun ListMoviesQuery.ref(
   )
 
 public suspend fun ListMoviesQuery.execute(
+
   
-  fetchPolicy: com.google.firebase.dataconnect.QueryRef.FetchPolicy = com.google.firebase.dataconnect.QueryRef.FetchPolicy.PREFER_CACHE,
+    fetchPolicy: com.google.firebase.dataconnect.QueryRef.FetchPolicy = com.google.firebase.dataconnect.QueryRef.FetchPolicy.PREFER_CACHE,
+  
+
   ): com.google.firebase.dataconnect.QueryResult<
     ListMoviesQuery.Data,
     Unit

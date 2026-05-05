@@ -74,8 +74,11 @@ public fun ListUsersQuery.ref(
   )
 
 public suspend fun ListUsersQuery.execute(
+
   
-  fetchPolicy: com.google.firebase.dataconnect.QueryRef.FetchPolicy = com.google.firebase.dataconnect.QueryRef.FetchPolicy.PREFER_CACHE,
+    fetchPolicy: com.google.firebase.dataconnect.QueryRef.FetchPolicy = com.google.firebase.dataconnect.QueryRef.FetchPolicy.PREFER_CACHE,
+  
+
   ): com.google.firebase.dataconnect.QueryResult<
     ListUsersQuery.Data,
     Unit

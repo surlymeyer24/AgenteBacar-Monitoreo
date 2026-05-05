@@ -114,6 +114,7 @@ public interface GetMovieByIdQuery :
 public fun GetMovieByIdQuery.ref(
   
     id: java.util.UUID,
+
   
   
 ): com.google.firebase.dataconnect.QueryRef<
@@ -130,11 +131,13 @@ public fun GetMovieByIdQuery.ref(
   )
 
 public suspend fun GetMovieByIdQuery.execute(
+
   
-    id: java.util.UUID,
-  
-  
+    
+      id: java.util.UUID,
   fetchPolicy: com.google.firebase.dataconnect.QueryRef.FetchPolicy = com.google.firebase.dataconnect.QueryRef.FetchPolicy.PREFER_CACHE,
+  
+
   ): com.google.firebase.dataconnect.QueryResult<
     GetMovieByIdQuery.Data,
     GetMovieByIdQuery.Variables
@@ -150,6 +153,7 @@ public suspend fun GetMovieByIdQuery.execute(
   public fun GetMovieByIdQuery.flow(
     
       id: java.util.UUID,
+
   
     
     ): kotlinx.coroutines.flow.Flow<GetMovieByIdQuery.Data> =

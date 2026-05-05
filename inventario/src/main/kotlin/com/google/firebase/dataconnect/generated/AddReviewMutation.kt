@@ -60,6 +60,7 @@ public interface AddReviewMutation :
 public fun AddReviewMutation.ref(
   
     movieId: java.util.UUID,rating: Int,reviewText: String,
+
   
   
 ): com.google.firebase.dataconnect.MutationRef<
@@ -76,10 +77,13 @@ public fun AddReviewMutation.ref(
   )
 
 public suspend fun AddReviewMutation.execute(
+
   
-    movieId: java.util.UUID,rating: Int,reviewText: String,
+    
+      movieId: java.util.UUID,rating: Int,reviewText: String,
+
   
-  
+
   ): com.google.firebase.dataconnect.MutationResult<
     AddReviewMutation.Data,
     AddReviewMutation.Variables

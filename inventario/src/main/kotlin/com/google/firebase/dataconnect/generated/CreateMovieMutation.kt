@@ -60,6 +60,7 @@ public interface CreateMovieMutation :
 public fun CreateMovieMutation.ref(
   
     title: String,genre: String,imageUrl: String,
+
   
   
 ): com.google.firebase.dataconnect.MutationRef<
@@ -76,10 +77,13 @@ public fun CreateMovieMutation.ref(
   )
 
 public suspend fun CreateMovieMutation.execute(
+
   
-    title: String,genre: String,imageUrl: String,
+    
+      title: String,genre: String,imageUrl: String,
+
   
-  
+
   ): com.google.firebase.dataconnect.MutationResult<
     CreateMovieMutation.Data,
     CreateMovieMutation.Variables

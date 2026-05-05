@@ -1,10 +1,10 @@
 package com.bacarsa.inventario.mapper;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 import com.bacarsa.inventario.dto.CambioEstadoDTO;
 import com.bacarsa.inventario.models.CambioEstado;
+import com.google.cloud.Timestamp;
 
 
 
@@ -28,8 +28,11 @@ public class CambioEstadoMapper {
         return dto;
     }
 
-    private static String formatFechaHora(LocalDateTime fechaHora) {
-        return fechaHora == null ? null : fechaHora.toString(); // ya sale ISO-8601
+    private static String formatFechaHora(Timestamp fechaHora) {
+        if (fechaHora == null) {
+            return null;
+        }
+        return fechaHora.toDate().toInstant().toString();
     }
 
     public static List<CambioEstadoDTO> toDTOList(List<CambioEstado> cambios) {

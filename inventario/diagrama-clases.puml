@@ -27,6 +27,15 @@ enum UbicacionCamara {
     CALLE2
 }
 
+enum UbicacionRed {
+    RACK_PRINCIPAL
+    RACK_SECUNDARIO
+    ADMINISTRACION
+    MONITOREO
+    SISTEMAS
+    GUARDIA
+}
+
 enum TipoPeriferico {
     ENTRADA
     SALIDA
@@ -40,7 +49,16 @@ enum FabricanteProcesador {
     +{static} fromString(nombreRaw: String): FabricanteProcesador
 }
 
-' ==================== CLASES ====================
+enum EstadoOperativo {
+    ASIGNADA
+    SIN_ASIGNAR
+    EN_MANTENIMIENTO
+    BAJA
+    --
+    +{static} inferirAsignacionDesdeTexto(texto: String): EstadoOperativo
+}
+
+' ==================== CLASES DE DOMINIO ====================
 
 class Estado {
     -nombre: String
@@ -49,8 +67,8 @@ class Estado {
 }
 
 class CambioEstado {
-    -fechaHoraInicio: LocalDateTime
-    -fechaHoraFin: LocalDateTime
+    -fechaHoraInicio: Timestamp
+    -fechaHoraFin: Timestamp
     -motivo: String
     -estado: Estado
     --
@@ -58,8 +76,15 @@ class CambioEstado {
     +getDuracion(): Duration
 }
 
+class ComponenteHW {
+    -id: String
+    -nombre: String
+    -marca: String
+    -descripcion: String
+}
+
 class Disco {
-    -tipo: String
+    -tipoDisco: String
     -modeloDisco: String
     -totalGB: double
     -libreGB: double
@@ -77,11 +102,10 @@ class Ram {
     -fabricante: String
 }
 
-class Procesador {
-    -nombreRaw: String
-    -nucleosFisicos: int
-    -arquitectura: String
-    -fabricante: FabricanteProcesador
+class Periferico {
+    -tipo: String
+    --
+    +isAsignado(): boolean
 }
 
 class Computadora {
@@ -90,29 +114,104 @@ class Computadora {
     -usuarioActual: String
     -sistemaOperativo: String
     -arquitectura: String
+    -procesadorRaw: String
+    -nucleosFisicos: int
+    -estadoConexion: String
+    -ultimaSincronizacion: Timestamp
     --
     +getEstadoActual(): Estado
 }
 
 class Camara {
+    -id: String
     -nombre: String
     -marca: String
     -descripcion: String
+    -responsable: String
     -fechaAlta: LocalDate
     --
     +getEstadoActual(): Estado
 }
 
-class ComponenteHW {
+class Router {
+    -id: String
     -nombre: String
     -marca: String
-    -descripcion: String
+    -modelo: String
+    -ip: String
+    -numeroSerie: String
+    -firmware: String
+    -cantidadPuertosWan: int
+    -cantidadPuertosLan: int
+    -gateway: String
+    -fechaAlta: LocalDate
+    --
+    +getEstadoActual(): Estado
 }
 
-class Periferico {
+class SwitchRed {
+    -id: String
+    -nombre: String
+    -marca: String
+    -modelo: String
+    -ip: String
+    -numeroSerie: String
+    -cantidadPuertos: int
     -tipo: String
+    -vlans: List<String>
+    -fechaAlta: LocalDate
     --
-    +isAsignado(): boolean
+    +getEstadoActual(): Estado
+}
+
+' ==================== CLASES FIRESTORE (Agente C#) ====================
+
+package "Firestore — datos del agente C#" {
+
+    class PerifericosFirestore {
+        -impresoras: List<ImpresoraFirestore>
+        -dispositivosUsb: List<DispositivoUsbFirestore>
+        -monitores: List<MonitorFirestore>
+        -audio: AudioFirestore
+    }
+
+    class ImpresoraFirestore {
+        -nombre: String
+        -driver: String
+        -puerto: String
+        -tipo: String
+        -tipoImpresora: String
+        -estado: String
+        -compartida: Boolean
+        -predeterminada: Boolean
+    }
+
+    class MonitorFirestore {
+        -nombre: String
+        -resolucion: String
+        -pulgadas: Double
+        -anchoCm: Double
+        -altoCm: Double
+    }
+
+    class DispositivoUsbFirestore {
+        -nombre: String
+        -fabricante: String
+        -categoria: String
+        -clase: String
+        -conexion: String
+    }
+
+    class AudioFirestore {
+        -entrada: List<DispositivoAudioFirestore>
+        -salida: List<DispositivoAudioFirestore>
+    }
+
+    class DispositivoAudioFirestore {
+        -nombre: String
+        -fabricante: String
+        -estado: String
+    }
 }
 
 ' ==================== RELACIONES ====================
@@ -120,13 +219,13 @@ class Periferico {
 ' Herencia
 ComponenteHW <|-- Periferico
 
-' Computadora - composiciones y agregaciones
+' Computadora
 Computadora *-- "0..*" Disco : discos
 Computadora *-- "0..*" Ram : modulos
-Computadora *-- "1" Procesador : procesador
 Computadora --> "1" Ubicacion : ubicacion
 Computadora --> "1" Estado : estadoActual
 Computadora --> "0..*" CambioEstado : historialEstados
+Computadora *-- "1" PerifericosFirestore : perifericos
 
 ' Camara
 Camara --> "1" UbicacionCamara : ubicacion
@@ -138,10 +237,24 @@ Periferico --> "0..1" Computadora : computadora
 Periferico --> "1" Estado : estadoActual
 Periferico --> "0..*" CambioEstado : historialEstados
 
-' CambioEstado -> Estado
+' Router
+Router --> "1" UbicacionRed : ubicacion
+Router --> "1" Estado : estadoActual
+Router --> "0..*" CambioEstado : historialEstados
+
+' SwitchRed
+SwitchRed --> "1" UbicacionRed : ubicacion
+SwitchRed --> "1" Estado : estadoActual
+SwitchRed --> "0..*" CambioEstado : historialEstados
+
+' CambioEstado
 CambioEstado --> "1" Estado : estado
 
-' Procesador -> FabricanteProcesador
-Procesador --> "1" FabricanteProcesador : fabricante
+' PerifericosFirestore
+PerifericosFirestore *-- "0..*" ImpresoraFirestore
+PerifericosFirestore *-- "0..*" DispositivoUsbFirestore
+PerifericosFirestore *-- "0..*" MonitorFirestore
+PerifericosFirestore *-- "1" AudioFirestore
+AudioFirestore *-- "0..*" DispositivoAudioFirestore
 
 @enduml

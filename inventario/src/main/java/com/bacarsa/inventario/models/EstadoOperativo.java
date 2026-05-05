@@ -5,9 +5,10 @@ import lombok.Getter;
 
 @Getter
 public enum EstadoOperativo {
-    ACTIVO("Activo", "Equipo operativo"),
-    EN_MANTENIMIENTO("En mantenimiento", "Equipo en mantenimiento, no operativo"),
-    FUERA_DE_SERVICIO("Fuera de servicio", "Equipo fuera de servicio, no operativo");
+    ASIGNADA("Asignada", "Equipo dado de alta y con usuario o responsable definido"),
+    SIN_ASIGNAR("Sin Asignar", "Equipo en inventario sin usuario/responsable asignado"),
+    EN_MANTENIMIENTO("En mantenimiento", "Equipo en mantenimiento, no operativo temporalmente"),
+    BAJA("Baja", "Equipo dado de baja");
 
     private final String nombre;
     private final String descripcion;
@@ -17,5 +18,15 @@ public enum EstadoOperativo {
         this.descripcion = descripcion;
     }
 
-
+    /**
+     * Regla para el valor simbólico {@code DERIVAR_ASIGNACION} del API: si hay texto de
+     * asignación no vacío (p. ej. {@code usuarioActual} en PC o {@code responsable} en cámara)
+     * se usa {@link #ASIGNADA}; si no, {@link #SIN_ASIGNAR}.
+     */
+    public static EstadoOperativo inferirAsignacionDesdeTexto(String textoAsignacion) {
+        if (textoAsignacion != null && !textoAsignacion.isBlank()) {
+            return ASIGNADA;
+        }
+        return SIN_ASIGNAR;
+    }
 }

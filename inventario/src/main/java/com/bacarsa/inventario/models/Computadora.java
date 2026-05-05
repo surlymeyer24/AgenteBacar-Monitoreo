@@ -2,6 +2,7 @@ package com.bacarsa.inventario.models;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import com.google.cloud.Timestamp;
 import com.google.cloud.firestore.annotation.PropertyName;
@@ -43,11 +44,23 @@ public class Computadora {
     @Setter(onMethod_ = @PropertyName("ultima_sincronizacion"))
     private Timestamp ultimaSincronizacion;
 
+    @Getter(onMethod_ = @PropertyName("tipo_equipo"))
+    @Setter(onMethod_ = @PropertyName("tipo_equipo"))
+    private TipoEquipo tipoEquipo;
+
     /** Snapshot {@code perifericos} del agente en Firestore; ver {@link PerifericosFirestore}. */
     @Getter(onMethod_ = @PropertyName("perifericos"))
     @Setter(onMethod_ = @PropertyName("perifericos"))
     private PerifericosFirestore perifericos;
 
+    /** Detalle de versión de Windows reportado por el agente (mapa en Firestore). */
+    @Getter(onMethod_ = @PropertyName("windows_version_detallada"))
+    @Setter(onMethod_ = @PropertyName("windows_version_detallada"))
+    private Map<String, Object> windowsVersionDetallada;
+
+    @Getter(onMethod_ = @PropertyName("responsable_inventario"))
+    @Setter(onMethod_ = @PropertyName("responsable_inventario"))
+    private String responsableInventario;
 
     public Computadora() {
         this.historialEstados = new ArrayList<>();

@@ -1,0 +1,562 @@
+[
+  {
+    "nombreDispositivo": "9G099ADPAZEC813",
+    "nombre": "ADM GER PAS",
+    "ubicacion": "ADM GER PAS",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.0.108 — Puerto 37777 — Dispositivo: 9G099ADPAZEC813 — IPC-HFW1120",
+    "direccionIp": "192.168.0.108",
+    "puerto": 37777,
+    "tipo": "IPC-HFW1120"
+  },
+  {
+    "nombreDispositivo": "9M05870PAG9A2A6",
+    "nombre": "Administracion Rack",
+    "ubicacion": "Administracion Rack",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.189 — Puerto 37777 — Dispositivo: 9M05870PAG9A2A6 — DH-IPC-HFW1431S1P-0280B-S4",
+    "direccionIp": "192.168.1.189",
+    "puerto": 37777,
+    "tipo": "DH-IPC-HFW1431S1P-0280B-S4"
+  },
+  {
+    "nombreDispositivo": "9L0A63EPAG96753",
+    "nombre": "Box Entrega",
+    "ubicacion": "Box Entrega",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.193 — Puerto 37777 — Dispositivo: 9L0A63EPAG96753 — DH-IPC-HFW1431S1P-0280B-S4",
+    "direccionIp": "192.168.1.193",
+    "puerto": 37777,
+    "tipo": "DH-IPC-HFW1431S1P-0280B-S4"
+  },
+  {
+    "nombreDispositivo": "8K085B8PAG0A341",
+    "nombre": "Buzon",
+    "ubicacion": "Buzon",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.231 — Puerto 37777 — Dispositivo: 8K085B8PAG0A341 — DH-IPC-HFW1431S1P-0280B-S4",
+    "direccionIp": "192.168.1.231",
+    "puerto": 37777,
+    "tipo": "DH-IPC-HFW1431S1P-0280B-S4"
+  },
+  {
+    "nombreDispositivo": "8E09A0DPAG11BEA",
+    "nombre": "Buzon2",
+    "ubicacion": "Buzon2",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.233 — Puerto 37777 — Dispositivo: 8E09A0DPAG11BEA — IPC-HFW1120",
+    "direccionIp": "192.168.1.233",
+    "puerto": 37777,
+    "tipo": "IPC-HFW1120"
+  },
+  {
+    "nombreDispositivo": "7C0C7A3PAGEE26F",
+    "nombre": "CobroExpress",
+    "ubicacion": "CobroExpress",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.183 — Puerto 37777 — Dispositivo: 7C0C7A3PAGEE26F — DH-IPC-HFW1431S1P-0280B-S4",
+    "direccionIp": "192.168.1.183",
+    "puerto": 37777,
+    "tipo": "DH-IPC-HFW1431S1P-0280B-S4"
+  },
+  {
+    "nombreDispositivo": "9M05870PAG8900A",
+    "nombre": "Depositario Buzon",
+    "ubicacion": "Depositario Buzon",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.188 — Puerto 37777 — Dispositivo: 9M05870PAG8900A — IPC-HFW1120",
+    "direccionIp": "192.168.1.188",
+    "puerto": 37777,
+    "tipo": "IPC-HFW1120"
+  },
+  {
+    "nombreDispositivo": "8B0179DPAJFC883",
+    "nombre": "Domo Santiago",
+    "ubicacion": "Domo Santiago",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.198 — Puerto 37777 — Dispositivo: 8B0179DPAJFC883 — DH-IPC-HFW1431S1P-0280B-S4",
+    "direccionIp": "192.168.1.198",
+    "puerto": 37777,
+    "tipo": "DH-IPC-HFW1431S1P-0280B-S4"
+  },
+  {
+    "nombreDispositivo": "3C03562PAL00023",
+    "nombre": "Egreso",
+    "ubicacion": "Egreso",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.112 — Puerto 37777 — Dispositivo: 3C03562PAL00023 — IPC-HFW1120",
+    "direccionIp": "192.168.1.112",
+    "puerto": 37777,
+    "tipo": "IPC-HFW1120"
+  },
+  {
+    "nombreDispositivo": "Ip130",
+    "nombre": "Espera Boxes",
+    "ubicacion": "Espera Boxes",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.130 — Puerto 37777 — Dispositivo: Ip130 — DH-IPC-HFW2449M-S-B-PRO",
+    "direccionIp": "192.168.1.130",
+    "puerto": 37777,
+    "tipo": "DH-IPC-HFW2449M-S-B-PRO"
+  },
+  {
+    "nombreDispositivo": "3C03562PAL00133",
+    "nombre": "Estanco adentro",
+    "ubicacion": "Estanco adentro",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.145 — Puerto 37777 — Dispositivo: 3C03562PAL00133 — IPC-HFW1120",
+    "direccionIp": "192.168.1.145",
+    "puerto": 37777,
+    "tipo": "IPC-HFW1120"
+  },
+  {
+    "nombreDispositivo": "8M0279APAG2408B",
+    "nombre": "Guarda IZQ",
+    "ubicacion": "Guarda IZQ",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.224 — Puerto 37777 — Dispositivo: 8M0279APAG2408B — DH-IPC-HFW1431S1P-0280B-S4",
+    "direccionIp": "192.168.1.224",
+    "puerto": 37777,
+    "tipo": "DH-IPC-HFW1431S1P-0280B-S4"
+  },
+  {
+    "nombreDispositivo": "IP139",
+    "nombre": "Guardia",
+    "ubicacion": "Guardia",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.139 — Puerto 37777 — Dispositivo: IP139 — DH-IPC-HFW1230S1P-0280B-S5-QH2",
+    "direccionIp": "192.168.1.139",
+    "puerto": 37777,
+    "tipo": "DH-IPC-HFW1230S1P-0280B-S5-QH2"
+  },
+  {
+    "nombreDispositivo": "3C03562PAL00012",
+    "nombre": "Ingreso",
+    "ubicacion": "Ingreso",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.141 — Puerto 37777 — Dispositivo: 3C03562PAL00012 — IPC-B1B40",
+    "direccionIp": "192.168.1.141",
+    "puerto": 37777,
+    "tipo": "IPC-B1B40"
+  },
+  {
+    "nombreDispositivo": "8J0902EPAG60DEF",
+    "nombre": "Ingreso Olmos",
+    "ubicacion": "Ingreso Olmos",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.195 — Puerto 37777 — Dispositivo: 8J0902EPAG60DEF — IPC-HDW1431T1-S4",
+    "direccionIp": "192.168.1.195",
+    "puerto": 37777,
+    "tipo": "IPC-HDW1431T1-S4"
+  },
+  {
+    "nombreDispositivo": "8E09F3ERAZ02F36",
+    "nombre": "IngresoSistemas",
+    "ubicacion": "IngresoSistemas",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.0.226 — Puerto 37777 — Dispositivo: 8E09F3ERAZ02F36 — DH-IPC-HFW1431S1P-0280B-S4",
+    "direccionIp": "192.168.0.226",
+    "puerto": 37777,
+    "tipo": "DH-IPC-HFW1431S1P-0280B-S4"
+  },
+  {
+    "nombreDispositivo": "3C03562PAL00047",
+    "nombre": "INGTES",
+    "ubicacion": "INGTES",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.152 — Puerto 37777 — Dispositivo: 3C03562PAL00047 — IPC-HFW1120",
+    "direccionIp": "192.168.1.152",
+    "puerto": 37777,
+    "tipo": "IPC-HFW1120"
+  },
+  {
+    "nombreDispositivo": "DH-SD59230U-HNI-AR",
+    "nombre": "IP Domo",
+    "ubicacion": "IP Domo",
+    "marca": "ONVIF",
+    "descripcion": "IP 192.168.1.199 — Puerto 80 — Dispositivo: DH-SD59230U-HNI-AR — IPC-T22E",
+    "direccionIp": "192.168.1.199",
+    "puerto": 80,
+    "tipo": "IPC-T22E"
+  },
+  {
+    "nombreDispositivo": "8E09A0DPAGDC2A3",
+    "nombre": "Monitoreo Rack",
+    "ubicacion": "Monitoreo Rack",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.227 — Puerto 37777 — Dispositivo: 8E09A0DPAGDC2A3 — DH-IPC-HFW1431S1P-0280B-S4",
+    "direccionIp": "192.168.1.227",
+    "puerto": 37777,
+    "tipo": "DH-IPC-HFW1431S1P-0280B-S4"
+  },
+  {
+    "nombreDispositivo": "3C03562PAL00059",
+    "nombre": "Olmos D",
+    "ubicacion": "Olmos D",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.138 — Puerto 37777 — Dispositivo: 3C03562PAL00059 — IPC-HFW1320S",
+    "direccionIp": "192.168.1.138",
+    "puerto": 37777,
+    "tipo": "IPC-HFW1320S"
+  },
+  {
+    "nombreDispositivo": "IP135",
+    "nombre": "Olmos1",
+    "ubicacion": "Olmos1",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.135 — Puerto 37777 — Dispositivo: IP135 — DH-IPC-HFW1230S1P-0280B-S5-QH2",
+    "direccionIp": "192.168.1.135",
+    "puerto": 37777,
+    "tipo": "DH-IPC-HFW1230S1P-0280B-S5-QH2"
+  },
+  {
+    "nombreDispositivo": "3C03562PAL00165",
+    "nombre": "Olmos2",
+    "ubicacion": "Olmos2",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.136 — Puerto 37777 — Dispositivo: 3C03562PAL00165 — IPC-T22E",
+    "direccionIp": "192.168.1.136",
+    "puerto": 37777,
+    "tipo": "IPC-T22E"
+  },
+  {
+    "nombreDispositivo": "3C03562PAL00031",
+    "nombre": "OlmosI",
+    "ubicacion": "OlmosI",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.137 — Puerto 37777 — Dispositivo: 3C03562PAL00031 — DH-IPC-HFW2449M-S-B-PRO",
+    "direccionIp": "192.168.1.137",
+    "puerto": 37777,
+    "tipo": "DH-IPC-HFW2449M-S-B-PRO"
+  },
+  {
+    "nombreDispositivo": "3C03562PAL00119",
+    "nombre": "Patio Interno",
+    "ubicacion": "Patio Interno",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.166 — Puerto 37777 — Dispositivo: 3C03562PAL00119 — IPC-HFW1120",
+    "direccionIp": "192.168.1.166",
+    "puerto": 37777,
+    "tipo": "IPC-HFW1120"
+  },
+  {
+    "nombreDispositivo": "3C03562PAL00147",
+    "nombre": "Planta",
+    "ubicacion": "Planta",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.143 — Puerto 37777 — Dispositivo: 3C03562PAL00147 — IPC-HFW1120",
+    "direccionIp": "192.168.1.143",
+    "puerto": 37777,
+    "tipo": "IPC-HFW1120"
+  },
+  {
+    "nombreDispositivo": "3C03562PAL00003",
+    "nombre": "Planta 2",
+    "ubicacion": "Planta 2",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.149 — Puerto 37777 — Dispositivo: 3C03562PAL00003 — DH-SD49425XB-HNR",
+    "direccionIp": "192.168.1.149",
+    "puerto": 37777,
+    "tipo": "DH-SD49425XB-HNR"
+  },
+  {
+    "nombreDispositivo": "3C03562PAL00078",
+    "nombre": "Planta 3",
+    "ubicacion": "Planta 3",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.165 — Puerto 37777 — Dispositivo: 3C03562PAL00078 — IPC-HFW1120",
+    "direccionIp": "192.168.1.165",
+    "puerto": 37777,
+    "tipo": "IPC-HFW1120"
+  },
+  {
+    "nombreDispositivo": "ip134",
+    "nombre": "Planta 4",
+    "ubicacion": "Planta 4",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.134 — Puerto 37777 — Dispositivo: ip134 — DH-IPC-HFW1230S1P-0280B-S5-QH2",
+    "direccionIp": "192.168.1.134",
+    "puerto": 37777,
+    "tipo": "DH-IPC-HFW1230S1P-0280B-S5-QH2"
+  },
+  {
+    "nombreDispositivo": "Taller2",
+    "nombre": "Planta 5",
+    "ubicacion": "Planta 5",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.185 — Puerto 37777 — Dispositivo: Taller2 — DH-IPC-HFW1431S1P-0280B-S4",
+    "direccionIp": "192.168.1.185",
+    "puerto": 37777,
+    "tipo": "DH-IPC-HFW1431S1P-0280B-S4"
+  },
+  {
+    "nombreDispositivo": "TallerP",
+    "nombre": "Planta 6",
+    "ubicacion": "Planta 6",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.184 — Puerto 37777 — Dispositivo: TallerP — IPC-HFW1120",
+    "direccionIp": "192.168.1.184",
+    "puerto": 37777,
+    "tipo": "IPC-HFW1120"
+  },
+  {
+    "nombreDispositivo": "ip133",
+    "nombre": "Playa",
+    "ubicacion": "Playa",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.133 — Puerto 37777 — Dispositivo: ip133 — DH-IPC-HFW1230S1P-0280B-S5-QH2",
+    "direccionIp": "192.168.1.133",
+    "puerto": 37777,
+    "tipo": "DH-IPC-HFW1230S1P-0280B-S5-QH2"
+  },
+  {
+    "nombreDispositivo": "7C0C7A3PAG9E15B",
+    "nombre": "Playa 2",
+    "ubicacion": "Playa 2",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.182 — Puerto 37777 — Dispositivo: 7C0C7A3PAG9E15B — IPC-HFW1120",
+    "direccionIp": "192.168.1.182",
+    "puerto": 37777,
+    "tipo": "IPC-HFW1120"
+  },
+  {
+    "nombreDispositivo": "3C03562PAL00173",
+    "nombre": "Porton Ingreso",
+    "ubicacion": "Porton Ingreso",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.146 — Puerto 37777 — Dispositivo: 3C03562PAL00173 — IPC-HFW1120",
+    "direccionIp": "192.168.1.146",
+    "puerto": 37777,
+    "tipo": "IPC-HFW1120"
+  },
+  {
+    "nombreDispositivo": "3C03562PAL00197",
+    "nombre": "Puerta Chapa",
+    "ubicacion": "Puerta Chapa",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.140 — Puerto 37777 — Dispositivo: 3C03562PAL00197 — IPC-HFW1120",
+    "direccionIp": "192.168.1.140",
+    "puerto": 37777,
+    "tipo": "IPC-HFW1120"
+  },
+  {
+    "nombreDispositivo": "8E09A0DPAG9E395",
+    "nombre": "Puerta Sala De Armas",
+    "ubicacion": "Puerta Sala De Armas",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.187 — Puerto 37777 — Dispositivo: 8E09A0DPAG9E395 — IPC-HFW1120",
+    "direccionIp": "192.168.1.187",
+    "puerto": 37777,
+    "tipo": "IPC-HFW1120"
+  },
+  {
+    "nombreDispositivo": "8K085B8PAG1280F",
+    "nombre": "Puerta Taller",
+    "ubicacion": "Puerta Taller",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.223 — Puerto 37777 — Dispositivo: 8K085B8PAG1280F — DH-IPC-HFW1431S1P-0280B-S4",
+    "direccionIp": "192.168.1.223",
+    "puerto": 37777,
+    "tipo": "DH-IPC-HFW1431S1P-0280B-S4"
+  },
+  {
+    "nombreDispositivo": "3C03562PAL00075",
+    "nombre": "Puerta Tesoreria",
+    "ubicacion": "Puerta Tesoreria",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.148 — Puerto 37777 — Dispositivo: 3C03562PAL00075 — DH-SD59230U-HNI-AR",
+    "direccionIp": "192.168.1.148",
+    "puerto": 37777,
+    "tipo": "DH-SD59230U-HNI-AR"
+  },
+  {
+    "nombreDispositivo": "8J05A50PAGDC24D",
+    "nombre": "PuertaRoja",
+    "ubicacion": "PuertaRoja",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.194 — Puerto 37777 — Dispositivo: 8J05A50PAGDC24D — DH-IPC-HFW1431S1P-0280B-S4",
+    "direccionIp": "192.168.1.194",
+    "puerto": 37777,
+    "tipo": "DH-IPC-HFW1431S1P-0280B-S4"
+  },
+  {
+    "nombreDispositivo": "8E09F3ERAZ87F52",
+    "nombre": "Recepcion",
+    "ubicacion": "Recepcion",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.0.228 — Puerto 37777 — Dispositivo: 8E09F3ERAZ87F52 — DH-IPC-HFW1431S1P-0280B-S4",
+    "direccionIp": "192.168.0.228",
+    "puerto": 37777,
+    "tipo": "DH-IPC-HFW1431S1P-0280B-S4"
+  },
+  {
+    "nombreDispositivo": "4L0634APAG6A106",
+    "nombre": "Reja Monitoreo",
+    "ubicacion": "Reja Monitoreo",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.218 — Puerto 37777 — Dispositivo: 4L0634APAG6A106 — IPC-HFW1120",
+    "direccionIp": "192.168.1.218",
+    "puerto": 37777,
+    "tipo": "IPC-HFW1120"
+  },
+  {
+    "nombreDispositivo": "8E09A0DPAGFFC62",
+    "nombre": "Sala de Armas",
+    "ubicacion": "Sala de Armas",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.213 — Puerto 37777 — Dispositivo: 8E09A0DPAGFFC62 — DH-IPC-HFW1431S1P-0280B-S4",
+    "direccionIp": "192.168.1.213",
+    "puerto": 37777,
+    "tipo": "DH-IPC-HFW1431S1P-0280B-S4"
+  },
+  {
+    "nombreDispositivo": "8K085B8PAGFA332",
+    "nombre": "Sala de Armas 2",
+    "ubicacion": "Sala de Armas 2",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.116 — Puerto 37777 — Dispositivo: 8K085B8PAGFA332 — DH-IPC-HFW1431S1P-0280B-S4",
+    "direccionIp": "192.168.1.116",
+    "puerto": 37777,
+    "tipo": "DH-IPC-HFW1431S1P-0280B-S4"
+  },
+  {
+    "nombreDispositivo": "ip132",
+    "nombre": "Sala De Armas Afuera",
+    "ubicacion": "Sala De Armas Afuera",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.132 — Puerto 37777 — Dispositivo: ip132 — DH-IPC-HFW1230S1P-0280B-S5-QH2",
+    "direccionIp": "192.168.1.132",
+    "puerto": 37777,
+    "tipo": "DH-IPC-HFW1230S1P-0280B-S5-QH2"
+  },
+  {
+    "nombreDispositivo": "8M0279APAG04087",
+    "nombre": "Salida",
+    "ubicacion": "Salida",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.225 — Puerto 37777 — Dispositivo: 8M0279APAG04087 — IPC-HFW1120",
+    "direccionIp": "192.168.1.225",
+    "puerto": 37777,
+    "tipo": "IPC-HFW1120"
+  },
+  {
+    "nombreDispositivo": "8J05A50PAGB0DED",
+    "nombre": "salidaTes",
+    "ubicacion": "salidaTes",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.127 — Puerto 37777 — Dispositivo: 8J05A50PAGB0DED — IPC-HFW1120",
+    "direccionIp": "192.168.1.127",
+    "puerto": 37777,
+    "tipo": "IPC-HFW1120"
+  },
+  {
+    "nombreDispositivo": "SANTIAGO1",
+    "nombre": "Santiago 1",
+    "ubicacion": "Santiago 1",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.105 — Puerto 37777 — Dispositivo: SANTIAGO1 — DH-IPC-HFW1230S1P-0280B-S5-QH2",
+    "direccionIp": "192.168.1.105",
+    "puerto": 37777,
+    "tipo": "DH-IPC-HFW1230S1P-0280B-S5-QH2"
+  },
+  {
+    "nombreDispositivo": "CAM4",
+    "nombre": "Santiago 2",
+    "ubicacion": "Santiago 2",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.106 — Puerto 37777 — Dispositivo: CAM4 — IPC-F42FE",
+    "direccionIp": "192.168.1.106",
+    "puerto": 37777,
+    "tipo": "IPC-F42FE"
+  },
+  {
+    "nombreDispositivo": "ip131",
+    "nombre": "Santiago 3",
+    "ubicacion": "Santiago 3",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.131 — Puerto 37777 — Dispositivo: ip131 — DH-IPC-HFW1431S1P-0280B-S4",
+    "direccionIp": "192.168.1.131",
+    "puerto": 37777,
+    "tipo": "DH-IPC-HFW1431S1P-0280B-S4"
+  },
+  {
+    "nombreDispositivo": "8D04700PAG58983",
+    "nombre": "Taller1",
+    "ubicacion": "Taller1",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.120 — Puerto 37777 — Dispositivo: 8D04700PAG58983 — IPC-HDW1431T1-S4",
+    "direccionIp": "192.168.1.120",
+    "puerto": 37777,
+    "tipo": "IPC-HDW1431T1-S4"
+  },
+  {
+    "nombreDispositivo": "taller3",
+    "nombre": "Taller2",
+    "ubicacion": "Taller2",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.122 — Puerto 37777 — Dispositivo: taller3 — DH-IPC-HFW1431S1P-0280B-S4",
+    "direccionIp": "192.168.1.122",
+    "puerto": 37777,
+    "tipo": "DH-IPC-HFW1431S1P-0280B-S4"
+  },
+  {
+    "nombreDispositivo": "8D04700PAG80A42",
+    "nombre": "Taller3",
+    "ubicacion": "Taller3",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.124 — Puerto 37777 — Dispositivo: 8D04700PAG80A42 — IPC-HFW1120",
+    "direccionIp": "192.168.1.124",
+    "puerto": 37777,
+    "tipo": "IPC-HFW1120"
+  },
+  {
+    "nombreDispositivo": "8D04700PAGA6BCC",
+    "nombre": "Taller4",
+    "ubicacion": "Taller4",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.121 — Puerto 37777 — Dispositivo: 8D04700PAGA6BCC — IPC-HFW1120",
+    "direccionIp": "192.168.1.121",
+    "puerto": 37777,
+    "tipo": "IPC-HFW1120"
+  },
+  {
+    "nombreDispositivo": "8D04700PAG3EA5E",
+    "nombre": "TallerDepo",
+    "ubicacion": "TallerDepo",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.125 — Puerto 37777 — Dispositivo: 8D04700PAG3EA5E — DH-IPC-HFW1431S1P-0280B-S4",
+    "direccionIp": "192.168.1.125",
+    "puerto": 37777,
+    "tipo": "DH-IPC-HFW1431S1P-0280B-S4"
+  },
+  {
+    "nombreDispositivo": "8D04700PAG611CD",
+    "nombre": "TallerPa–ol",
+    "ubicacion": "TallerPa–ol",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.126 — Puerto 37777 — Dispositivo: 8D04700PAG611CD — IPC-HFW1120",
+    "direccionIp": "192.168.1.126",
+    "puerto": 37777,
+    "tipo": "IPC-HFW1120"
+  },
+  {
+    "nombreDispositivo": "9M05870PAGB212C",
+    "nombre": "TES1",
+    "ubicacion": "TES1",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.191 — Puerto 37777 — Dispositivo: 9M05870PAGB212C — DH-IPC-HFW1431S1P-0280B-S4",
+    "direccionIp": "192.168.1.191",
+    "puerto": 37777,
+    "tipo": "DH-IPC-HFW1431S1P-0280B-S4"
+  },
+  {
+    "nombreDispositivo": "9M05870PAG98A0F",
+    "nombre": "TES2",
+    "ubicacion": "TES2",
+    "marca": "Privado",
+    "descripcion": "IP 192.168.1.192 — Puerto 37777 — Dispositivo: 9M05870PAG98A0F — DH-IPC-HFW1431S1P-0280B-S4",
+    "direccionIp": "192.168.1.192",
+    "puerto": 37777,
+    "tipo": "DH-IPC-HFW1431S1P-0280B-S4"
+  }
+]

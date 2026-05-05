@@ -10,7 +10,24 @@
       "Bash(tasklist | grep -i java)",
       "Bash(taskkill //PID 9344 //F && taskkill //PID 22392 //F && rm -rf target/ && ./mvnw compile 2>&1)",
       "Bash(cat > lombok.config << 'EOF'\nconfig.stopBubbling = true\nlombok.copyableAnnotations += com.google.cloud.firestore.annotation.PropertyName\nEOF)",
-      "Bash(./mvnw.cmd compile:*)"
+      "Bash(./mvnw.cmd compile:*)",
+      "Bash(firebase --version)",
+      "Read(//c/Users/Usr/Documents/MiniAgente-Inventario/inventario-front/src/api/**)",
+      "Read(//c/Users/Usr/Documents/MiniAgente-Inventario/inventario-front/src/pages/**)",
+      "Read(//c/Users/Usr/Documents/MiniAgente-Inventario/inventario-front/src/**)",
+      "Bash(mvnw.cmd compile *)",
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "Bash(./mvnw spring-boot:run)",
+      "Bash(echo \"PID=$!\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8080/api/maquinas-tesoreria)",
+      "Bash(netstat -ano)",
+      "Bash(findstr \":8080\")",
+      "Bash(findstr LISTENING)",
+      "Bash(gh repo *)",
+      "Bash(npx claude-mem *)",
+      "mcp__Claude_in_Chrome__navigate",
+      "mcp__Claude_in_Chrome__computer"
     ]
   }
 }

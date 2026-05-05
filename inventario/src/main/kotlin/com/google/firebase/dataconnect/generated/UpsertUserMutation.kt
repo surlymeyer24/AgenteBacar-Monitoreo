@@ -58,6 +58,7 @@ public interface UpsertUserMutation :
 public fun UpsertUserMutation.ref(
   
     username: String,
+
   
   
 ): com.google.firebase.dataconnect.MutationRef<
@@ -74,10 +75,13 @@ public fun UpsertUserMutation.ref(
   )
 
 public suspend fun UpsertUserMutation.execute(
+
   
-    username: String,
+    
+      username: String,
+
   
-  
+
   ): com.google.firebase.dataconnect.MutationResult<
     UpsertUserMutation.Data,
     UpsertUserMutation.Variables

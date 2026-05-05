@@ -1,7 +1,10 @@
 package com.bacarsa.inventario.models;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
+import java.time.Instant;
+
+import com.google.cloud.Timestamp;
+
 import lombok.Getter;
 import lombok.Setter;
 
@@ -9,8 +12,9 @@ import lombok.Setter;
 @Setter
 public class CambioEstado {
 
-    private LocalDateTime fechaHoraInicio;
-    private LocalDateTime fechaHoraFin;
+    /** Firestore persiste instantes como {@link Timestamp}, no como {@code LocalDateTime}. */
+    private Timestamp fechaHoraInicio;
+    private Timestamp fechaHoraFin;
     private String motivo;
     private Estado estado;
 
@@ -18,8 +22,12 @@ public class CambioEstado {
         return fechaHoraFin == null;
     }
 
-    public Duration getDuracion() {
-        LocalDateTime fin = (fechaHoraFin != null) ? fechaHoraFin : LocalDateTime.now();
-        return Duration.between(fechaHoraInicio, fin);
+    public Duration calcularDuracion() {
+        if (fechaHoraInicio == null) {
+            return Duration.ZERO;
+        }
+        Instant inicio = fechaHoraInicio.toDate().toInstant();
+        Instant fin = fechaHoraFin != null ? fechaHoraFin.toDate().toInstant() : Instant.now();
+        return Duration.between(inicio, fin);
     }
 }

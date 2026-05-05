@@ -58,6 +58,7 @@ public interface DeleteReviewMutation :
 public fun DeleteReviewMutation.ref(
   
     movieId: java.util.UUID,
+
   
   
 ): com.google.firebase.dataconnect.MutationRef<
@@ -74,10 +75,13 @@ public fun DeleteReviewMutation.ref(
   )
 
 public suspend fun DeleteReviewMutation.execute(
+
   
-    movieId: java.util.UUID,
+    
+      movieId: java.util.UUID,
+
   
-  
+
   ): com.google.firebase.dataconnect.MutationResult<
     DeleteReviewMutation.Data,
     DeleteReviewMutation.Variables

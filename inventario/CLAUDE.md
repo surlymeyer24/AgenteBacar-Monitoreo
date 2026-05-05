@@ -100,7 +100,7 @@ El archivo [`CLAUDE_DEPLOY.md`](./CLAUDE_DEPLOY.md) documenta el proceso de rele
 
 ## 9. Estado actual / referencias vivas
 
-- **Roadmap de la iteración en curso:** [`iteracion-1-pasos.md`](./iteracion-1-pasos.md)
+- **Roadmap de la iteración en curso:** [`iteracion-1-pasos.md`](../docs/iteracion-1-pasos.md)
 - **Modelo de dominio:** [`diagrama-clases.puml`](./diagrama-clases.puml)
 - **Diseño general del sistema:** [`README.md`](./README.md)
 

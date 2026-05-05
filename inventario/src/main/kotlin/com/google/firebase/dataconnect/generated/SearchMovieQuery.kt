@@ -117,6 +117,7 @@ public interface SearchMovieQuery :
 public fun SearchMovieQuery.ref(
   
     
+
   
     block_: SearchMovieQuery.Variables.Builder.() -> Unit = {}
   
@@ -135,12 +136,14 @@ public fun SearchMovieQuery.ref(
   )
 
 public suspend fun SearchMovieQuery.execute(
+
   
     
+      
+  fetchPolicy: com.google.firebase.dataconnect.QueryRef.FetchPolicy = com.google.firebase.dataconnect.QueryRef.FetchPolicy.PREFER_CACHE,
   
     block_: SearchMovieQuery.Variables.Builder.() -> Unit = {}
-  
-  fetchPolicy: com.google.firebase.dataconnect.QueryRef.FetchPolicy = com.google.firebase.dataconnect.QueryRef.FetchPolicy.PREFER_CACHE,
+
   ): com.google.firebase.dataconnect.QueryResult<
     SearchMovieQuery.Data,
     SearchMovieQuery.Variables
@@ -157,6 +160,7 @@ public suspend fun SearchMovieQuery.execute(
   public fun SearchMovieQuery.flow(
     
       
+
   
     block_: SearchMovieQuery.Variables.Builder.() -> Unit = {}
     

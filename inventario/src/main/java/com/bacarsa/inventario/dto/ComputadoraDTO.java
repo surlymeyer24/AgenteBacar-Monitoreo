@@ -1,6 +1,7 @@
 package com.bacarsa.inventario.dto;
 
 import java.util.List;
+import java.util.Map;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -12,6 +13,7 @@ import lombok.NoArgsConstructor;
 public class ComputadoraDTO {
     private String uuid;
     private String hostname;
+    private String tipoEquipo;
     private String usuarioActual;
     private String ubicacion;
     private String sistemaOperativo;
@@ -29,6 +31,11 @@ public class ComputadoraDTO {
     private List<RamDTO> modulos;
     private PerifericoAgenteDTO perifericos;
     private List<CambioEstadoDTO> historialEstados;
+    /** Documentos de la subcolección Firestore {@code programas} bajo la PC (vacío si no hay datos). */
+    private List<Map<String, Object>> programas;
+    /** Mapa {@code windows_version_detallada} del documento de la PC (solo en detalle completo). */
+    private Map<String, Object> windowsVersionDetallada;
+    private String responsableInventario;
 
 
 }

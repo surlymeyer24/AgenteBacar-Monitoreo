@@ -1,9 +1,13 @@
 package com.bacarsa.inventario.mapper;
 
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import com.bacarsa.inventario.dto.ComputadoraDTO;
 import com.bacarsa.inventario.models.Computadora;
+import com.bacarsa.inventario.models.EstadoOperativo;
+import com.bacarsa.inventario.util.FirestoreJsonHelper;
 import com.google.cloud.Timestamp;
 
 
@@ -30,11 +34,18 @@ public class ComputadoraMapper {
         ComputadoraDTO dto = new ComputadoraDTO();
         dto.setUuid(computadora.getUuid());
         dto.setHostname(computadora.getHostname());
+        dto.setTipoEquipo(computadora.getTipoEquipo() != null ? computadora.getTipoEquipo().getTipo() : null);
         dto.setUsuarioActual(computadora.getUsuarioActual());
         dto.setUbicacion(computadora.getUbicacion() == null ? null : computadora.getUbicacion().name());
         dto.setSistemaOperativo(computadora.getSistemaOperativo());
         dto.setArquitectura(computadora.getArquitectura());
-        dto.setEstadoActual(computadora.getEstadoActual() == null ? null : computadora.getEstadoActual().getNombre());
+        if (computadora.getEstadoActual() != null) {
+            dto.setEstadoActual(computadora.getEstadoActual().getNombre());
+        } else {
+            dto.setEstadoActual(
+                EstadoOperativo.inferirAsignacionDesdeTexto(computadora.getUsuarioActual()).getNombre()
+            );
+        }
         dto.setEstadoConexion(computadora.getEstadoConexion());
         dto.setEstadoAgente(mapearEstadoAgente(computadora.getEstadoConexion()));
         dto.setUltimaSincronizacion(formatUltimaSincronizacion(computadora.getUltimaSincronizacion()));
@@ -42,16 +53,27 @@ public class ComputadoraMapper {
                 computadora.getProcesadorRaw(),
                 computadora.getNucleosFisicos(),
                 computadora.getArquitectura()));
-        dto.setDiscos(computadora.getDiscos().stream()
-                .map(DiscoMapper::toDTO)
-                .collect(Collectors.toList()));
-        dto.setModulos(computadora.getModulos().stream()
-                .map(RamMapper::toDTO)
-                .collect(Collectors.toList()));
+        dto.setDiscos(computadora.getDiscos() == null
+                ? List.of()
+                : computadora.getDiscos().stream()
+                        .map(DiscoMapper::toDTO)
+                        .collect(Collectors.toList()));
+        dto.setModulos(computadora.getModulos() == null
+                ? List.of()
+                : computadora.getModulos().stream()
+                        .map(RamMapper::toDTO)
+                        .collect(Collectors.toList()));
         if (incluirPerifericos) {
             dto.setPerifericos(PerifericosAgenteMapper.toDTO(computadora.getPerifericos()));
+            Map<String, Object> winVer = computadora.getWindowsVersionDetallada();
+            if (winVer != null && !winVer.isEmpty()) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> saneado = (Map<String, Object>) FirestoreJsonHelper.toJsonFriendly(winVer);
+                dto.setWindowsVersionDetallada(saneado);
+            }
         }
         dto.setHistorialEstados(CambioEstadoMapper.toDTOList(computadora.getHistorialEstados()));
+        dto.setResponsableInventario(computadora.getResponsableInventario());
         return dto;
     }
 
