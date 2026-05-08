@@ -1,10 +1,10 @@
 import { API_ORIGIN } from './config.js';
 import { apiFetch } from './http.js';
 
-const BASE_URL = `${API_ORIGIN}/api/impresoras`;
+const BASE_URL = `${API_ORIGIN}/api/monitores`;
 
-/** Lista de impresoras físicas agrupadas por nombre/driver/puerto, con PCs por cada grupo. */
-export function fetchImpresorasAgrupadas() {
+/** Monitores del agente con PC de origen — una sola respuesta del servidor (sin N+1). */
+export function fetchMonitoresReportadosAgente() {
   return apiFetch(BASE_URL).then(async res => {
     let body = null;
     try {

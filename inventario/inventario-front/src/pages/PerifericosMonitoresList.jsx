@@ -1,10 +1,15 @@
 import { useState, useEffect } from 'react';
-import { fetchComputadoras, fetchComputadora } from '../api/computadoraApi';
+import { Link } from 'react-router-dom';
+import { fetchMonitoresReportadosAgente } from '../api/monitorApi';
 
 function fmtNumOGuion(n, dec = 1) {
   if (n == null || n === '') return '—';
   const x = Number(n);
   return Number.isFinite(x) ? x.toFixed(dec) : '—';
+}
+
+function claveFila(r, index) {
+  return `${r.pcUuid ?? ''}-${r.nombre ?? ''}-${r.resolucion ?? ''}-${index}`;
 }
 
 function PerifericosMonitoresList() {
@@ -16,37 +21,13 @@ function PerifericosMonitoresList() {
     let cancel = false;
     setCargando(true);
     setError(null);
-    fetchComputadoras()
-      .then(list =>
-        Promise.all(
-          (list ?? []).map(pc =>
-            fetchComputadora(pc.uuid)
-              .then(det => ({ pc, det }))
-              .catch(() => ({ pc, det: null }))
-          )
-        )
-      )
-      .then(pares => {
-        if (cancel) return;
-        const out = [];
-        pares.forEach(({ pc, det }) => {
-          const hostname = det?.hostname ?? pc?.hostname ?? '—';
-          const uuid = pc?.uuid;
-          const monitores = det?.perifericos?.monitores ?? [];
-          monitores.forEach(m => {
-            out.push({
-              key: `${uuid}-${m.nombre ?? ''}-${out.length}`,
-              hostname,
-              nombre: m.nombre,
-              resolucion: m.resolucion,
-              pulgadas: m.pulgadas,
-            });
-          });
-        });
-        setFilas(out);
+    fetchMonitoresReportadosAgente()
+      .then(data => {
+        if (!cancel) setFilas(Array.isArray(data) ? data : []);
       })
-      .catch(() => {
-        if (!cancel) setError('No se pudo cargar el listado');
+      .catch(err => {
+        if (!cancel)
+          setError(err?.message ? String(err.message) : 'No se pudo cargar el listado');
       })
       .finally(() => {
         if (!cancel) setCargando(false);
@@ -62,7 +43,10 @@ function PerifericosMonitoresList() {
   return (
     <div className="page">
       <h1>Monitores</h1>
-      <p className="muted">Monitores reportados por el agente en cada computadora.</p>
+      <p className="muted">
+        Monitores reportados por el agente en cada computadora. Los datos salen del mismo origen que
+        el detalle de PC, en una sola respuesta del servidor.
+      </p>
       <div className="card">
         <div className="table-wrap" style={{ marginTop: 0 }}>
           <table className="table">
@@ -72,22 +56,34 @@ function PerifericosMonitoresList() {
                 <th>Nombre</th>
                 <th>Resolución</th>
                 <th>Pulgadas</th>
+                <th>Ancho cm</th>
+                <th>Alto cm</th>
               </tr>
             </thead>
             <tbody>
               {filas.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="table-empty">
+                  <td colSpan={6} className="table-empty">
                     Sin monitores reportados
                   </td>
                 </tr>
               ) : (
-                filas.map(f => (
-                  <tr key={f.key}>
-                    <td>{f.hostname}</td>
+                filas.map((f, index) => (
+                  <tr key={claveFila(f, index)}>
+                    <td>
+                      {f.pcUuid ? (
+                        <Link className="link-inline" to={`/computadoras/${f.pcUuid}`}>
+                          {f.pcHostname ?? f.pcUuid ?? '—'}
+                        </Link>
+                      ) : (
+                        (f.pcHostname ?? '—')
+                      )}
+                    </td>
                     <td>{f.nombre ?? '—'}</td>
                     <td>{f.resolucion ?? '—'}</td>
                     <td>{fmtNumOGuion(f.pulgadas, 1)}</td>
+                    <td>{fmtNumOGuion(f.anchoCm, 1)}</td>
+                    <td>{fmtNumOGuion(f.altoCm, 1)}</td>
                   </tr>
                 ))
               )}

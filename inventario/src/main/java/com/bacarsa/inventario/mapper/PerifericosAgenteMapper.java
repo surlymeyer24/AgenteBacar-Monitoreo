@@ -66,6 +66,20 @@ public class PerifericosAgenteMapper {
         return dto;
     }
 
+    public static DispositivoUsbAgenteDTO toDispositivoUsbAgenteDTO(DispositivoUsbFirestore usb) {
+        if (usb == null) {
+            return null;
+        }
+        return mapUsb(usb);
+    }
+
+    public static DispositivoAudioAgenteDTO toDispositivoAudioAgenteDTO(DispositivoAudioFirestore da) {
+        if (da == null) {
+            return null;
+        }
+        return mapDispositivoAudio(da);
+    }
+
     private static MonitorAgenteDTO mapMonitor(MonitorFirestore mon) {
         MonitorAgenteDTO dto = new MonitorAgenteDTO();
         dto.setNombre(sanitizarNombre(mon.getNombre()));
@@ -74,6 +88,14 @@ public class PerifericosAgenteMapper {
         dto.setAnchoCm(mon.getAnchoCm());
         dto.setAltoCm(mon.getAltoCm());
         return dto;
+    }
+
+    /** Expuesto para armado de listados agregados (misma sanitización que el detalle de PC). */
+    public static MonitorAgenteDTO toMonitorAgenteDTO(MonitorFirestore mon) {
+        if (mon == null) {
+            return null;
+        }
+        return mapMonitor(mon);
     }
 
     private static AudioAgenteDTO mapAudio(AudioFirestore audio) {

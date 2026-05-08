@@ -44,7 +44,7 @@ export default defineConfig(({ mode }) => {
     define: defineFirebase,
     plugins: [react()],
     build: {
-      outDir: '../inventario/public',
+      outDir: '../public',
       emptyOutDir: true,
     },
   };

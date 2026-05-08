@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { fetchComputadoras, updateUbicacion } from '../api/computadoraApi';
+import { fetchComputadoras, updateUbicacion, deleteComputadora } from '../api/computadoraApi';
 import { useComputadorasList } from '../context/ComputadorasListContext';
 import ComputadoraSubnav from '../components/ComputadoraSubnav';
 import { UBICACIONES_COMPUTADORA, labelUbicacionEnum, coincideUbicacionFiltro } from '../constants/ubicaciones';
@@ -90,6 +90,7 @@ function ComputadoraList() {
   const [seleccion, setSeleccion] = useState(() => new Set());
   const [ubicacionDestino, setUbicacionDestino] = useState('');
   const [aplicandoMasivo, setAplicandoMasivo] = useState(false);
+  const [borrandoMasivo, setBorrandoMasivo] = useState(false);
   const [msgMasivo, setMsgMasivo] = useState(null);
   const headerCbRef = useRef(null);
   const navigate = useNavigate();
@@ -204,6 +205,45 @@ function ComputadoraList() {
     }
   }
 
+  async function eliminarSeleccionadas() {
+    const ids = [...seleccion].filter(Boolean);
+    if (ids.length === 0) return;
+    const n = ids.length;
+    const msgConfirm =
+      n === 1
+        ? '¿Seguro que querés eliminar este equipo? Esta acción no se puede deshacer.'
+        : `¿Seguro que querés eliminar ${n} equipos? Esta acción no se puede deshacer.`;
+    if (!window.confirm(msgConfirm)) return;
+
+    setBorrandoMasivo(true);
+    setMsgMasivo(null);
+    let ok = 0;
+    let fail = 0;
+    try {
+      for (const uuid of ids) {
+        try {
+          const res = await deleteComputadora(uuid);
+          if (res) ok += 1;
+          else fail += 1;
+        } catch {
+          fail += 1;
+        }
+      }
+      const fresh = await fetchComputadoras();
+      setTodas(fresh);
+      setSeleccion(new Set());
+      if (fail > 0) {
+        setMsgMasivo({ tipo: 'err', texto: `Eliminadas: ${ok}. Fallidas: ${fail}.` });
+      } else {
+        setMsgMasivo({ tipo: 'ok', texto: `Se eliminaron ${ok} equipo${ok === 1 ? '' : 's'}.` });
+      }
+    } catch {
+      setMsgMasivo({ tipo: 'err', texto: 'No se pudo refrescar el listado tras eliminar.' });
+    } finally {
+      setBorrandoMasivo(false);
+    }
+  }
+
   if (cargando) return <p className="estado-msg">Cargando...</p>;
   if (error) return <p className="estado-msg error">{error}</p>;
 
@@ -215,7 +255,7 @@ function ComputadoraList() {
       : `${visibles} de ${total} equipos`;
 
   return (
-    <div className="page">
+    <div className="page page--computadora-list">
       <div
         style={{
           display: 'flex',
@@ -327,10 +367,18 @@ function ComputadoraList() {
             <button
               type="button"
               className="btn btn-primary btn-sm"
-              disabled={aplicandoMasivo || !ubicacionDestino}
+              disabled={borrandoMasivo || aplicandoMasivo || !ubicacionDestino}
               onClick={aplicarUbicacionMasiva}
             >
               {aplicandoMasivo ? 'Aplicando…' : 'Cambiar ubicación'}
+            </button>
+            <button
+              type="button"
+              className="btn btn-danger btn-sm"
+              disabled={borrandoMasivo || aplicandoMasivo}
+              onClick={eliminarSeleccionadas}
+            >
+              {borrandoMasivo ? 'Eliminando…' : 'Eliminar seleccionadas'}
             </button>
           </div>
         ) : null}
@@ -346,7 +394,7 @@ function ComputadoraList() {
         </div>
       </div>
 
-      <div className="table-wrap">
+      <div className="table-wrap table-wrap--scroll">
         <table className="table">
           <thead>
             <tr>

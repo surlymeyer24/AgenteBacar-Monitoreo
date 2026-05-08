@@ -22,8 +22,9 @@ function PerifericosImpresorasList() {
       .then(data => {
         if (!cancel) setGrupos(Array.isArray(data) ? data : []);
       })
-      .catch(() => {
-        if (!cancel) setError('No se pudo cargar el listado');
+      .catch(err => {
+        if (!cancel)
+          setError(err?.message ? String(err.message) : 'No se pudo cargar el listado');
       })
       .finally(() => {
         if (!cancel) setCargando(false);

@@ -1,64 +1,24 @@
-import { useState, useEffect } from 'react';
-import { fetchComputadoras, fetchComputadora } from '../api/computadoraApi';
-import { esTeclado } from '../utils/perifericos';
+import { Link } from 'react-router-dom';
+import { usePerifericosAgenteListados } from '../context/PerifericosAgenteListadosContext';
+
+function claveFila(f, index) {
+  return `${f.pcUuid ?? ''}-${f.nombre ?? ''}-${index}`;
+}
 
 function PerifericosTecladosList() {
-  const [filas, setFilas] = useState([]);
-  const [cargando, setCargando] = useState(true);
-  const [error, setError] = useState(null);
+  const { listados, loading, error } = usePerifericosAgenteListados();
+  const filas = listados?.teclados ?? [];
 
-  useEffect(() => {
-    let cancel = false;
-    setCargando(true);
-    setError(null);
-    fetchComputadoras()
-      .then(list =>
-        Promise.all(
-          (list ?? []).map(pc =>
-            fetchComputadora(pc.uuid)
-              .then(det => ({ pc, det }))
-              .catch(() => ({ pc, det: null }))
-          )
-        )
-      )
-      .then(pares => {
-        if (cancel) return;
-        const out = [];
-        pares.forEach(({ pc, det }) => {
-          const hostname = det?.hostname ?? pc?.hostname ?? '—';
-          const uuid = pc?.uuid;
-          const usb = det?.perifericos?.dispositivosUsb ?? [];
-          usb.filter(esTeclado).forEach(d => {
-            out.push({
-              key: `${uuid}-${d.nombre ?? ''}-${out.length}`,
-              hostname,
-              nombre: d.nombre,
-              fabricante: d.fabricante,
-              clase: d.clase,
-              conexion: d.conexion,
-            });
-          });
-        });
-        setFilas(out);
-      })
-      .catch(() => {
-        if (!cancel) setError('No se pudo cargar el listado');
-      })
-      .finally(() => {
-        if (!cancel) setCargando(false);
-      });
-    return () => {
-      cancel = true;
-    };
-  }, []);
-
-  if (cargando) return <p className="estado-msg">Cargando...</p>;
-  if (error) return <p className="estado-msg error">{error}</p>;
+  if (loading) return <p className="estado-msg">Cargando...</p>;
+  if (error) return <p className="estado-msg error">{error?.message ?? 'No se pudo cargar el listado'}</p>;
 
   return (
     <div className="page">
       <h1>Teclados</h1>
-      <p className="muted">Teclados USB detectados por el agente en cada computadora (heurística por clase/nombre).</p>
+      <p className="muted">
+        Teclados USB detectados por el agente (heurística por clase/nombre). Los datos se comparten entre
+        teclados, mouse, webcams y audio: al cambiar de pestaña no se vuelve a pedir al servidor.
+      </p>
       <div className="card">
         <div className="table-wrap" style={{ marginTop: 0 }}>
           <table className="table">
@@ -79,9 +39,17 @@ function PerifericosTecladosList() {
                   </td>
                 </tr>
               ) : (
-                filas.map(f => (
-                  <tr key={f.key}>
-                    <td>{f.hostname}</td>
+                filas.map((f, index) => (
+                  <tr key={claveFila(f, index)}>
+                    <td>
+                      {f.pcUuid ? (
+                        <Link className="link-inline" to={`/computadoras/${f.pcUuid}`}>
+                          {f.pcHostname ?? f.pcUuid ?? '—'}
+                        </Link>
+                      ) : (
+                        (f.pcHostname ?? '—')
+                      )}
+                    </td>
                     <td>{f.nombre ?? '—'}</td>
                     <td>{f.fabricante ?? '—'}</td>
                     <td>{f.clase ?? '—'}</td>

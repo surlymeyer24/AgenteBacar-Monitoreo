@@ -37,6 +37,7 @@ import MaquinaTesoreriaDetail from './pages/MaquinaTesoreriaDetail';
 import InfraestructuraDashboard from './pages/InfraestructuraDashboard';
 import System from './pages/System';
 import './App.css';
+import { PerifericosAgenteListadosProvider } from './context/PerifericosAgenteListadosContext';
 
 function AppShell() {
   return (
@@ -76,7 +77,11 @@ function ProtectedLayout() {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
-  return <AppShell />;
+  return (
+    <PerifericosAgenteListadosProvider>
+      <AppShell />
+    </PerifericosAgenteListadosProvider>
+  );
 }
 
 function AppRoutes() {
@@ -124,7 +129,9 @@ function AppRoutes() {
 function App() {
   return (
     <BrowserRouter>
-      <AppRoutes />
+      <div className="app-root">
+        <AppRoutes />
+      </div>
     </BrowserRouter>
   );
 }

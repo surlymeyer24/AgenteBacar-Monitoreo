@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { prefetchPerifericosAgenteListados } from '../api/perifericosAgenteApi';
 import { fetchDashboardStats } from '../api/dashboardApi';
 import { fetchComputadoras } from '../api/computadoraApi';
 import { fetchCamaras } from '../api/camaraApi';
@@ -107,6 +108,25 @@ function Dashboard() {
   }, []);
 
   useEffect(() => { cargar(); }, [cargar]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const run = () => {
+      if (!cancelled) prefetchPerifericosAgenteListados();
+    };
+    if (typeof requestIdleCallback !== 'undefined') {
+      const id = requestIdleCallback(run, { timeout: 5000 });
+      return () => {
+        cancelled = true;
+        cancelIdleCallback(id);
+      };
+    }
+    const id = setTimeout(run, 3000);
+    return () => {
+      cancelled = true;
+      clearTimeout(id);
+    };
+  }, []);
 
   if (cargando && !stats) return <p className="estado-msg">Cargando...</p>;
   if (error && !stats) return <p className="estado-msg error">{error}</p>;
