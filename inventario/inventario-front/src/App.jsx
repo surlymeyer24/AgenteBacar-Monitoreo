@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
-import { Monitor } from 'lucide-react';
+import { useState } from 'react';
+import { Menu } from 'lucide-react';
 import SidebarNav from './components/SidebarNav';
 import SidebarAuthFooter from './components/SidebarAuthFooter';
 import { LOGO_ICON_PROPS } from './lib/navIcons';
@@ -39,16 +40,42 @@ import System from './pages/System';
 import './App.css';
 import { PerifericosAgenteListadosProvider } from './context/PerifericosAgenteListadosContext';
 
+const LogoIcon = (props) => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="url(#storeui-gradient)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <defs>
+      <linearGradient id="storeui-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#ff7a59" />
+        <stop offset="50%" stopColor="#c250c5" />
+        <stop offset="100%" stopColor="#4a6cf7" />
+      </linearGradient>
+    </defs>
+    <rect x="2" y="3" width="20" height="14" rx="2" />
+    <line x1="8" y1="21" x2="16" y2="21" />
+    <line x1="12" y1="17" x2="12" y2="21" />
+    <polyline points="5 8 7 10 10 7" />
+    <line x1="13" y1="8.5" x2="19" y2="8.5" />
+    <polyline points="5 12 7 14 10 11" />
+    <line x1="13" y1="12.5" x2="19" y2="12.5" />
+  </svg>
+);
+
 function AppShell() {
+  const [isCollapsed, setIsCollapsed] = useState(true);
+
   return (
     <div className="layout">
-      <aside className="sidebar">
-        <span className="logo">
-          <span className="logo-icon" aria-hidden>
-            <Monitor {...LOGO_ICON_PROPS} />
+      <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
+        <div className="sidebar-header">
+          <span className="logo">
+            <span className="logo-icon" aria-hidden>
+              <LogoIcon {...LOGO_ICON_PROPS} />
+            </span>
+            <span className="logo-text">Inventario</span>
           </span>
-          Inventario BACARSA
-        </span>
+          <button className="sidebar-toggle" onClick={() => setIsCollapsed(!isCollapsed)}>
+            <Menu size={20} />
+          </button>
+        </div>
         <SidebarNav />
         <SidebarAuthFooter />
       </aside>

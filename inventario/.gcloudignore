@@ -1,0 +1,14 @@
+# Archivos ignorados al subir a Cloud Run (gcloud run deploy --source .)
+# El frontend vive en Firebase Hosting — no se necesita para el build del backend.
+inventario-front/
+
+# Archivos de desarrollo / configuración local
+.vscode/
+.idea/
+*.log
+
+# Archivos de auth local (el serviceAccountKey en prod viene de Secret Manager o env vars)
+auth/
+
+# Artefactos de build locales
+target/

@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.bacarsa.inventario.dto.CambiarEstadoDTO;
+import com.bacarsa.inventario.dto.ComandoDTO;
+import com.bacarsa.inventario.dto.ComandoMasivoDTO;
 import com.bacarsa.inventario.dto.ComputadoraCreateDTO;
 import com.bacarsa.inventario.dto.ComputadoraDTO;
 import com.bacarsa.inventario.dto.ResponsableInventarioDTO;
@@ -23,9 +25,6 @@ import com.bacarsa.inventario.models.DispositivoUsbFirestore;
 import com.bacarsa.inventario.models.ImpresoraFirestore;
 import com.bacarsa.inventario.models.MonitorFirestore;
 import com.bacarsa.inventario.services.ComputadoraService;
-import com.bacarsa.inventario.dto.ResponsableInventarioDTO;
-
-
 
 import jakarta.validation.Valid;
 
@@ -165,6 +164,23 @@ public class ComputadoraController {
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().build();
             }
+    }
+
+    @PostMapping("/{uuid}/comando")
+    public ResponseEntity<Void> enviarComando(
+            @PathVariable String uuid,
+            @Valid @RequestBody ComandoDTO body)
+            throws ExecutionException, InterruptedException {
+        boolean existe = computadoraService.enviarComando(uuid, body.getComando());
+        return existe ? ResponseEntity.ok().build() : ResponseEntity.notFound().build();
+    }
+
+    @PostMapping("/comando-masivo")
+    public ResponseEntity<java.util.Map<String, Integer>> enviarComandoMasivo(
+            @Valid @RequestBody ComandoMasivoDTO body)
+            throws ExecutionException, InterruptedException {
+        int enviados = computadoraService.enviarComandoMasivo(body.getUuids(), body.getComando());
+        return ResponseEntity.ok(java.util.Map.of("enviados", enviados));
     }
 
 }

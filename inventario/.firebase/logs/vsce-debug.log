@@ -37,3 +37,44 @@ I0508 09:58:59.519372   17968 load.go:109] Finished reloading
 [debug] [2026-05-08T12:58:59.844Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects 200
 [debug] [2026-05-08T12:58:59.845Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects [omitted]
 [error] [Firebase Plugin] error:  {}
+[debug] [2026-06-01T12:25:02.938Z] [Firebase Plugin] Activating Firebase extension.
+[debug] [2026-06-01T12:25:41.577Z] [Firebase Plugin] requireAuthWrapper
+[debug] [2026-06-01T12:25:41.579Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-06-01T12:25:41.579Z] > authorizing via signed-in user (desarrollo.it@bacarsa.com.ar)
+[debug] [2026-06-01T12:25:41.582Z] Checked if tokens are valid: false, expires at: 1780069862784
+[debug] [2026-06-01T12:25:41.582Z] Checked if tokens are valid: false, expires at: 1780069862784
+[debug] [2026-06-01T12:25:41.582Z] > refreshing access token with scopes: []
+[debug] [2026-06-01T12:25:41.584Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-06-01T12:25:41.585Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-06-01T12:25:41.597Z] [Firebase Plugin] VSCode notification server listening on port 40001
+[info] [Firebase Plugin] Starting SQL Connect toolkit (version 3.4.8) on port 50001
+[debug] [2026-06-01T12:25:42.359Z] I0601 09:25:42.344911   17144 control.go:100] [projects/emulator/locations/emulator/services/inventario 364d] UpdateResources(): done
+Main schema: sources: schema\schema.gql [1992B] 
+Connector "example": sources: example\mutations.gql [1243B] example\queries.gql [1801B] 
+ {"metadata":{"emulator":{"name":"dataconnect"},"message":"I0601 09:25:42.344911   17144 control.go:100] [projects/emulator/locations/emulator/services/inventario 364d] UpdateResources(): done\nMain schema: sources: schema\\schema.gql [1992B] \nConnector \"example\": sources: example\\mutations.gql [1243B] example\\queries.gql [1801B] \n"}}
+[debug] [2026-06-01T12:25:42.360Z] Ignoring unsupported arg: auto_download {"metadata":{"emulator":{"name":"dataconnect"},"message":"Ignoring unsupported arg: auto_download"}}
+[debug] [2026-06-01T12:25:42.360Z] Ignoring unsupported arg: port {"metadata":{"emulator":{"name":"dataconnect"},"message":"Ignoring unsupported arg: port"}}
+[debug] [2026-06-01T12:25:42.361Z] Starting SQL Connect Emulator with command {"binary":"C:\\Users\\Usr\\.cache\\firebase\\emulators\\dataconnect-emulator-3.4.8.exe","args":["--logtostderr","-v=2","dev","--listen=localhost:50001","--config_dir=d:\\Desarrollo\\MiniAgente-Inventario\\inventario\\dataconnect","--enable_output_schema_extensions=true","--enable_output_generated_sdk=true"],"optionalArgs":["listen","config_dir","enable_output_schema_extensions","enable_output_generated_sdk"],"joinArgs":true,"shell":false,"port":9399} {"metadata":{"emulator":{"name":"dataconnect"},"message":"Starting SQL Connect Emulator with command {\"binary\":\"C:\\\\Users\\\\Usr\\\\.cache\\\\firebase\\\\emulators\\\\dataconnect-emulator-3.4.8.exe\",\"args\":[\"--logtostderr\",\"-v=2\",\"dev\",\"--listen=localhost:50001\",\"--config_dir=d:\\\\Desarrollo\\\\MiniAgente-Inventario\\\\inventario\\\\dataconnect\",\"--enable_output_schema_extensions=true\",\"--enable_output_generated_sdk=true\"],\"optionalArgs\":[\"listen\",\"config_dir\",\"enable_output_schema_extensions\",\"enable_output_generated_sdk\"],\"joinArgs\":true,\"shell\":false,\"port\":9399}"}}
+[info] i  dataconnect: SQL Connect Emulator logging to dataconnect-debug.log {"metadata":{"emulator":{"name":"dataconnect"},"message":"SQL Connect Emulator logging to \u001b[1mdataconnect-debug.log\u001b[22m"}}
+[debug] [2026-06-01T12:25:42.526Z] I0601 09:25:42.410769   17236 load.go:31] Reloading schema and connectors...
+I0601 09:25:42.438350   17236 control.go:100] [projects/emulator/locations/emulator/services/inventario 5035] UpdateResources(): done
+Main schema: sources: schema\schema.gql [1992B] 
+Connector "example": sources: example\mutations.gql [1243B] example\queries.gql [1801B] 
+I0601 09:25:42.459340   17236 codegen.go:101] [connector "example" kotlinSdk] Generating sources into "d:\\Desarrollo\\MiniAgente-Inventario\\inventario\\src\\main\\kotlin\\com\\google\\firebase\\dataconnect\\generated"
+I0601 09:25:42.466960   17236 collector.go:107] schema extensions wrote into "d:\\Desarrollo\\MiniAgente-Inventario\\inventario\\dataconnect\\.dataconnect\\schema"
+Generated sources: main\query.gql [5099B] main\mutation.gql [13679B] prelude.gql [84989B] main\implicit.gql [1261B] main\input.gql [29168B] main\relation.gql [14318B] 
+I0601 09:25:42.477132   17236 collector.go:107] connector "example" kotlinSdk wrote into "d:\\Desarrollo\\MiniAgente-Inventario\\inventario\\src\\main\\kotlin\\com\\google\\firebase\\dataconnect\\generated"
+Generated sources: ExampleConnector.kt [13227B] AddReviewMutation.kt [1962B] CreateMovieMutation.kt [1822B] DeleteReviewMutation.kt [1813B] GetMovieByIdQuery.kt [3355B] ListMoviesQuery.kt [2191B] ListUserReviewsQuery.kt [2615B] ListUsersQuery.kt [2014B] SearchMovieQuery.kt [4311B] UpsertUserMutation.kt [1659B] ExampleConnectorKeys.kt [907B] ExampleConnectorEnums.kt [309B] README.md [8641B] 
+I0601 09:25:42.479145   17236 load.go:109] Finished reloading
+ {"metadata":{"emulator":{"name":"dataconnect"},"message":"I0601 09:25:42.410769   17236 load.go:31] Reloading schema and connectors...\nI0601 09:25:42.438350   17236 control.go:100] [projects/emulator/locations/emulator/services/inventario 5035] UpdateResources(): done\nMain schema: sources: schema\\schema.gql [1992B] \nConnector \"example\": sources: example\\mutations.gql [1243B] example\\queries.gql [1801B] \nI0601 09:25:42.459340   17236 codegen.go:101] [connector \"example\" kotlinSdk] Generating sources into \"d:\\\\Desarrollo\\\\MiniAgente-Inventario\\\\inventario\\\\src\\\\main\\\\kotlin\\\\com\\\\google\\\\firebase\\\\dataconnect\\\\generated\"\nI0601 09:25:42.466960   17236 collector.go:107] schema extensions wrote into \"d:\\\\Desarrollo\\\\MiniAgente-Inventario\\\\inventario\\\\dataconnect\\\\.dataconnect\\\\schema\"\nGenerated sources: main\\query.gql [5099B] main\\mutation.gql [13679B] prelude.gql [84989B] main\\implicit.gql [1261B] main\\input.gql [29168B] main\\relation.gql [14318B] \nI0601 09:25:42.477132   17236 collector.go:107] connector \"example\" kotlinSdk wrote into \"d:\\\\Desarrollo\\\\MiniAgente-Inventario\\\\inventario\\\\src\\\\main\\\\kotlin\\\\com\\\\google\\\\firebase\\\\dataconnect\\\\generated\"\nGenerated sources: ExampleConnector.kt [13227B] AddReviewMutation.kt [1962B] CreateMovieMutation.kt [1822B] DeleteReviewMutation.kt [1813B] GetMovieByIdQuery.kt [3355B] ListMoviesQuery.kt [2191B] ListUserReviewsQuery.kt [2615B] ListUsersQuery.kt [2014B] SearchMovieQuery.kt [4311B] UpsertUserMutation.kt [1659B] ExampleConnectorKeys.kt [907B] ExampleConnectorEnums.kt [309B] README.md [8641B] \nI0601 09:25:42.479145   17236 load.go:109] Finished reloading\n"}}
+[debug] [2026-06-01T12:25:42.545Z] I0601 09:25:42.526643   17236 dev.go:104] Listening on address (HTTP + gRPC): 127.0.0.1:50001
+ {"metadata":{"emulator":{"name":"dataconnect"},"message":"I0601 09:25:42.526643   17236 dev.go:104] Listening on address (HTTP + gRPC): 127.0.0.1:50001\n"}}
+[debug] [2026-06-01T12:25:42.579Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2026-06-01T12:25:42.579Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-06-01T12:25:42.621Z] [Firebase Plugin] User found:  desarrollo.it@bacarsa.com.ar
+[info] [Firebase Plugin] (Core:Project) New user detected, fetching projects
+[debug] [2026-06-01T12:25:42.626Z] Checked if tokens are valid: true, expires at: 1780320341579
+[debug] [2026-06-01T12:25:42.627Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects pageSize=1000
+[error] [Firebase Plugin] error:  {}
+[debug] [2026-06-01T12:25:45.363Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects 200
+[debug] [2026-06-01T12:25:45.364Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects [omitted]

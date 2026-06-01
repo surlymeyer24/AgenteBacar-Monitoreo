@@ -1,48 +1,60 @@
 import { useState } from 'react';
-import { doc, setDoc, writeBatch } from 'firebase/firestore';
-import { initFirebase, isFirebaseConfigured, COLLECTIONS } from '../lib/firebase';
+import { API_ORIGIN } from '../api/config.js';
+import { apiFetch } from '../api/http.js';
 
-const ESCRITURA_LOTE = 500;
+const BASE_URL = `${API_ORIGIN}/api/computadoras`;
 
+/**
+ * Envía un comando a múltiples PCs a través del backend (no escribe directo a Firestore).
+ * Reemplaza el writeBatch del SDK cliente.
+ *
+ * @param {string[]} computadoraIds
+ * @param {string} comando  "ACTUALIZAR_DATOS" | "ACTUALIZAR_AGENTE"
+ * @returns {Promise<{ ok: boolean, enviados?: number, message?: string }>}
+ */
 export async function enviarComandoAMaquinas(computadoraIds, comando) {
-  if (computadoraIds.length === 0) return { ok: true };
-  if (!isFirebaseConfigured()) {
-    return { ok: false, message: 'Firebase no está configurado (.env).' };
-  }
-  const firestore = initFirebase();
-  if (!firestore) {
-    return { ok: false, message: 'No se pudo obtener Firestore.' };
-  }
+  if (computadoraIds.length === 0) return { ok: true, enviados: 0 };
   try {
-    for (let i = 0; i < computadoraIds.length; i += ESCRITURA_LOTE) {
-      const chunk = computadoraIds.slice(i, i + ESCRITURA_LOTE);
-      const batch = writeBatch(firestore);
-      for (const id of chunk) {
-        const ref = doc(firestore, COLLECTIONS.HW_TAREAS, id);
-        batch.set(ref, { comando }, { merge: true });
-      }
-      await batch.commit();
+    const res = await apiFetch(`${BASE_URL}/comando-masivo`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uuids: computadoraIds, comando }),
+    });
+    if (!res.ok) {
+      return { ok: false, message: `HTTP ${res.status}` };
     }
-    return { ok: true };
+    const data = await res.json();
+    return { ok: true, enviados: data.enviados };
   } catch (e) {
-    const msg = e instanceof Error ? e.message : 'Error al enviar comando';
-    return { ok: false, message: msg };
+    return { ok: false, message: e instanceof Error ? e.message : 'Error al enviar comando' };
   }
 }
 
+/**
+ * Hook para enviar un comando a una única PC a través del backend.
+ * Reemplaza el setDoc del SDK cliente.
+ *
+ * @param {string} computadoraId  UUID de la PC
+ */
 export function useComandoHW(computadoraId) {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState(null);
 
-  const enviar = async comando => {
-    if (!computadoraId || !isFirebaseConfigured()) return;
-    const firestore = initFirebase();
-    if (!firestore) return;
+  const enviar = async (comando) => {
+    if (!computadoraId) return;
     setSending(true);
     setError(null);
     try {
-      const ref = doc(firestore, COLLECTIONS.HW_TAREAS, computadoraId);
-      await setDoc(ref, { comando }, { merge: true });
+      const res = await apiFetch(`${BASE_URL}/${encodeURIComponent(computadoraId)}/comando`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ comando }),
+      });
+      if (res.status === 404) {
+        setError('PC no encontrada');
+      } else if (!res.ok) {
+        setError(`HTTP ${res.status}`);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al enviar comando');
     } finally {

@@ -35,14 +35,17 @@ public class ComputadoraRepository {
     private final Firestore firestore;
     private final String collectionName;
     private final String programasSubcollection;
+    private final String tareasCollection;
 
     public ComputadoraRepository(Firestore firestore,
                                   @Value("${firebase.collection.computadoras}") String collectionName,
                                   @Value("${firebase.subcollection.computadora-programas:programas}")
-                                  String programasSubcollection) {
+                                  String programasSubcollection,
+                                  @Value("${firebase.collection.tareas}") String tareasCollection) {
         this.firestore = firestore;
         this.collectionName = collectionName;
         this.programasSubcollection = programasSubcollection;
+        this.tareasCollection = tareasCollection;
     }
 
     public List<Computadora> findAll() throws ExecutionException, InterruptedException {
@@ -294,5 +297,38 @@ public class ComputadoraRepository {
     public void actualizarResponsableInventario(String uuid, String nuevoRI) throws ExecutionException, InterruptedException {
         DocumentReference docRef = firestore.collection(collectionName).document(uuid);
         docRef.update("responsable_inventario", nuevoRI).get();
+    }
+
+    /**
+     * Escribe { comando } con merge en la colección {@code tareas}, documento id = uuid.
+     * Equivale al setDoc({ merge: true }) que antes hacía el front con el SDK cliente.
+     */
+    public void enviarComando(String uuid, String comando) throws ExecutionException, InterruptedException {
+        DocumentReference ref = firestore.collection(tareasCollection).document(uuid);
+        Map<String, Object> data = new HashMap<>();
+        data.put("comando", comando);
+        ref.set(data, com.google.cloud.firestore.SetOptions.merge()).get();
+    }
+
+    /**
+     * Envía el mismo comando a múltiples PCs en lotes de hasta 500 (límite Firestore).
+     * @return cantidad de documentos escritos
+     */
+    public int enviarComandoMasivo(List<String> uuids, String comando) throws ExecutionException, InterruptedException {
+        final int LOTE = 500;
+        Map<String, Object> data = new HashMap<>();
+        data.put("comando", comando);
+        int total = 0;
+        for (int i = 0; i < uuids.size(); i += LOTE) {
+            List<String> chunk = uuids.subList(i, Math.min(i + LOTE, uuids.size()));
+            WriteBatch batch = firestore.batch();
+            for (String id : chunk) {
+                DocumentReference ref = firestore.collection(tareasCollection).document(id);
+                batch.set(ref, data, com.google.cloud.firestore.SetOptions.merge());
+            }
+            batch.commit().get();
+            total += chunk.size();
+        }
+        return total;
     }
 }

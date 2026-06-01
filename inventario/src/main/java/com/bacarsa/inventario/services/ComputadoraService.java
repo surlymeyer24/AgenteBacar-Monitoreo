@@ -181,6 +181,26 @@ public class ComputadoraService {
                 computadoraRepository.actualizarResponsableInventario(uuid, nuevoRI);
                 return cambiarEstado(uuid, "DERIVAR_ASIGNACION", "Cambio de responsable de inventario a: " + nuevoRI);
             }
+
+    /**
+     * Envía un comando a una PC por su UUID. Retorna false si la PC no existe.
+     */
+    public boolean enviarComando(String uuid, String comando) throws ExecutionException, InterruptedException {
+        if (computadoraRepository.findByUuid(uuid) == null) {
+            return false;
+        }
+        computadoraRepository.enviarComando(uuid, comando);
+        return true;
+    }
+
+    /**
+     * Envía un comando a múltiples PCs. No valida existencia individual — mismo comportamiento
+     * que el batch original del front. Retorna la cantidad de documentos escritos.
+     */
+    public int enviarComandoMasivo(List<String> uuids, String comando) throws ExecutionException, InterruptedException {
+        return computadoraRepository.enviarComandoMasivo(uuids, comando);
+    }
 }
+
 
 

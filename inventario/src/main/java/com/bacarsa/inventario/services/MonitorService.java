@@ -30,6 +30,10 @@ public class MonitorService {
         List<MonitorReportadoAgenteDTO> salida = new ArrayList<>();
 
         for (Computadora c : computadoras) {
+            // Excluir notebooks: sus pantallas integradas no son monitores del inventario
+            if (c.getTipoEquipo() != null && Boolean.TRUE.equals(c.getTipoEquipo().getTieneBateria())) {
+                continue;
+            }
             PerifericosFirestore p = c.getPerifericos();
             if (p == null || p.getMonitores() == null) {
                 continue;
