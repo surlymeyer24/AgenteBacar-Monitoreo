@@ -1,6 +1,0 @@
-{
-  "name": "Gestión de Inventario IT",
-  "description": "Sistema moderno e interactivo de administración y control de activos informáticos, asignación de equipos, licencias y métricas corporativas.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}

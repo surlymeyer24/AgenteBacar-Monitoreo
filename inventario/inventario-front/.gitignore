@@ -10,6 +10,8 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+inventario/inventario-front/front-googlestudioai/
+
 
 # Variables de entorno (Vite inyecta VITE_* al bundle; no versionar valores locales)
 .env
