@@ -18,6 +18,12 @@ public class SwitchRedDTO {
     private String modelo;
     private String ip;
     private String numeroSerie;
+    private String sitio;
+    private String ipPublica;
+    private String estadoOmada;
+    private String version;
+    private String macUplink;
+    private Integer salto;
     private int cantidadPuertos;
     private String tipo;
     private List<String> vlans;

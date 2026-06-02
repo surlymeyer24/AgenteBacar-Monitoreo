@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchRouters, crearRouter } from '../api/routerApi';
 import { UBICACIONES_RED, labelUbicacionEnum } from '../constants/ubicaciones';
+import ImportModal from '../components/ImportModal';
+import { routersSchema } from '../lib/importSchemas/routersSchema';
 
 const emptyForm = {
   nombre: '',
@@ -26,6 +28,8 @@ function RouterList() {
   const [form, setForm] = useState(emptyForm);
   const [guardando, setGuardando] = useState(false);
   const [errorModal, setErrorModal] = useState(null);
+  const [modalImportAbierto, setModalImportAbierto] = useState(false);
+  const [importando, setImportando] = useState(false);
 
   function cargarLista() {
     setCargando(true);
@@ -53,6 +57,45 @@ function RouterList() {
 
   function onChangeCampo(field, value) {
     setForm(prev => ({ ...prev, [field]: value }));
+  }
+
+  async function handleImport(rows) {
+    setImportando(true);
+    let errores = 0;
+    for (const row of rows) {
+      if (!row.nombre || !row.nombre.trim()) continue;
+      try {
+        const body = {
+          nombre: row.nombre,
+          marca: row.marca || undefined,
+          modelo: row.modelo || undefined,
+          ip: row.ip || undefined,
+          numeroSerie: row.numeroSerie || undefined,
+          sitio: row.sitio || undefined,
+          ipPublica: row.ipPublica || undefined,
+          estadoOmada: row.estado || undefined,
+          version: row.version || undefined,
+          macUplink: row.macUplink || undefined,
+          salto: row.salto ? Number(row.salto) || undefined : undefined,
+          grupoWlan: row.grupoWlan || undefined,
+          cantidadPuertosWan: row.cantidadPuertosWan ? Number(row.cantidadPuertosWan) || 0 : 0,
+          cantidadPuertosLan: row.cantidadPuertosLan ? Number(row.cantidadPuertosLan) || 0 : 0,
+          gateway: row.gateway || undefined,
+          ubicacion: 'IMPORTACION'
+        };
+        await crearRouter(body);
+      } catch (err) {
+        errores++;
+      }
+    }
+    setImportando(false);
+    setModalImportAbierto(false);
+    cargarLista();
+    if (errores > 0) {
+      alert(`Importación finalizada con ${errores} errores.`);
+    } else {
+      alert('Importación completada con éxito.');
+    }
   }
 
   function enviarCreacion(e) {
@@ -92,10 +135,15 @@ function RouterList() {
   return (
     <div className="page">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
-        <h1 style={{ margin: 0 }}>Routers</h1>
-        <button type="button" className="btn btn-primary btn-sm" onClick={abrirModal}>
-          Nuevo router
-        </button>
+        <h1 style={{ margin: 0 }}>Routers / APs</h1>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setModalImportAbierto(true)}>
+            Importar desde Excel/CSV
+          </button>
+          <button type="button" className="btn btn-primary btn-sm" onClick={abrirModal}>
+            Nuevo router
+          </button>
+        </div>
       </div>
 
       <div className="table-wrap" style={{ marginTop: '1rem' }}>
@@ -103,19 +151,24 @@ function RouterList() {
           <thead>
             <tr>
               <th>Nombre</th>
+              <th>Sitio</th>
               <th>Marca</th>
               <th>Modelo</th>
+              <th>Versión</th>
+              <th>N/S</th>
               <th>IP</th>
+              <th>IP Pública</th>
               <th>Puertos WAN</th>
               <th>Puertos LAN</th>
               <th>Ubicación</th>
-              <th>Estado</th>
+              <th>Estado (IT)</th>
+              <th>Estado (Red)</th>
             </tr>
           </thead>
           <tbody>
             {lista.length === 0 ? (
               <tr>
-                <td colSpan={8} className="table-empty">
+                <td colSpan={13} className="table-empty">
                   Sin routers registrados
                 </td>
               </tr>
@@ -127,13 +180,18 @@ function RouterList() {
                   style={{ cursor: 'pointer' }}
                 >
                   <td>{r.nombre}</td>
+                  <td>{r.sitio ?? '—'}</td>
                   <td>{r.marca ?? '—'}</td>
                   <td>{r.modelo ?? '—'}</td>
+                  <td>{r.version ?? '—'}</td>
+                  <td>{r.numeroSerie ?? '—'}</td>
                   <td className="uuid">{r.ip ?? '—'}</td>
+                  <td className="uuid">{r.ipPublica ?? '—'}</td>
                   <td>{r.cantidadPuertosWan ?? '—'}</td>
                   <td>{r.cantidadPuertosLan ?? '—'}</td>
                   <td>{r.ubicacion ? labelUbicacionEnum(r.ubicacion) : '—'}</td>
                   <td>{r.estado ?? '—'}</td>
+                  <td>{r.estadoOmada ?? '—'}</td>
                 </tr>
               ))
             )}
@@ -224,6 +282,15 @@ function RouterList() {
           </div>
         </div>
       ) : null}
+
+      <ImportModal
+        isOpen={modalImportAbierto}
+        onClose={() => setModalImportAbierto(false)}
+        onImport={handleImport}
+        schema={routersSchema}
+        entityName="Routers y APs"
+        isImporting={importando}
+      />
     </div>
   );
 }

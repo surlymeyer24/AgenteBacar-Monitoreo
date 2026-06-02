@@ -19,6 +19,13 @@ public class RouterMapper {
         dto.setIp(router.getIp());
         dto.setNumeroSerie(router.getNumeroSerie());
         dto.setFirmware(router.getFirmware());
+        dto.setSitio(router.getSitio());
+        dto.setIpPublica(router.getIpPublica());
+        dto.setEstadoOmada(router.getEstado());
+        dto.setVersion(router.getVersion());
+        dto.setMacUplink(router.getMacUplink());
+        dto.setSalto(router.getSalto());
+        dto.setGrupoWlan(router.getGrupoWlan());
         dto.setCantidadPuertosWan(router.getCantidadPuertosWan());
         dto.setCantidadPuertosLan(router.getCantidadPuertosLan());
         dto.setGateway(router.getGateway());

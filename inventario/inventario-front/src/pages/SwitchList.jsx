@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchSwitches, crearSwitch } from '../api/switchApi';
 import { UBICACIONES_RED, labelUbicacionEnum } from '../constants/ubicaciones';
+import ImportModal from '../components/ImportModal';
+import { switchesSchema } from '../lib/importSchemas/switchesSchema';
 
 const emptyForm = {
   nombre: '',
@@ -34,6 +36,8 @@ function SwitchList() {
   const [form, setForm] = useState(emptyForm);
   const [guardando, setGuardando] = useState(false);
   const [errorModal, setErrorModal] = useState(null);
+  const [modalImportAbierto, setModalImportAbierto] = useState(false);
+  const [importando, setImportando] = useState(false);
 
   function cargarLista() {
     setCargando(true);
@@ -61,6 +65,43 @@ function SwitchList() {
 
   function onChangeCampo(field, value) {
     setForm(prev => ({ ...prev, [field]: value }));
+  }
+
+  async function handleImport(rows) {
+    setImportando(true);
+    let errores = 0;
+    for (const row of rows) {
+      if (!row.nombre || !row.nombre.trim()) continue;
+      try {
+        const body = {
+          nombre: row.nombre,
+          marca: row.marca || undefined,
+          modelo: row.modelo || undefined,
+          ip: row.ip || undefined,
+          numeroSerie: row.numeroSerie || undefined,
+          sitio: row.sitio || undefined,
+          ipPublica: row.ipPublica || undefined,
+          estadoOmada: row.estado || undefined,
+          version: row.version || undefined,
+          macUplink: row.macUplink || undefined,
+          salto: row.salto ? Number(row.salto) || undefined : undefined,
+          cantidadPuertos: row.cantidadPuertos ? Number(row.cantidadPuertos) || 0 : 0,
+          tipo: row.tipo || undefined,
+          ubicacion: 'IMPORTACION'
+        };
+        await crearSwitch(body);
+      } catch (err) {
+        errores++;
+      }
+    }
+    setImportando(false);
+    setModalImportAbierto(false);
+    cargarLista();
+    if (errores > 0) {
+      alert(`Importación finalizada con ${errores} errores.`);
+    } else {
+      alert('Importación completada con éxito.');
+    }
   }
 
   function enviarCreacion(e) {
@@ -101,9 +142,14 @@ function SwitchList() {
     <div className="page">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
         <h1 style={{ margin: 0 }}>Switches</h1>
-        <button type="button" className="btn btn-primary btn-sm" onClick={abrirModal}>
-          Nuevo switch
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setModalImportAbierto(true)}>
+            Importar desde Excel/CSV
+          </button>
+          <button type="button" className="btn btn-primary btn-sm" onClick={abrirModal}>
+            Nuevo switch
+          </button>
+        </div>
       </div>
 
       <div className="table-wrap" style={{ marginTop: '1rem' }}>
@@ -111,19 +157,24 @@ function SwitchList() {
           <thead>
             <tr>
               <th>Nombre</th>
+              <th>Sitio</th>
               <th>Marca</th>
               <th>Modelo</th>
+              <th>Versión</th>
+              <th>N/S</th>
               <th>IP</th>
+              <th>IP Pública</th>
               <th>Puertos</th>
               <th>Tipo</th>
               <th>Ubicación</th>
-              <th>Estado</th>
+              <th>Estado (IT)</th>
+              <th>Estado (Red)</th>
             </tr>
           </thead>
           <tbody>
             {lista.length === 0 ? (
               <tr>
-                <td colSpan={8} className="table-empty">
+                <td colSpan={13} className="table-empty">
                   Sin switches registrados
                 </td>
               </tr>
@@ -135,13 +186,18 @@ function SwitchList() {
                   style={{ cursor: 'pointer' }}
                 >
                   <td>{sw.nombre}</td>
+                  <td>{sw.sitio ?? '—'}</td>
                   <td>{sw.marca ?? '—'}</td>
                   <td>{sw.modelo ?? '—'}</td>
+                  <td>{sw.version ?? '—'}</td>
+                  <td>{sw.numeroSerie ?? '—'}</td>
                   <td className="uuid">{sw.ip ?? '—'}</td>
+                  <td className="uuid">{sw.ipPublica ?? '—'}</td>
                   <td>{sw.cantidadPuertos ?? '—'}</td>
                   <td>{sw.tipo ?? '—'}</td>
                   <td>{sw.ubicacion ? labelUbicacionEnum(sw.ubicacion) : '—'}</td>
                   <td>{sw.estado ?? '—'}</td>
+                  <td>{sw.estadoOmada ?? '—'}</td>
                 </tr>
               ))
             )}
@@ -223,6 +279,15 @@ function SwitchList() {
           </div>
         </div>
       ) : null}
+
+      <ImportModal
+        isOpen={modalImportAbierto}
+        onClose={() => setModalImportAbierto(false)}
+        onImport={handleImport}
+        schema={switchesSchema}
+        entityName="Switches"
+        isImporting={importando}
+      />
     </div>
   );
 }

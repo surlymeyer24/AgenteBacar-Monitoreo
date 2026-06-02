@@ -26,6 +26,30 @@ public class SwitchRed {
     @Setter(onMethod_ = @PropertyName("numero_serie"))
     private String numeroSerie;
 
+    @Getter(onMethod_ = @PropertyName("sitio"))
+    @Setter(onMethod_ = @PropertyName("sitio"))
+    private String sitio;
+
+    @Getter(onMethod_ = @PropertyName("ip_publica"))
+    @Setter(onMethod_ = @PropertyName("ip_publica"))
+    private String ipPublica;
+
+    @Getter(onMethod_ = @PropertyName("estado"))
+    @Setter(onMethod_ = @PropertyName("estado"))
+    private String estado;
+
+    @Getter(onMethod_ = @PropertyName("version"))
+    @Setter(onMethod_ = @PropertyName("version"))
+    private String version;
+
+    @Getter(onMethod_ = @PropertyName("mac_uplink"))
+    @Setter(onMethod_ = @PropertyName("mac_uplink"))
+    private String macUplink;
+
+    @Getter(onMethod_ = @PropertyName("salto"))
+    @Setter(onMethod_ = @PropertyName("salto"))
+    private Integer salto;
+
     @Getter(onMethod_ = @PropertyName("cantidad_puertos"))
     @Setter(onMethod_ = @PropertyName("cantidad_puertos"))
     private int cantidadPuertos;

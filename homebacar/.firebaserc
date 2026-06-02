@@ -1,0 +1,13 @@
+{
+  "projects": {
+    "default": "devbac-42d14"
+  },
+  "targets": {
+    "devbac-42d14": {
+      "hosting": {
+        "homebacar": ["homebacar"]
+      }
+    }
+  },
+  "etags": {}
+}

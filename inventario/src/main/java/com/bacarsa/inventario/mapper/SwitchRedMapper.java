@@ -18,6 +18,12 @@ public class SwitchRedMapper {
         dto.setModelo(sw.getModelo());
         dto.setIp(sw.getIp());
         dto.setNumeroSerie(sw.getNumeroSerie());
+        dto.setSitio(sw.getSitio());
+        dto.setIpPublica(sw.getIpPublica());
+        dto.setEstadoOmada(sw.getEstado());
+        dto.setVersion(sw.getVersion());
+        dto.setMacUplink(sw.getMacUplink());
+        dto.setSalto(sw.getSalto());
         dto.setCantidadPuertos(sw.getCantidadPuertos());
         dto.setTipo(sw.getTipo());
         dto.setVlans(sw.getVlans());

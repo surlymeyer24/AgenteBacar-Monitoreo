@@ -19,6 +19,13 @@ public class RouterDTO {
     private String ip;
     private String numeroSerie;
     private String firmware;
+    private String sitio;
+    private String ipPublica;
+    private String estadoOmada;
+    private String version;
+    private String macUplink;
+    private Integer salto;
+    private String grupoWlan;
     private int cantidadPuertosWan;
     private int cantidadPuertosLan;
     private String gateway;
