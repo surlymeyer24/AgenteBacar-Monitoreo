@@ -20,6 +20,7 @@ public class PerifericoManualMapper {
         dto.setFabricante(p.getFabricante());
         dto.setConexion(p.getConexion());
         dto.setComputadoraHostname(p.getComputadoraHostname());
+        dto.setUbicacion(p.getUbicacion());
         dto.setNotas(p.getNotas());
         dto.setEstado(p.getEstadoActual() == null ? null : p.getEstadoActual().getNombre());
         dto.setFechaAlta(parseFecha(p.getFechaAlta()));

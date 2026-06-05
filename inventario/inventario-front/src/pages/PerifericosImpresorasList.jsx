@@ -52,7 +52,6 @@ function PerifericosImpresorasList() {
   return (
     <StudioPageShell
       title="Administración de Impresoras"
-      subtitle="Gestión de equipos Ricoh, Lexmark, térmicas y plotters enlazadas a los servidores y computadoras corporativas de red."
     >
       {/* Barra de búsqueda */}
       <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shadow-sm">

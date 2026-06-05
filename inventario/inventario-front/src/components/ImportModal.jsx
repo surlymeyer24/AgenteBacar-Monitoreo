@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { parseImportFile } from '../lib/genericImport';
 
-function ImportModal({ isOpen, onClose, onImport, schema, entityName, isImporting }) {
+function ImportModal({ isOpen, onClose, onImport, schema, entityName, isImporting, existingData = [], matchFields = ['numeroSerie', 'nroSerie', 'ip', 'direccionIp', 'nombre', 'mac', 'macUplink'] }) {
   const [file, setFile] = useState(null);
   const [previewData, setPreviewData] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -13,6 +13,18 @@ function ImportModal({ isOpen, onClose, onImport, schema, entityName, isImportin
   const [isDragging, setIsDragging] = useState(false);
 
   const columns = Object.keys(schema);
+
+  const checkIfExists = useCallback((row) => {
+    if (!existingData || existingData.length === 0) return false;
+    return existingData.some(item => {
+      return matchFields.some(field => {
+        const rowVal = row[field];
+        const itemVal = item[field];
+        if (!rowVal || !itemVal) return false;
+        return String(rowVal).trim().toLowerCase() === String(itemVal).trim().toLowerCase();
+      });
+    });
+  }, [existingData, matchFields]);
 
   const handleFile = async (selectedFile) => {
     if (!selectedFile) return;
@@ -177,7 +189,15 @@ function ImportModal({ isOpen, onClose, onImport, schema, entityName, isImportin
 
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-[11px] text-slate-500 font-bold">
-                      <span>PREVIEW DE PLANILLA - HAZ CLIC EN LAS CELDAS PARA MODIFICAR EL VALOR:</span>
+                      <div className="flex items-center gap-3">
+                        <span>PREVIEW - HAZ CLIC EN LAS CELDAS PARA MODIFICAR:</span>
+                        {existingData && existingData.length > 0 && (
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded text-[10px] border border-emerald-200">Nuevos: {previewData.filter(r => !checkIfExists(r)).length}</span>
+                            <span className="px-2 py-0.5 bg-orange-100 text-orange-700 rounded text-[10px] border border-orange-200">Duplicados: {previewData.filter(r => checkIfExists(r)).length}</span>
+                          </div>
+                        )}
+                      </div>
                       <button
                         type="button"
                         onClick={addRow}
@@ -194,6 +214,7 @@ function ImportModal({ isOpen, onClose, onImport, schema, entityName, isImportin
                         <thead className="sticky top-0 z-10 bg-slate-100 shadow-sm border-b border-slate-200">
                           <tr className="text-[10px] font-black text-slate-600 uppercase tracking-widest leading-none">
                             <th className="py-3 px-3 w-12 text-center">Nº</th>
+                            <th className="py-3 px-3 w-20 text-center">Estado</th>
                             {columns.map(col => (
                               <th key={col} className="py-3 px-3 capitalize">
                                 {col}
@@ -203,10 +224,23 @@ function ImportModal({ isOpen, onClose, onImport, schema, entityName, isImportin
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 text-[11px]">
-                          {previewData.map((row, idx) => (
-                            <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                          {previewData.map((row, idx) => {
+                            const yaExiste = checkIfExists(row);
+                            return (
+                            <tr key={idx} className={`transition-colors ${yaExiste ? 'bg-orange-50/50 hover:bg-orange-50' : 'hover:bg-slate-50'}`}>
                               <td className="py-2.5 px-3 align-middle text-center font-mono text-slate-400">
                                 {idx + 1}
+                              </td>
+                              <td className="py-2.5 px-2 align-middle text-center">
+                                {yaExiste ? (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-orange-100 text-orange-700 border border-orange-200" title="Posible duplicado (Coincide IP, Nro Serie, MAC o Nombre)">
+                                    ⚠️ Existe
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">
+                                    ✅ Nuevo
+                                  </span>
+                                )}
                               </td>
                               {columns.map(col => (
                                 <td key={col} className="py-1 px-1 border-r border-slate-100 align-middle last:border-r-0">
@@ -232,7 +266,8 @@ function ImportModal({ isOpen, onClose, onImport, schema, entityName, isImportin
                                 </button>
                               </td>
                             </tr>
-                          ))}
+                            );
+                          })}
                         </tbody>
                       </table>
                       {previewData.length === 0 && (

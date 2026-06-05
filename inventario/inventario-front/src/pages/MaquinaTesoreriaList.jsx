@@ -209,7 +209,7 @@ function MaquinaTesoreriaList() {
 
   return (
     <StudioPageShell
-      title="Infraestructura: Máquinas de Tesorería"
+      title={`Infraestructura: Máquinas de Tesorería (${lista.length})`}
       subtitle="Equipos de validación, conteo y envasado registrados en el inventario corporativo."
       actions={
         <>
@@ -331,6 +331,7 @@ function MaquinaTesoreriaList() {
         schema={maquinasTesoreriaSchema}
         entityName="Máquinas de Tesorería"
         isImporting={importando}
+        existingData={lista}
       />
     
       <InfraestructuraModal 

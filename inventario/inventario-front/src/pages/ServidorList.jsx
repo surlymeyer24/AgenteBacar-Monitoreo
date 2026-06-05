@@ -179,7 +179,7 @@ function ServidorList() {
 
   return (
     <StudioPageShell
-      title="Infraestructura: Servidores"
+      title={`Infraestructura: Servidores (${lista.length})`}
       subtitle="Servidores físicos y virtuales del inventario."
       actions={
         <>
@@ -250,6 +250,7 @@ function ServidorList() {
         schema={servidoresSchema}
         entityName="Servidores"
         isImporting={importando}
+        existingData={lista}
       />
     
       <InfraestructuraModal 

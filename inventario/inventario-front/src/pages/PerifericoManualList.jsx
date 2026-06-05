@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Package, CheckCircle, Monitor, Search, Filter, Plus, MapPin, X, Check, Edit2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Package, CheckCircle, Monitor, Search, Filter, Plus, MapPin, X, Check, Edit2, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { fetchPerifericosM, actualizarPerifericoM, createPerifericoM } from '../api/perifericoManualApi';
+import { fetchPerifericosM, actualizarPerifericoM, createPerifericoM, deletePerifericoM } from '../api/perifericoManualApi';
 import { ESTADO_OPERATIVO_LABELS } from '../constants/estados';
 import { StudioLoading, StudioError } from '../components/studio/StudioUi';
 
@@ -23,6 +24,7 @@ export default function PerifericoManualList() {
   const [formTipo, setFormTipo] = useState('TECLADO');
   const [formFabricante, setFormFabricante] = useState('');
   const [formConexion, setFormConexion] = useState('');
+  const [formUbicacion, setFormUbicacion] = useState('');
   const [formCantidad, setFormCantidad] = useState('1');
 
   useEffect(() => {
@@ -50,6 +52,7 @@ export default function PerifericoManualList() {
         fabricante: p.fabricante,
         conexion: p.conexion,
         computadoraHostname: p.computadoraHostname,
+        ubicacion: p.ubicacion,
         notas: p.notas
       });
     } catch (err) {
@@ -65,6 +68,7 @@ export default function PerifericoManualList() {
     setFormTipo('TECLADO');
     setFormFabricante('');
     setFormConexion('');
+    setFormUbicacion('');
     setFormCantidad('1');
     setFormError('');
     setIsFormOpen(true);
@@ -76,6 +80,7 @@ export default function PerifericoManualList() {
     setFormTipo(p.tipo || 'TECLADO');
     setFormFabricante(p.fabricante || '');
     setFormConexion(p.conexion || '');
+    setFormUbicacion(p.ubicacion || '');
     setFormCantidad((p.cantidad ?? 1).toString());
     setFormError('');
     setIsFormOpen(true);
@@ -104,6 +109,7 @@ export default function PerifericoManualList() {
           conexion: formConexion,
           cantidad: qty,
           computadoraHostname: editingItem.computadoraHostname,
+          ubicacion: formUbicacion,
           notas: editingItem.notas
         };
         await actualizarPerifericoM(editingItem.id, payload);
@@ -117,6 +123,7 @@ export default function PerifericoManualList() {
           tipo: formTipo,
           fabricante: formFabricante,
           conexion: formConexion,
+          ubicacion: formUbicacion,
           cantidad: qty
         };
         const created = await createPerifericoM(payload);
@@ -126,6 +133,18 @@ export default function PerifericoManualList() {
     } catch (err) {
       console.error("Error guardando periférico:", err);
       setFormError(err.message || 'Error al guardar el componente.');
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('¿Estás seguro de que querés eliminar este periférico? Esta acción no se puede deshacer.')) return;
+    try {
+      await deletePerifericoM(id);
+      setLista(prev => prev.filter(item => item.id !== id));
+      setIsFormOpen(false);
+    } catch (err) {
+      console.error("Error eliminando periférico:", err);
+      alert('Error al eliminar el periférico.');
     }
   };
 
@@ -174,7 +193,7 @@ export default function PerifericoManualList() {
             <span>Inventario IT y Control de Suministros</span>
           </h1>
           <p className="text-sm text-slate-500 font-medium mt-1">
-            Registra los componentes de hardware adquiridos y gestiona de manera rápida cuántos están disponibles en bodega o ya asignados en resguardo.
+            Registra los componentes de hardware adquiridos y gestiona de manera rápida cuántos están disponibles o ya asignados en resguardo.
           </p>
         </div>
 
@@ -277,17 +296,19 @@ export default function PerifericoManualList() {
                 filteredLista.map((c) => (
                   <tr key={c.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="py-4 px-5">
-                      <span className="font-mono font-bold text-blue-600 text-xs">
+                      <Link to={`/perifericos/stock/${c.id}`} className="font-mono font-bold text-blue-600 text-xs hover:underline hover:text-blue-800">
                         {c.id}
-                      </span>
+                      </Link>
                     </td>
                     
                     <td className="py-4 px-5 font-bold text-slate-900">
                       <div className="space-y-1">
                         <p className="capitalize">{c.nombre ?? c.fabricante ?? '—'}</p>
-                        <p className="text-[11px] text-slate-400 font-normal">
-                          {c.conexion ? `Conexión: ${c.conexion}` : 'Suministro verificado de IT'}
-                        </p>
+                        {c.conexion && (
+                          <p className="text-[11px] text-slate-400 font-normal">
+                            Conexión: {c.conexion}
+                          </p>
+                        )}
                       </div>
                     </td>
 
@@ -302,12 +323,14 @@ export default function PerifericoManualList() {
                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold border uppercase tracking-wide ${getEstadoColor(c.estado)}`}>
                           {c.estado || 'SIN ESTADO'}
                         </span>
-                        <div className="flex items-center gap-1 text-slate-500 text-[11px] font-medium">
-                          <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
-                          <span className="truncate max-w-[150px]" title={c.computadoraHostname || 'Bodega General'}>
-                            {c.computadoraHostname || 'Bodega General'}
-                          </span>
-                        </div>
+                        {(c.computadoraHostname || c.ubicacion) && (
+                          <div className="flex items-center gap-1 text-slate-500 text-[11px] font-medium">
+                            <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                            <span className="truncate max-w-[150px]" title={c.computadoraHostname || c.ubicacion}>
+                              {c.computadoraHostname || c.ubicacion}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </td>
 
@@ -430,6 +453,19 @@ export default function PerifericoManualList() {
                   </div>
 
                   <div>
+                    <label className="text-slate-700 block mb-1">Ubicación</label>
+                    <input 
+                      type="text"
+                      placeholder="Ej. Depósito 1"
+                      value={formUbicacion}
+                      onChange={(e) => setFormUbicacion(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
                     <label className="text-slate-700 block mb-1">Cantidad Total Adquirida *</label>
                     <input 
                       type="number"
@@ -442,21 +478,35 @@ export default function PerifericoManualList() {
                   </div>
                 </div>
 
-                <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
-                  <button 
-                    type="button" 
-                    onClick={() => setIsFormOpen(false)}
-                    className="px-4 py-2 border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 font-bold transition-all cursor-pointer"
-                  >
-                    Cancelar
-                  </button>
-                  <button 
-                    type="submit"
-                    className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-xs flex items-center gap-1.5 cursor-pointer transition-colors"
-                  >
-                    <Check className="w-4 h-4" />
-                    <span>Confirmar Registro</span>
-                  </button>
+                <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-2">
+                  <div>
+                    {editingItem && (
+                      <button 
+                        type="button"
+                        onClick={() => handleDelete(editingItem.id)}
+                        className="px-4 py-2 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        <span>Eliminar</span>
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      type="button" 
+                      onClick={() => setIsFormOpen(false)}
+                      className="px-4 py-2 border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 font-bold transition-all cursor-pointer"
+                    >
+                      Cancelar
+                    </button>
+                    <button 
+                      type="submit"
+                      className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-xs flex items-center gap-1.5 cursor-pointer transition-colors"
+                    >
+                      <Check className="w-4 h-4" />
+                      <span>Confirmar Registro</span>
+                    </button>
+                  </div>
                 </div>
               </form>
             </motion.div>

@@ -12,6 +12,7 @@ const empty = {
   fabricante: '',
   conexion: '',
   computadoraHostname: '',
+  ubicacion: '',
   notas: '',
   fechaAlta: '',
   motivo: '',
@@ -39,12 +40,14 @@ function PerifericoManualNuevo() {
     const fab = form.fabricante.trim();
     const con = form.conexion.trim();
     const host = form.computadoraHostname.trim();
+    const ub = form.ubicacion.trim();
     const notas = form.notas.trim();
     const mot = form.motivo.trim();
     if (n) body.nombre = n;
     if (fab) body.fabricante = fab;
     if (con) body.conexion = con;
     if (host) body.computadoraHostname = host;
+    if (ub) body.ubicacion = ub;
     if (notas) body.notas = notas;
     if (form.fechaAlta) body.fechaAlta = form.fechaAlta;
     if (mot) body.motivo = mot;
@@ -98,6 +101,10 @@ function PerifericoManualNuevo() {
           <label>
             PC asignada (hostname)
             <input name="computadoraHostname" value={form.computadoraHostname} onChange={onChange} placeholder="Ej. PC-JUAN (opcional)" autoComplete="off" />
+          </label>
+          <label>
+            Ubicación
+            <input name="ubicacion" value={form.ubicacion} onChange={onChange} placeholder="Ej. Depósito 1" autoComplete="off" />
           </label>
           <label>
             Notas

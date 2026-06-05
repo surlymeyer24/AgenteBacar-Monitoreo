@@ -83,6 +83,7 @@ export const COLLECTIONS = {
   HW_COMPUTADORAS: 'computadoras',
   HW_TAREAS: 'tareas',
   LOGS_ACTUALIZACIONES: 'logs_actualizaciones',
+  LOGS_DEBUG: 'logs_debug',
   USUARIOS: 'usuarios',
 };
 

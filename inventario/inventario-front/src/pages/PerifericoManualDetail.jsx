@@ -5,6 +5,7 @@ import {
   actualizarPerifericoM,
   updateEstadoPerifericoM,
   asignarPerifericoM,
+  deletePerifericoM,
 } from '../api/perifericoManualApi';
 import { ESTADOS_OPERATIVOS } from '../constants/estados';
 
@@ -28,6 +29,7 @@ function formDesdeP(p) {
     fabricante: p.fabricante ?? '',
     conexion: p.conexion ?? '',
     computadoraHostname: p.computadoraHostname ?? '',
+    ubicacion: p.ubicacion ?? '',
     notas: p.notas ?? '',
     fechaAlta: p.fechaAlta ? String(p.fechaAlta) : '',
   };
@@ -44,6 +46,8 @@ function PerifericoManualDetail() {
   const [form, setForm] = useState(null);
   const [guardando, setGuardando] = useState(false);
   const [msgEdit, setMsgEdit] = useState(null);
+
+  const [borrando, setBorrando] = useState(false);
 
   const [estadoSel, setEstadoSel] = useState('');
   const [motivoEstado, setMotivoEstado] = useState('');
@@ -96,6 +100,7 @@ function PerifericoManualDetail() {
       fabricante: form.fabricante.trim() || undefined,
       conexion: form.conexion || undefined,
       computadoraHostname: form.computadoraHostname.trim() || undefined,
+      ubicacion: form.ubicacion.trim() || undefined,
       notas: form.notas.trim() || undefined,
       fechaAlta: form.fechaAlta || undefined,
     };
@@ -138,6 +143,17 @@ function PerifericoManualDetail() {
       .finally(() => setGuardandoEstado(false));
   }
 
+  function borrarItem() {
+    if (!window.confirm('¿Estás seguro de que querés eliminar este periférico? Esta acción no se puede deshacer.')) return;
+    setBorrando(true);
+    deletePerifericoM(id)
+      .then(() => navigate('/perifericos/stock'))
+      .catch(() => {
+        alert('Error al eliminar el periférico.');
+        setBorrando(false);
+      });
+  }
+
   if (cargando) return <p className="estado-msg">Cargando...</p>;
   if (error) return <p className="estado-msg error">{error}</p>;
   if (!p) return null;
@@ -154,7 +170,12 @@ function PerifericoManualDetail() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
           <strong>Datos del periférico</strong>
           {!editando && (
-            <button className="btn btn-secondary btn-sm" onClick={iniciarEdicion}>Editar</button>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button className="btn btn-secondary btn-sm" onClick={iniciarEdicion}>Editar</button>
+              <button className="btn btn-sm" style={{ backgroundColor: '#dc3545', color: '#fff' }} onClick={borrarItem} disabled={borrando}>
+                {borrando ? 'Borrando...' : 'Eliminar'}
+              </button>
+            </div>
           )}
         </div>
 
@@ -191,6 +212,10 @@ function PerifericoManualDetail() {
               <input name="computadoraHostname" value={form.computadoraHostname} onChange={onChangeForm} autoComplete="off" />
             </label>
             <label>
+              Ubicación
+              <input name="ubicacion" value={form.ubicacion} onChange={onChangeForm} autoComplete="off" />
+            </label>
+            <label>
               Notas
               <textarea name="notas" value={form.notas} onChange={onChangeForm} rows={2} />
             </label>
@@ -222,6 +247,8 @@ function PerifericoManualDetail() {
             <dd>{p.conexion ?? '—'}</dd>
             <dt>PC asignada</dt>
             <dd>{p.computadoraHostname ?? <span className="muted">Sin asignar</span>}</dd>
+            <dt>Ubicación</dt>
+            <dd>{p.ubicacion ?? '—'}</dd>
             <dt>Estado actual</dt>
             <dd>{p.estado ?? '—'}</dd>
             <dt>Fecha de alta</dt>

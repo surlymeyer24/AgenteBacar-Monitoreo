@@ -3,7 +3,7 @@
 
 @theme {
   --font-sans: 'Inter', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-family-mono: 'JetBrains Mono', monospace;
 }
 
 :root {
@@ -361,7 +361,7 @@ button.login-submit:hover {
 .sidebar-auth-email {
   margin: 0 0 0.5rem;
   font-size: 0.72rem;
-  font-family: var(--font-mono);
+  font-family: var(--font-family-mono);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

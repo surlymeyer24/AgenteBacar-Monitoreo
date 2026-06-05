@@ -409,7 +409,7 @@ function CamaraList() {
 
   return (
     <StudioPageShell
-      title="Infraestructura: NVR y Cámaras de Seguridad"
+      title={`Infraestructura: NVR y Cámaras de Seguridad (${totalInventario})`}
       subtitle={`${subt}. Dispositivos y grabadoras digitales conectadas al circuito cerrado local.`}
       actions={
         <>
@@ -569,6 +569,7 @@ function CamaraList() {
         schema={camarasSchema}
         entityName="Cámaras"
         isImporting={importando}
+        existingData={catalogoCompleto}
       />
 
       <InfraestructuraModal 

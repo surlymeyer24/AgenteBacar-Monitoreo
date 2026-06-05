@@ -289,7 +289,7 @@ function ComputadoraList() {
     <div className="flex flex-col flex-1 min-h-0 space-y-4">
       <StudioPageShell
         title="Inventario de Computadoras"
-        subtitle={`${subt}. Listado operativo del parque informático Bacar.`}
+        subtitle={`${subt}.`}
         actions={
           <StudioPrimaryButton to="/computadoras/nueva">Nueva computadora</StudioPrimaryButton>
         }

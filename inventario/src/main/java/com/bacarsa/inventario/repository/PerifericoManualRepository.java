@@ -62,6 +62,10 @@ public class PerifericoManualRepository {
         firestore.collection(collectionName).document(id).update(campos).get();
     }
 
+    public void eliminar(String id) throws ExecutionException, InterruptedException {
+        firestore.collection(collectionName).document(id).delete().get();
+    }
+
     public void decrementarCantidad(String id) throws ExecutionException, InterruptedException {
         firestore.collection(collectionName).document(id)
                 .update("cantidad", FieldValue.increment(-1)).get();

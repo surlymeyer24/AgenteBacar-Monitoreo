@@ -125,7 +125,7 @@ function NvrList() {
 
   return (
     <StudioPageShell
-      title="Infraestructura: NVR y Cámaras de Seguridad"
+      title={`Infraestructura: NVR y Cámaras de Seguridad (${lista.length})`}
       subtitle="Dispositivos y grabadoras digitales conectadas al canal de circuito cerrado local."
       actions={
         <>
@@ -154,6 +154,7 @@ function NvrList() {
         schema={nvrsSchema}
         entityName="NVR"
         isImporting={importando}
+        existingData={lista}
       />
     
       <InfraestructuraModal 

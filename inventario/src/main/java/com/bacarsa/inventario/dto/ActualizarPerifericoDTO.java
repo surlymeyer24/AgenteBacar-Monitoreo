@@ -17,6 +17,7 @@ public class ActualizarPerifericoDTO {
     private String fabricante;
     private String conexion;
     private String computadoraHostname;
+    private String ubicacion;
     private String notas;
     private LocalDate fechaAlta;
 }

@@ -241,7 +241,7 @@ export default function RoutersSwitchesList() {
                <Network className="w-5 h-5 text-indigo-400" />
             </span>
             <div>
-              <h1 className="text-xl font-extrabold tracking-tight text-slate-900">Routers & Switches de Distribución</h1>
+              <h1 className="text-xl font-extrabold tracking-tight text-slate-900">Routers & Switches de Distribución ({datasetFull.length})</h1>
               <p className="text-xs text-slate-500 mt-0.5">Hardware consolidado de enrutamiento y conmutación core en la red.</p>
             </div>
           </div>

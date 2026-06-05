@@ -6,348 +6,291 @@ import {
   deleteLogsActualizacionCoinciden,
   LOGS_SNAPSHOT_CAP,
 } from '../hooks/useLogsActualizacion';
+import { useLogsDebug } from '../hooks/useLogsDebug';
 import { formatTimestamp } from '../lib/formatFirestore';
 import { EVENTO_BADGE_HW } from '../lib/comandoLogBadges';
 import { useConfigAgenteDescarga } from '../hooks/useConfigAgenteDescarga';
+import { 
+  Cpu, Search, Settings, CloudLightning, RefreshCw, Ban, 
+  CheckSquare, Square, Trash2, Download
+} from 'lucide-react';
 
-function BloqueDescargaAgente() {
-  const { urlDescarga, versionEtiqueta, nombreArchivo, loading } = useConfigAgenteDescarga();
-
-  return (
-    <section className="section system-section">
-      <h2>Descarga del agente</h2>
-      <p className="muted">
-        Instalador para Windows <strong>{versionEtiqueta ?? '—'}</strong> (
-        <code>{nombreArchivo}</code>
-        ). Podés instalarlo en equipos nuevos; en PCs ya con agente usá los comandos de actualización
-        más abajo.
-        {loading ? (
-          <>
-            {' '}
-            <span className="muted small">Sincronizando con Firestore…</span>
-          </>
-        ) : null}
-      </p>
-      <a
-        href={urlDescarga}
-        className="btn btn-secondary"
-        target="_blank"
-        rel="noopener noreferrer"
-        download={nombreArchivo}
-      >
-        Descargar {nombreArchivo}
-      </a>
-    </section>
-  );
-}
-
+// ─── helpers de fecha ───────────────────────────────────────────────────────
 function inicioDiaLocal(iso) {
   const [y, m, d] = iso.split('-').map(Number);
   return new Date(y, m - 1, d, 0, 0, 0, 0);
 }
-
 function finDiaLocal(iso) {
   const [y, m, d] = iso.split('-').map(Number);
   return new Date(y, m - 1, d, 23, 59, 59, 999);
 }
-
 function versionInstaladaTexto(c) {
   const v = c.version_agente ?? c.version;
   if (v == null || String(v).trim() === '') return '—';
   return String(v);
 }
-
-/** Búsqueda parcial sin distinguir mayúsculas en UUID u hostname. */
 function coincideUuidHostname(needleRaw, uuid, hostname) {
   const needle = needleRaw.trim().toLowerCase();
   if (!needle) return true;
-  const u = String(uuid ?? '').toLowerCase();
-  const h = String(hostname ?? '').toLowerCase();
-  return u.includes(needle) || h.includes(needle);
+  return String(uuid ?? '').toLowerCase().includes(needle) ||
+         String(hostname ?? '').toLowerCase().includes(needle);
 }
-
-/** Filtro por texto de versión (parcial, sin distinguir mayúsculas). */
 function coincideVersionTexto(needleRaw, versionStr) {
   const needle = needleRaw.trim().toLowerCase();
   if (!needle) return true;
-  const v = String(versionStr ?? '').trim().toLowerCase();
-  return v.includes(needle);
+  return String(versionStr ?? '').trim().toLowerCase().includes(needle);
 }
 
-function ComandosMaquina({
-  computadoraId,
-  hostname,
-  versionLabel,
-  seleccionada,
-  onToggleSeleccion,
-}) {
+// ─── sub-componente: fila de nodo con comandos individuales ──────────────────
+function NodoComando({ computadoraId, hostname, versionLabel, seleccionada, onToggleSeleccion, sistemaOperativo, estadoConexion, versionEtiqueta }) {
   const { enviarActualizarDatos, enviarActualizarAgente, sending, error } = useComandoHW(computadoraId);
-  const [enviandoResetUuid, setEnviandoResetUuid] = useState(false);
-  const [errorResetUuid, setErrorResetUuid] = useState(null);
+  const [enviandoReset, setEnviandoReset] = useState(false);
+  const [errorReset, setErrorReset] = useState(null);
 
-  async function handleResetUuid() {
-    const etiqueta = hostname || computadoraId;
-    if (
-      !window.confirm(
-        `¿Enviar RESETEAR_ID a ${etiqueta}?\n\nEl agente borrará su ID del registro de Windows y se reiniciará; al volver puede registrarse en Firestore con un UUID nuevo según el hardware.`,
-      )
-    ) {
-      return;
-    }
-    setEnviandoResetUuid(true);
-    setErrorResetUuid(null);
+  async function handleResetUuid(e) {
+    e.stopPropagation();
+    if (!window.confirm(
+      `¿Enviar RESETEAR_ID a ${hostname || computadoraId}?\n\n` +
+      'El agente borrará su ID del registro de Windows y se reiniciará; al volver puede registrarse con un UUID nuevo.',
+    )) return;
+    setEnviandoReset(true);
+    setErrorReset(null);
     const res = await enviarComandoAMaquinas([computadoraId], 'RESETEAR_ID');
-    setEnviandoResetUuid(false);
-    if (!res.ok) setErrorResetUuid(res.message);
+    setEnviandoReset(false);
+    if (!res.ok) setErrorReset(res.message);
   }
 
+  const ocupado = sending || enviandoReset;
+  const isOutdated = versionEtiqueta && versionLabel !== versionEtiqueta.replace('v', '');
+
   return (
-    <div
-      className="comandos-hw"
-      role="presentation"
+    <div 
       onClick={onToggleSeleccion}
-      style={{ cursor: 'pointer' }}
-      title="Clic en la fila para marcar o desmarcar en actualización masiva del agente"
+      className={`p-3.5 border rounded-xl flex items-center justify-between transition-all cursor-pointer ${
+        seleccionada 
+          ? 'bg-indigo-50/40 border-indigo-200 shadow-sm' 
+          : 'bg-white border-slate-200/80 hover:bg-slate-50'
+      }`}
     >
-      <label
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.35rem',
-          cursor: 'pointer',
-          flexShrink: 0,
-        }}
-        onClick={e => e.stopPropagation()}
-      >
-        <input
-          type="checkbox"
-          checked={seleccionada}
-          onChange={onToggleSeleccion}
-          aria-label={`Incluir ${hostname || computadoraId} en actualización masiva del agente`}
-        />
-      </label>
-      <div style={{ flex: '1 1 12rem', minWidth: 0 }}>
-        <div className="comandos-hw-host">{hostname || computadoraId}</div>
-        <div className="muted small" style={{ marginTop: '0.15rem' }}>
-          UUID:{' '}
-          <code className="uuid-inline" title={computadoraId}>
-            {computadoraId}
-          </code>
+      <div className="flex items-center gap-3 min-w-0 flex-1">
+        <div className="flex-shrink-0">
+          {seleccionada ? (
+            <CheckSquare className="w-5 h-5 text-indigo-600" />
+          ) : (
+            <Square className="w-5 h-5 text-slate-400" />
+          )}
         </div>
-        <div className="muted small" style={{ marginTop: '0.15rem' }}>
-          Versión instalada: <strong>{versionLabel}</strong>
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5">
+            <span className="font-extrabold text-sm text-slate-900 truncate">{hostname || computadoraId}</span>
+            <span className={`w-1.5 h-1.5 rounded-full ${estadoConexion === 'ONLINE' ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+            {isOutdated && (
+              <span className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 font-black text-[9px] uppercase tracking-wide border border-amber-200">
+                Desactualizado
+              </span>
+            )}
+          </div>
+          <div className="text-xs font-medium text-slate-400 flex items-center gap-1.5 mt-0.5 truncate">
+            <span>UUID: <code className="font-mono bg-indigo-50/50 text-slate-500 p-0.5 px-1 rounded">{computadoraId}</code></span>
+          </div>
         </div>
       </div>
-      <div className="actions" onClick={e => e.stopPropagation()}>
+      <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+        <span className="text-xs font-extrabold text-slate-500 mr-2 bg-slate-50 border border-slate-200 p-1 px-2 rounded font-mono">
+          v{versionLabel}
+        </span>
         <button
           type="button"
-          className="btn btn-secondary btn-sm"
-          disabled={sending || enviandoResetUuid}
+          disabled={ocupado}
           onClick={() => enviarActualizarDatos()}
+          className="px-3 py-1.5 text-slate-700 hover:text-indigo-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded text-xs font-black transition-colors"
+          title="Sincronizar telemetría de hardware inmediatamente"
         >
-          Actualizar datos
+          Sync
         </button>
         <button
           type="button"
-          className="btn btn-primary btn-sm"
-          disabled={sending || enviandoResetUuid}
+          disabled={ocupado}
           onClick={() => enviarActualizarAgente()}
+          className="px-3 py-1.5 text-white bg-indigo-600 hover:bg-indigo-700 rounded text-xs font-black transition-colors"
+          title={`Actualizar agente`}
         >
-          Actualizar agente
+          Update
         </button>
         <button
           type="button"
-          className="btn btn-danger btn-sm"
-          disabled={sending || enviandoResetUuid}
-          onClick={() => void handleResetUuid()}
-          title="Comando RESETEAR_ID en Firestore: el agente limpia el ID en Windows y puede generar un UUID nuevo"
+          disabled={ocupado}
+          onClick={handleResetUuid}
+          className="px-3 py-1.5 text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded text-xs font-black transition-colors"
+          title="Forzar borrado de ID local (Reset UUID)"
         >
-          {enviandoResetUuid ? 'Enviando…' : 'Resetear UUID'}
+          Reset UUID
         </button>
       </div>
-      {(error || errorResetUuid) && (
-        <p
-          className="error small"
-          style={{ flexBasis: '100%', marginBottom: 0 }}
-          onClick={e => e.stopPropagation()}
-        >
-          {error || errorResetUuid}
-        </p>
-      )}
     </div>
   );
 }
 
+// ─── componente principal ─────────────────────────────────────────────────────
 export default function System() {
+  // — Datos desde Firebase —
   const { computadoras, loading: loadingPcs, error: errorPcs } = useComputadorasHW();
+  const { urlDescarga, versionEtiqueta, nombreArchivo, loading: loadingConfig } = useConfigAgenteDescarga();
+
+  // — Filtros de fecha para logs —
   const [logFechaDesde, setLogFechaDesde] = useState('');
   const [logFechaHasta, setLogFechaHasta] = useState('');
-  const [borrandoLogs, setBorrandoLogs] = useState(false);
-  const [feedbackBorrarLogs, setFeedbackBorrarLogs] = useState(null);
-  const [enviandoActualizarTodas, setEnviandoActualizarTodas] = useState(false);
-  const [errorActualizarTodas, setErrorActualizarTodas] = useState(null);
-  const [idsAgenteSeleccion, setIdsAgenteSeleccion] = useState(() => new Set());
-  const [enviandoAgenteSeleccion, setEnviandoAgenteSeleccion] = useState(false);
-  const [errorAgenteSeleccion, setErrorAgenteSeleccion] = useState(null);
-  const [enviandoResetUuidSeleccion, setEnviandoResetUuidSeleccion] = useState(false);
-  const [busquedaComandosMaquinas, setBusquedaComandosMaquinas] = useState('');
-  const [filtroVersionComandos, setFiltroVersionComandos] = useState('');
-  const [busquedaHistorialLogs, setBusquedaHistorialLogs] = useState('');
-  const [filtroVersionHistorial, setFiltroVersionHistorial] = useState('');
 
   const rangoFechasInvalido = Boolean(
     logFechaDesde && logFechaHasta && logFechaDesde > logFechaHasta,
   );
 
-  const filtroLogsActualizacion = useMemo(() => {
-    if (rangoFechasInvalido) return null;
+  const filtroLogsFirestore = useMemo(() => {
+    if (rangoFechasInvalido) return { desde: null, hasta: null };
     return {
       desde: logFechaDesde ? inicioDiaLocal(logFechaDesde) : null,
-      hasta: logFechaHasta ? finDiaLocal(logFechaHasta) : null,
+      hasta: logFechaHasta ? finDiaLocal(logFechaHasta)   : null,
     };
   }, [logFechaDesde, logFechaHasta, rangoFechasInvalido]);
 
-  const filtroLogsFirestore = filtroLogsActualizacion ?? { desde: null, hasta: null };
+  // — Suscripciones a ambas colecciones de logs —
+  const { logs: logsActualizaciones, loading: loadingAct, error: errorAct } =
+    useLogsActualizacion(filtroLogsFirestore);
+  const { logs: logsDebug, loading: loadingDbg, error: errorDbg } =
+    useLogsDebug(filtroLogsFirestore);
 
-  const { logs, loading: loadingLogs, error: errorLogs } = useLogsActualizacion(filtroLogsFirestore);
+  const loadingLogs = loadingAct || loadingDbg;
+  const errorLogs = errorAct || errorDbg;
 
-  const computadorasFiltradas = useMemo(
-    () =>
-      computadoras.filter(c => {
-        const okHost = coincideUuidHostname(busquedaComandosMaquinas, c.id, c.hostname ?? '');
-        const okVer = coincideVersionTexto(filtroVersionComandos, versionInstaladaTexto(c));
-        return okHost && okVer;
-      }),
-    [computadoras, busquedaComandosMaquinas, filtroVersionComandos],
-  );
+  // — Combinar y ordenar logs por timestamp desc —
+  const logsCombinados = useMemo(() => {
+    const tagged = [
+      ...logsActualizaciones.map(l => ({ ...l, _fuente: 'actualizaciones' })),
+      ...logsDebug,                          // ya vienen con _fuente: 'debug'
+    ];
+    tagged.sort((a, b) => {
+      const ta = a.timestamp?.toDate?.().getTime() ?? 0;
+      const tb = b.timestamp?.toDate?.().getTime() ?? 0;
+      return tb - ta;
+    });
+    return tagged.slice(0, LOGS_SNAPSHOT_CAP);
+  }, [logsActualizaciones, logsDebug]);
 
-  const logsFiltrados = useMemo(
-    () =>
-      logs.filter(l => {
-        const okPc = coincideUuidHostname(busquedaHistorialLogs, l.uuid, l.hostname);
-        const okVer = coincideVersionTexto(filtroVersionHistorial, l.version_agente);
-        return okPc && okVer;
-      }),
-    [logs, busquedaHistorialLogs, filtroVersionHistorial],
-  );
+  // — Filtros de búsqueda en historial —
+  const [busquedaHistorialLogs, setBusquedaHistorialLogs]   = useState('');
+  const [filtroVersionHistorial, setFiltroVersionHistorial] = useState('');
+  const [filtroFuenteLogs, setFiltroFuenteLogs]             = useState('actualizaciones'); // 'actualizaciones' | 'debug' | 'errores'
 
-  const idsComputadorasValidos = useMemo(
-    () => new Set(computadoras.map(c => c.id)),
-    [computadoras],
-  );
+  const logsErrores = useMemo(() => logsCombinados.filter(l => {
+    if (l.nivel && l.nivel.toLowerCase() === 'error') return true;
+    if (l.evento === 'ERROR' || l.evento === 'DESCARGA_FALLIDA') return true;
+    if (l.detalle && l.detalle.toLowerCase().includes('error')) return true;
+    return false;
+  }), [logsCombinados]);
 
-  const idsAgenteSeleccionValidos = useMemo(
-    () => new Set([...idsAgenteSeleccion].filter(id => idsComputadorasValidos.has(id))),
-    [idsAgenteSeleccion, idsComputadorasValidos],
-  );
+  const logsFiltrados = useMemo(() =>
+    logsCombinados.filter(l => {
+      const okPc  = coincideUuidHostname(busquedaHistorialLogs, l.uuid, l.hostname);
+      const okVer = coincideVersionTexto(filtroVersionHistorial, l.version_agente);
+      
+      let okFuente = false;
+      if (filtroFuenteLogs === 'errores') {
+        okFuente = (l.nivel && l.nivel.toLowerCase() === 'error') || 
+                   l.evento === 'ERROR' || l.evento === 'DESCARGA_FALLIDA' || 
+                   (l.detalle && l.detalle.toLowerCase().includes('error'));
+      } else {
+        okFuente = l._fuente === filtroFuenteLogs;
+      }
+
+      return okPc && okVer && okFuente;
+    }),
+  [logsCombinados, busquedaHistorialLogs, filtroVersionHistorial, filtroFuenteLogs]);
+
+  // — Borrar logs (solo logs_actualizaciones; logs_debug tienen TTL) —
+  const [borrandoLogs, setBorrandoLogs]         = useState(false);
+  const [feedbackBorrarLogs, setFeedbackBorrarLogs] = useState(null);
 
   async function handleBorrarLogs() {
-    const hayFiltroFecha = Boolean(logFechaDesde || logFechaHasta) && !rangoFechasInvalido;
-    const aclaracion = hayFiltroFecha
-      ? 'Solo se borrarán los registros cuyo timestamp cae en el rango de fechas (hora local) que elegiste.'
-      : 'Se borrarán todos los registros de la colección que tengan campo timestamp (los que ves en la tabla).';
-    if (
-      !window.confirm(
-        `¿Borrar esos logs en Firebase?\n\n${aclaracion}\n\nEsta acción no se puede deshacer.`,
-      )
-    ) {
-      return;
-    }
+    const hayFecha = Boolean(logFechaDesde || logFechaHasta) && !rangoFechasInvalido;
+    const aclaracion = hayFecha
+      ? 'Solo se borrarán los registros de logs_actualizaciones en el rango de fechas elegido.'
+      : 'Se borrarán TODOS los registros de logs_actualizaciones.\n(Los logs de debug se auto-expiran por TTL y no se borran manualmente.)';
+    if (!window.confirm(`¿Borrar logs en Firebase?\n\n${aclaracion}\n\nEsta acción no se puede deshacer.`)) return;
     setFeedbackBorrarLogs(null);
     setBorrandoLogs(true);
     const res = await deleteLogsActualizacionCoinciden(filtroLogsFirestore);
     setBorrandoLogs(false);
     if (res.ok) {
-      setFeedbackBorrarLogs({
-        ok: true,
-        text: `Se borraron ${res.deleted} registro${res.deleted !== 1 ? 's' : ''}.`,
-      });
+      setFeedbackBorrarLogs({ ok: true, text: `Se borraron ${res.deleted} registro${res.deleted !== 1 ? 's' : ''} de logs_actualizaciones.` });
     } else {
       setFeedbackBorrarLogs({ ok: false, text: res.message });
     }
   }
 
-  async function handleActualizarDatosTodas() {
-    const n = computadoras.length;
-    if (
-      !window.confirm(
-        `¿Enviar ACTUALIZAR_DATOS a las ${n} máquina${n !== 1 ? 's' : ''} listadas?\n\n` +
-          'Cada agente hará una sincronización completa cuando lea el comando en Firestore.',
-      )
-    ) {
-      return;
-    }
-    setErrorActualizarTodas(null);
-    setEnviandoActualizarTodas(true);
-    const res = await enviarComandoAMaquinas(
-      computadoras.map(c => c.id),
-      'ACTUALIZAR_DATOS',
-    );
-    setEnviandoActualizarTodas(false);
-    if (!res.ok) {
-      setErrorActualizarTodas(res.message);
-    }
-  }
+  // — Comandos a máquinas —
+  const [busquedaComandosMaquinas, setBusquedaComandosMaquinas] = useState('');
+  const [filtroVersionComandos, setFiltroVersionComandos]       = useState('');
+  const [idsAgenteSeleccion, setIdsAgenteSeleccion]             = useState(() => new Set());
+  const [enviandoActualizarTodas, setEnviandoActualizarTodas]   = useState(false);
+  const [errorActualizarTodas, setErrorActualizarTodas]         = useState(null);
+  const [enviandoAgenteSeleccion, setEnviandoAgenteSeleccion]   = useState(false);
+  const [enviandoResetSeleccion, setEnviandoResetSeleccion]     = useState(false);
+  const [errorAgenteSeleccion, setErrorAgenteSeleccion]         = useState(null);
 
-  function toggleSeleccionAgente(id) {
+  const computadorasFiltradas = useMemo(() =>
+    computadoras.filter(c => {
+      const okHost = coincideUuidHostname(busquedaComandosMaquinas, c.id, c.hostname ?? '');
+      const okVer  = coincideVersionTexto(filtroVersionComandos, versionInstaladaTexto(c));
+      return okHost && okVer;
+    }),
+  [computadoras, busquedaComandosMaquinas, filtroVersionComandos]);
+
+  const idsValidos = useMemo(() => {
+    const allIds = new Set(computadoras.map(c => c.id));
+    return new Set([...idsAgenteSeleccion].filter(id => allIds.has(id)));
+  }, [idsAgenteSeleccion, computadoras]);
+
+  function toggleSeleccion(id) {
     setIdsAgenteSeleccion(prev => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
   }
 
-  function seleccionarTodasAgente() {
-    setIdsAgenteSeleccion(new Set(computadorasFiltradas.map(c => c.id)));
-  }
-
-  function deseleccionarTodasAgente() {
-    setIdsAgenteSeleccion(new Set());
+  async function handleActualizarDatosTodas() {
+    const n = computadoras.length;
+    if (!window.confirm(`¿Enviar ACTUALIZAR_DATOS a las ${n} máquina${n !== 1 ? 's' : ''} listadas?\n\nCada agente hará una sincronización completa.`)) return;
+    setErrorActualizarTodas(null);
+    setEnviandoActualizarTodas(true);
+    const res = await enviarComandoAMaquinas(computadoras.map(c => c.id), 'ACTUALIZAR_DATOS');
+    setEnviandoActualizarTodas(false);
+    if (!res.ok) setErrorActualizarTodas(res.message);
   }
 
   async function handleActualizarAgenteSeleccionadas() {
-    const ids = [...idsAgenteSeleccionValidos];
-    const n = ids.length;
-    if (n === 0) return;
-    if (
-      !window.confirm(
-        `¿Enviar ACTUALIZAR_AGENTE a ${n} máquina${n !== 1 ? 's' : ''} seleccionada${n !== 1 ? 's' : ''}?\n\n` +
-          'Cada una descargará el instalador desde la URL configurada y reiniciará el servicio.',
-      )
-    ) {
-      return;
-    }
+    const ids = [...idsValidos];
+    if (ids.length === 0) return;
+    if (!window.confirm(`¿Enviar ACTUALIZAR_AGENTE a ${ids.length} máquina${ids.length !== 1 ? 's' : ''}?\n\nCada una descargará el instalador desde la URL configurada.`)) return;
     setErrorAgenteSeleccion(null);
     setEnviandoAgenteSeleccion(true);
     const res = await enviarComandoAMaquinas(ids, 'ACTUALIZAR_AGENTE');
     setEnviandoAgenteSeleccion(false);
-    if (!res.ok) {
-      setErrorAgenteSeleccion(res.message);
-    }
+    if (!res.ok) setErrorAgenteSeleccion(res.message);
   }
 
   async function handleResetearUuidSeleccionadas() {
-    const ids = [...idsAgenteSeleccionValidos];
-    const n = ids.length;
-    if (n === 0) return;
-    if (
-      !window.confirm(
-        `¿Enviar RESETEAR_ID a ${n} máquina${n !== 1 ? 's' : ''} seleccionada${n !== 1 ? 's' : ''}?\n\n` +
-          'Los agentes borrarán su ID del registro de Windows y se reiniciarán; solo ante colisiones o IDs incorrectos.',
-      )
-    ) {
-      return;
-    }
+    const ids = [...idsValidos];
+    if (ids.length === 0) return;
+    if (!window.confirm(`¿Enviar RESETEAR_ID a ${ids.length} máquina${ids.length !== 1 ? 's' : ''}?\n\nLos agentes borrarán su ID del registro de Windows.`)) return;
     setErrorAgenteSeleccion(null);
-    setEnviandoResetUuidSeleccion(true);
+    setEnviandoResetSeleccion(true);
     const res = await enviarComandoAMaquinas(ids, 'RESETEAR_ID');
-    setEnviandoResetUuidSeleccion(false);
-    if (!res.ok) {
-      setErrorAgenteSeleccion(res.message);
-    }
+    setEnviandoResetSeleccion(false);
+    if (!res.ok) setErrorAgenteSeleccion(res.message);
   }
 
+  // ─── render ────────────────────────────────────────────────────────────────
   if (loadingPcs) {
     return (
       <div className="page">
@@ -361,329 +304,441 @@ export default function System() {
     return (
       <div className="page">
         <h1>Sistema</h1>
-        <p className="page error">{errorPcs}</p>
+        <p className="error">{errorPcs}</p>
         <p className="muted">
           Esta pantalla usa Firebase directamente (<code>computadoras</code>,{' '}
-          <code>logs_actualizaciones</code>). Copiá las variables <code>VITE_FIREBASE_*</code> desde
-          MiniAgente-Front o desde la consola de Firebase.
+          <code>logs_actualizaciones</code>, <code>logs_debug</code>). Revisá las variables{' '}
+          <code>VITE_FIREBASE_*</code> en el <code>.env</code>.
         </p>
-        <BloqueDescargaAgente />
       </div>
     );
   }
 
   return (
-    <div className="page">
-      <h1>Sistema</h1>
-      <p className="muted">
-        Comandos y logs en tiempo real vía Firestore. El agente identifica cada PC por UUID.
-      </p>
+    <div className="page sys-page">
+      <div>
+        <h1>Sistema</h1>
+        <p className="muted" style={{ marginTop: '0.2rem' }}>Comandos y logs en tiempo real vía Firestore. El agente identifica cada PC por UUID.</p>
+      </div>
 
-      <BloqueDescargaAgente />
+      {/* ── Cards de resumen ──────────────────────────────────────────────── */}
+      <div className="sys-stats-grid">
+        <div className="sys-stat-card">
+          <div>
+            <div className="sys-stat-label">Terminales registrados</div>
+            <div className="sys-stat-value">{computadoras.length}</div>
+          </div>
+          <div className="sys-stat-icon sys-stat-icon--blue">💻</div>
+        </div>
+        <div className="sys-stat-card">
+          <div>
+            <div className="sys-stat-label">Versión configurada</div>
+            <div className="sys-stat-value sys-stat-value--blue">{versionEtiqueta ?? '—'}</div>
+          </div>
+          <div className="sys-stat-icon sys-stat-icon--amber">🔖</div>
+        </div>
+        
+        {/* ── Tarjeta Instalador Agente ── */}
+        <div className="sys-stat-card" style={{ gridColumn: 'span 2' }}>
+          <div className="flex items-center gap-3">
+            <div className="sys-stat-icon sys-stat-icon--blue flex items-center justify-center">
+              <Download className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <div className="sys-stat-label">Instalador del agente</div>
+              <div className="text-xs text-slate-500 font-medium">Compatible con Windows</div>
+            </div>
+          </div>
+          
+          <div className="flex items-center">
+            {loadingConfig ? (
+              <span className="text-xs text-slate-400">Sincronizando...</span>
+            ) : urlDescarga ? (
+              <a
+                href={urlDescarga}
+                className="px-3.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold rounded-lg border border-blue-200 transition-colors flex items-center gap-1.5 shadow-sm"
+                target="_blank"
+                rel="noopener noreferrer"
+                download={nombreArchivo}
+              >
+                <Download className="w-3.5 h-3.5" /> Descargar {versionEtiqueta}
+              </a>
+            ) : (
+              <span className="text-xs text-slate-400">Sin URL configurada</span>
+            )}
+          </div>
+        </div>
+      </div>
 
-      <section className="section system-section">
-        <h2>Comandos a máquinas</h2>
-        <p className="muted">
-          Seleccioná equipos para actualizar el agente. Resetear UUID para limpiar el ID.
-        </p>
-        {loadingPcs ? (
-          <p className="muted">Cargando computadoras…</p>
-        ) : computadoras.length === 0 ? (
-          <p className="muted">No hay computadoras en Firestore.</p>
-        ) : (
-          <>
-            <div className="filter-bar" style={{ marginBottom: '1rem' }}>
-              <div className="filter-field" style={{ flex: '1 1 14rem', minWidth: '12rem' }}>
-                <label className="filter-label" htmlFor="busqueda-comandos-maquinas">
-                  Buscar por UUID o hostname
-                </label>
-                <input
-                  id="busqueda-comandos-maquinas"
-                  type="search"
-                  className="filter-input"
-                  placeholder="Ej.: DESKTOP-… o parte del UUID"
-                  value={busquedaComandosMaquinas}
-                  onChange={e => setBusquedaComandosMaquinas(e.target.value)}
-                  autoComplete="off"
-                />
+      {/* ── Comandos a máquinas (Ancho completo) ────────────────────────────────────────── */}
+      <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden mt-6 mb-2">
+        <div className="p-5 border-b border-slate-100">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-emerald-50 rounded-lg text-emerald-600">
+                <Cpu className="w-6 h-6" />
               </div>
-              <div className="filter-field" style={{ flex: '1 1 10rem', minWidth: '9rem' }}>
-                <label className="filter-label" htmlFor="filtro-version-comandos">
-                  Versión instalada
-                </label>
-                <input
-                  id="filtro-version-comandos"
-                  type="search"
-                  className="filter-input"
-                  placeholder="Ej.: 1.2"
-                  value={filtroVersionComandos}
-                  onChange={e => setFiltroVersionComandos(e.target.value)}
-                  autoComplete="off"
-                />
+              <div>
+                <h3 className="font-extrabold text-base text-slate-900 uppercase tracking-wider mb-0.5">Comandos a Máquinas</h3>
+                <p className="text-xs text-slate-400 font-medium m-0">Lanzamiento masivo de instrucciones vía Firestore</p>
               </div>
             </div>
-            {busquedaComandosMaquinas.trim() || filtroVersionComandos.trim() ? (
-              <p className="muted small" style={{ marginBottom: '0.75rem' }}>
-                Mostrando {computadorasFiltradas.length} de {computadoras.length} máquina
-                {computadoras.length !== 1 ? 's' : ''}
-              </p>
-            ) : null}
-            <div className="actions" style={{ marginBottom: '1rem', flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                disabled={enviandoActualizarTodas}
-                onClick={() => void handleActualizarDatosTodas()}
-              >
-                {enviandoActualizarTodas
-                  ? 'Enviando a todas…'
-                  : `Actualizar datos en todas (${computadoras.length})`}
-              </button>
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
+            
+            {versionEtiqueta && (
+              <span className="bg-indigo-50 text-indigo-700 border border-indigo-200 font-bold px-3 py-1 rounded text-xs tracking-wider uppercase">
+                Agente Oficial {versionEtiqueta}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Config & Search actions */}
+        <div className="p-5 border-b border-dashed border-slate-100 bg-slate-50/50 space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="relative">
+              <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none select-none">
+                <Search className="h-4 w-4 text-slate-400" />
+              </span>
+              <input 
+                type="search" 
+                placeholder="Búsqueda por UUID o Hostname..."
+                value={busquedaComandosMaquinas}
+                onChange={(e) => setBusquedaComandosMaquinas(e.target.value)}
+                className="w-full pl-9 pr-3 py-2.5 border border-slate-250 bg-white rounded-lg text-sm placeholder-slate-400 focus:outline-none focus:border-indigo-500 shadow-sm"
+              />
+            </div>
+
+            <div className="relative">
+              <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none select-none">
+                <Settings className="h-4 w-4 text-slate-400" />
+              </span>
+              <input 
+                type="search" 
+                placeholder="Filtrar por Versión de Agente..."
+                value={filtroVersionComandos}
+                onChange={(e) => setFiltroVersionComandos(e.target.value)}
+                className="w-full pl-9 pr-3 py-2.5 border border-slate-250 bg-white rounded-lg text-sm placeholder-slate-400 focus:outline-none focus:border-indigo-500 shadow-sm"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-4 text-sm mt-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <button 
+                type="button" 
+                onClick={() => setIdsAgenteSeleccion(new Set(computadorasFiltradas.map(c => c.id)))}
                 disabled={computadorasFiltradas.length === 0}
-                onClick={seleccionarTodasAgente}
+                className="px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-250 rounded-md font-bold text-sm text-slate-600 disabled:opacity-50 transition-colors shadow-sm"
               >
-                Seleccionar todas (agente)
+                Seleccionar Todas ({computadorasFiltradas.length})
               </button>
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                disabled={idsAgenteSeleccionValidos.size === 0}
-                onClick={deseleccionarTodasAgente}
-              >
-                Deseleccionar
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary btn-sm"
-                disabled={
-                  idsAgenteSeleccionValidos.size === 0 ||
-                  enviandoAgenteSeleccion ||
-                  enviandoResetUuidSeleccion
-                }
-                onClick={() => void handleActualizarAgenteSeleccionadas()}
-              >
-                {enviandoAgenteSeleccion
-                  ? 'Enviando ACTUALIZAR_AGENTE…'
-                  : `Actualizar Agente (${idsAgenteSeleccionValidos.size})`}
-              </button>
-              <button
-                type="button"
-                className="btn btn-danger btn-sm"
-                disabled={
-                  idsAgenteSeleccionValidos.size === 0 ||
-                  enviandoResetUuidSeleccion ||
-                  enviandoAgenteSeleccion
-                }
-                onClick={() => void handleResetearUuidSeleccionadas()}
-              >
-                {enviandoResetUuidSeleccion
-                  ? 'Enviando RESETEAR_ID…'
-                  : `Resetear UUID (${idsAgenteSeleccionValidos.size})`}
-              </button>
-            </div>
-            {errorActualizarTodas && (
-              <p className="error small" style={{ marginBottom: '0.75rem' }}>
-                {errorActualizarTodas}
-              </p>
-            )}
-            {errorAgenteSeleccion && (
-              <p className="error small" style={{ marginBottom: '0.75rem' }}>
-                {errorAgenteSeleccion}
-              </p>
-            )}
-            <div className="comandos-hw-list">
-              {computadorasFiltradas.length === 0 ? (
-                <p className="muted">
-                  Ninguna máquina coincide con los filtros ({computadoras.length} en total).
-                </p>
-              ) : (
-                computadorasFiltradas.map(c => (
-                  <ComandosMaquina
-                    key={c.id}
-                    computadoraId={c.id}
-                    hostname={c.hostname ?? c.id}
-                    versionLabel={versionInstaladaTexto(c)}
-                    seleccionada={idsAgenteSeleccionValidos.has(c.id)}
-                    onToggleSeleccion={() => toggleSeleccionAgente(c.id)}
-                  />
-                ))
+              
+              {idsValidos.size > 0 && (
+                <button 
+                  type="button" 
+                  onClick={() => setIdsAgenteSeleccion(new Set())}
+                  className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-md text-sm transition-colors"
+                >
+                  Deseleccionar
+                </button>
               )}
             </div>
-          </>
-        )}
-      </section>
 
-      <section className="section system-section">
-        <h2>Historial de comandos</h2>
-        <p className="muted">
-          Eventos en tiempo real desde <code>logs_actualizaciones</code>. Podés filtrar por día (hora
-          local). Se sincronizan como máximo los <strong>{LOGS_SNAPSHOT_CAP}</strong> más recientes
-          (rendimiento).
-        </p>
-        <div className="filter-bar">
-          <div className="filter-field" style={{ flex: '1 1 14rem', minWidth: '12rem' }}>
-            <label className="filter-label" htmlFor="busqueda-historial-logs">
-              Buscar por UUID o hostname
-            </label>
+            <div className="flex items-center gap-2 font-mono text-sm">
+              <span className="text-slate-500 font-semibold">Marcadas:</span>
+              <strong className="text-indigo-600 p-1.5 px-3 bg-indigo-50 rounded-lg text-base">{idsValidos.size}</strong>
+            </div>
+          </div>
+
+          {idsValidos.size > 0 && (
+            <div className="p-4 bg-indigo-50/50 border border-indigo-150 rounded-xl flex items-center justify-between flex-wrap gap-4 mt-4">
+              <span className="text-sm font-extrabold text-indigo-900 uppercase tracking-wide flex items-center gap-1.5">
+                <CloudLightning className="w-5 h-5 text-indigo-600 animate-bounce" /> Acciones por Lote ({idsValidos.size}):
+              </span>
+
+              <div className="flex items-center gap-3">
+                <button 
+                  type="button"
+                  disabled={enviandoAgenteSeleccion}
+                  onClick={() => void handleActualizarAgenteSeleccionadas()}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold rounded-lg text-sm transition-colors shadow-sm"
+                >
+                  {enviandoAgenteSeleccion ? 'Procesando...' : 'Actualizar Agente'}
+                </button>
+
+                <button 
+                  type="button"
+                  disabled={enviandoResetSeleccion}
+                  onClick={() => void handleResetearUuidSeleccionadas()}
+                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-extrabold rounded-lg text-sm transition-colors shadow-sm"
+                >
+                  {enviandoResetSeleccion ? 'Mandando...' : 'Resetear UUID'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* List nodes */}
+        <div className="p-5 space-y-4 max-h-[480px] overflow-y-auto">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <span className="text-sm font-extrabold text-slate-400 uppercase tracking-widest">Máquinas ({computadorasFiltradas.length})</span>
+            <button 
+              type="button"
+              disabled={enviandoActualizarTodas}
+              onClick={() => void handleActualizarDatosTodas()}
+              className="text-sm text-indigo-600 hover:text-indigo-800 font-extrabold flex items-center gap-1.5 transition-colors"
+            >
+              <RefreshCw className={`w-4 h-4 ${enviandoActualizarTodas ? 'animate-spin' : ''}`} />
+              Forzar Lectura General
+            </button>
+          </div>
+
+          {computadorasFiltradas.length === 0 ? (
+            <div className="text-center py-12 flex flex-col items-center justify-center text-slate-400">
+              <Ban className="w-10 h-10 text-slate-300 stroke-[1.5]" />
+              <p className="text-base font-medium mt-3">
+                {computadoras.length === 0
+                  ? 'No hay computadoras en Firestore.'
+                  : 'Ninguna máquina coincide con los filtros.'}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {computadorasFiltradas.map(c => (
+                <NodoComando
+                  key={c.id}
+                  computadoraId={c.id}
+                  hostname={c.hostname ?? c.id}
+                  versionLabel={versionInstaladaTexto(c)}
+                  sistemaOperativo={c.sistema_operativo}
+                  estadoConexion={c.estado_conexion}
+                  versionEtiqueta={versionEtiqueta}
+                  seleccionada={idsValidos.has(c.id)}
+                  onToggleSeleccion={() => toggleSeleccion(c.id)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Terminal: Historial de comandos (ancho completo) ─────────────── */}
+      <div className="sys-terminal">
+
+        {/* Header de la terminal */}
+        <div className="sys-terminal-header">
+          <div className="sys-terminal-title-group">
+            <span className="sys-terminal-icon">⌨</span>
+            <div>
+              <div className="sys-terminal-title">Historial de Comandos Telemétricos</div>
+              <div className="sys-terminal-subtitle">
+                Eventos en tiempo real · <code>logs_actualizaciones</code> +{' '}
+                <code>logs_debug</code> · máx. {LOGS_SNAPSHOT_CAP} registros c/u
+              </div>
+            </div>
+          </div>
+          <div className="sys-terminal-badges">
+            <span className="sys-terminal-src-badge sys-terminal-src-badge--act">
+              actualizaciones: {logsActualizaciones.length}
+            </span>
+            <span className="sys-terminal-src-badge sys-terminal-src-badge--dbg">
+              debug: {logsDebug.length}
+            </span>
+          </div>
+        </div>
+
+        {/* Tabs de fuente */}
+        <div style={{ display: 'flex', borderBottom: '1px solid #e2e8f0', background: '#ffffff' }}>
+          <button
+            style={{ 
+              flex: 1, padding: '0.75rem', border: 'none', cursor: 'pointer', 
+              fontFamily: '"JetBrains Mono", monospace', fontSize: '0.8rem', fontWeight: 700,
+              background: filtroFuenteLogs === 'actualizaciones' ? 'rgba(59,130,246,0.05)' : 'transparent',
+              color: filtroFuenteLogs === 'actualizaciones' ? '#2563eb' : '#64748b',
+              borderBottom: filtroFuenteLogs === 'actualizaciones' ? '2px solid #3b82f6' : '2px solid transparent',
+              transition: 'all 0.2s'
+            }}
+            onClick={() => setFiltroFuenteLogs('actualizaciones')}
+          >
+            Logs Actualizaciones ({logsActualizaciones.length})
+          </button>
+          <button
+            style={{ 
+              flex: 1, padding: '0.75rem', border: 'none', cursor: 'pointer', 
+              fontFamily: '"JetBrains Mono", monospace', fontSize: '0.8rem', fontWeight: 700,
+              background: filtroFuenteLogs === 'debug' ? 'rgba(100,116,139,0.05)' : 'transparent',
+              color: filtroFuenteLogs === 'debug' ? '#475569' : '#94a3b8',
+              borderBottom: filtroFuenteLogs === 'debug' ? '2px solid #64748b' : '2px solid transparent',
+              transition: 'all 0.2s'
+            }}
+            onClick={() => setFiltroFuenteLogs('debug')}
+          >
+            Logs Debug ({logsDebug.length})
+          </button>
+          <button
+            style={{ 
+              flex: 1, padding: '0.75rem', border: 'none', cursor: 'pointer', 
+              fontFamily: '"JetBrains Mono", monospace', fontSize: '0.8rem', fontWeight: 700,
+              background: filtroFuenteLogs === 'errores' ? 'rgba(239,68,68,0.05)' : 'transparent',
+              color: filtroFuenteLogs === 'errores' ? '#dc2626' : '#94a3b8',
+              borderBottom: filtroFuenteLogs === 'errores' ? '2px solid #dc2626' : '2px solid transparent',
+              transition: 'all 0.2s'
+            }}
+            onClick={() => setFiltroFuenteLogs('errores')}
+          >
+            Solo Errores ({logsErrores.length})
+          </button>
+        </div>
+
+        {/* Filtros */}
+        <div className="sys-terminal-filters">
+          <div className="filter-field" style={{ flex: '1 1 14rem' }}>
+            <label className="sys-terminal-label" htmlFor="busqueda-historial-logs">UUID o Hostname</label>
             <input
               id="busqueda-historial-logs"
               type="search"
-              className="filter-input"
-              placeholder="Filtra la tabla por PC"
+              className="sys-terminal-input"
+              placeholder="Buscar en historial…"
               value={busquedaHistorialLogs}
               onChange={e => setBusquedaHistorialLogs(e.target.value)}
               autoComplete="off"
             />
           </div>
-          <div className="filter-field" style={{ flex: '1 1 10rem', minWidth: '9rem' }}>
-            <label className="filter-label" htmlFor="filtro-version-historial">
-              Versión agente
-            </label>
+          <div className="filter-field" style={{ flex: '0 1 9rem' }}>
+            <label className="sys-terminal-label" htmlFor="filtro-version-historial">Versión agente</label>
             <input
               id="filtro-version-historial"
               type="search"
-              className="filter-input"
-              placeholder="Ej.: 1.2"
+              className="sys-terminal-input"
+              placeholder="Ej.: 6.5"
               value={filtroVersionHistorial}
               onChange={e => setFiltroVersionHistorial(e.target.value)}
               autoComplete="off"
             />
           </div>
-          <div className="filter-field">
-            <label className="filter-label" htmlFor="logs-fecha-desde">
-              Desde
-            </label>
+          <div className="filter-field" style={{ flex: '0 1 9rem' }}>
+            <label className="sys-terminal-label" htmlFor="logs-fecha-desde">Desde</label>
             <input
               id="logs-fecha-desde"
               type="date"
-              className="filter-input"
+              className="sys-terminal-input"
               value={logFechaDesde}
-              onChange={e => {
-                setLogFechaDesde(e.target.value);
-                setFeedbackBorrarLogs(null);
-              }}
+              onChange={e => { setLogFechaDesde(e.target.value); setFeedbackBorrarLogs(null); }}
             />
           </div>
-          <div className="filter-field">
-            <label className="filter-label" htmlFor="logs-fecha-hasta">
-              Hasta
-            </label>
+          <div className="filter-field" style={{ flex: '0 1 9rem' }}>
+            <label className="sys-terminal-label" htmlFor="logs-fecha-hasta">Hasta</label>
             <input
               id="logs-fecha-hasta"
               type="date"
-              className="filter-input"
+              className="sys-terminal-input"
               value={logFechaHasta}
-              onChange={e => {
-                setLogFechaHasta(e.target.value);
-                setFeedbackBorrarLogs(null);
-              }}
+              onChange={e => { setLogFechaHasta(e.target.value); setFeedbackBorrarLogs(null); }}
             />
           </div>
-          <div className="filter-field">
-            <span className="filter-label" aria-hidden="true">
-              &nbsp;
-            </span>
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              disabled={!logFechaDesde && !logFechaHasta}
-              onClick={() => {
-                setLogFechaDesde('');
-                setLogFechaHasta('');
-                setFeedbackBorrarLogs(null);
-              }}
-            >
-              Quitar filtro de fechas
-            </button>
-          </div>
-          <div className="filter-field">
-            <span className="filter-label" aria-hidden="true">
-              &nbsp;
-            </span>
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              disabled={loadingLogs || borrandoLogs || !!errorLogs || logs.length === 0}
-              onClick={() => void handleBorrarLogs()}
-            >
-              {borrandoLogs ? 'Borrando…' : 'Borrar logs'}
-            </button>
-          </div>
         </div>
-        {feedbackBorrarLogs && (
-          <p
-            className={feedbackBorrarLogs.ok ? 'muted small' : 'error small'}
-            style={{ marginBottom: '0.75rem' }}
+
+        {/* Barra de stats + acciones */}
+        <div className="sys-terminal-actionbar">
+          <div className="sys-terminal-count">
+            Registros:{' '}
+            <strong className="sys-count-highlight">
+              {logsFiltrados.length}
+            </strong>
+            {(logFechaDesde || logFechaHasta || busquedaHistorialLogs || filtroVersionHistorial) && (
+              <button
+                type="button"
+                className="sys-clear-filters"
+                onClick={() => {
+                  setLogFechaDesde('');
+                  setLogFechaHasta('');
+                  setBusquedaHistorialLogs('');
+                  setFiltroVersionHistorial('');
+                  setFeedbackBorrarLogs(null);
+                }}
+              >
+                Limpiar filtros
+              </button>
+            )}
+          </div>
+          <button
+            type="button"
+            className="btn btn-danger btn-sm"
+            disabled={borrandoLogs || logsActualizaciones.length === 0 || !!errorAct}
+            onClick={() => void handleBorrarLogs()}
+            title="Solo borra logs_actualizaciones; los de debug se auto-expiran"
           >
+            {borrandoLogs ? 'Borrando…' : 'Borrar logs_actualizaciones'}
+          </button>
+        </div>
+
+        {/* Mensajes de estado */}
+        {feedbackBorrarLogs && (
+          <div className={`sys-terminal-feedback ${feedbackBorrarLogs.ok ? 'sys-terminal-feedback--ok' : 'sys-terminal-feedback--err'}`}>
             {feedbackBorrarLogs.text}
-          </p>
+          </div>
         )}
         {rangoFechasInvalido && (
-          <p className="error small" style={{ marginBottom: '0.75rem' }}>
-            La fecha &quot;Desde&quot; no puede ser posterior a &quot;Hasta&quot;.
-          </p>
+          <div className="sys-terminal-feedback sys-terminal-feedback--err">
+            [ERROR] La fecha «Desde» no puede ser posterior a «Hasta».
+          </div>
         )}
-        {errorLogs && <p className="error small">Logs: {errorLogs}</p>}
-        {!loadingLogs && !errorLogs && (
-          <p className="muted small" style={{ marginBottom: '0.75rem' }}>
-            {busquedaHistorialLogs.trim() || filtroVersionHistorial.trim()
-              ? `${logsFiltrados.length} de ${logs.length} registro${logs.length !== 1 ? 's' : ''}`
-              : `${logs.length} registro${logs.length !== 1 ? 's' : ''}`}
-            {logFechaDesde || logFechaHasta
-              ? rangoFechasInvalido
-                ? ' (sin filtro por rango inválido)'
-                : ' (filtrado por timestamp)'
-              : ''}
-            {busquedaHistorialLogs.trim() || filtroVersionHistorial.trim()
-              ? ' (filtrado por búsqueda)'
-              : ''}
-          </p>
+        {errorLogs && (
+          <div className="sys-terminal-feedback sys-terminal-feedback--err">
+            Logs: {errorLogs}
+          </div>
         )}
-        {loadingLogs ? (
-          <p className="muted">Cargando logs…</p>
-        ) : logs.length === 0 ? (
-          <p className="muted">Sin entradas aún.</p>
-        ) : logsFiltrados.length === 0 ? (
-          <p className="muted">
-            Ningún log coincide con los filtros ({logs.length} registro
-            {logs.length !== 1 ? 's' : ''} con el filtro de fechas actual).
-          </p>
-        ) : (
-          <div className="table-wrap table-wrap--scroll">
-            <table className="table">
+
+        {/* Tabla de logs */}
+        <div className="sys-terminal-table-wrap">
+          {loadingLogs ? (
+            <p className="sys-terminal-empty">Cargando logs…</p>
+          ) : logsFiltrados.length === 0 ? (
+            <p className="sys-terminal-empty">
+              {logsCombinados.length === 0
+                ? 'Sin entradas aún en ninguna de las dos colecciones.'
+                : 'Ningún log coincide con los filtros activos.'}
+            </p>
+          ) : (
+            <table className="sys-terminal-table">
               <thead>
                 <tr>
-                  <th>Fecha</th>
-                  <th>PC</th>
-                  <th>Evento</th>
-                  <th>Detalle</th>
+                  <th>Timestamp</th>
+                  <th>Terminal / Host</th>
+                  <th>Evento / Tipo</th>
+                  <th>Detalle / Mensaje</th>
                   <th>Versión</th>
                 </tr>
               </thead>
               <tbody>
                 {logsFiltrados.map(l => (
-                  <tr key={l.id}>
-                    <td style={{ whiteSpace: 'nowrap' }}>
+                  <tr key={l.id} className={l._fuente === 'debug' ? 'sys-row-debug' : ''}>
+                    <td className="sys-td-ts" style={{ whiteSpace: 'nowrap' }}>
                       {l.timestamp ? formatTimestamp(l.timestamp) : '—'}
                     </td>
-                    <td>{l.hostname || l.uuid || '—'}</td>
+                    <td>
+                      <div className="sys-td-host">{l.hostname || '—'}</div>
+                      {l.uuid && (
+                        <div className="sys-td-uuid">
+                          <code className="uuid-inline">{l.uuid || '—'}</code>
+                        </div>
+                      )}
+                    </td>
                     <td>
                       <span className={`badge ${EVENTO_BADGE_HW[l.evento] ?? 'badge-neutral'}`}>
-                        {l.evento}
+                        {l.evento || '—'}
                       </span>
                     </td>
                     <td className="td-detalle-log">{l.detalle || '—'}</td>
-                    <td>{l.version_agente || '—'}</td>
+                    <td className="sys-td-ver">{l.version_agente || '—'}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
-        )}
-      </section>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

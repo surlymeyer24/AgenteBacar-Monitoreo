@@ -19,6 +19,7 @@ public class PerifericoManualDTO {
     private String fabricante;
     private String conexion;
     private String computadoraHostname;
+    private String ubicacion;
     private String notas;
     private String estado;
     private LocalDate fechaAlta;

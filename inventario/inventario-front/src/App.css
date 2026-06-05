@@ -1,6 +1,6 @@
 @reference "tailwindcss";
 
-/* Raíz de la SPA: encadena height 100% hasta .layout (scroll solo en .main-scroll / tablas) */
+/* RaÃ­z de la SPA: encadena height 100% hasta .layout (scroll solo en .main-scroll / tablas) */
 .app-root {
   height: 100%;
   min-height: 0;
@@ -13,7 +13,7 @@
   min-height: 0;
 }
 
-/* ── Layout ──────────────────────────────────────────────────── */
+/* â”€â”€ Layout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .layout {
   height: 100%;
   max-height: 100%;
@@ -35,7 +35,7 @@
   margin: 0;
 }
 
-/* ── Login (Firebase Auth) ───────────────────────────────────── */
+/* â”€â”€ Login (Firebase Auth) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 body:has(.login-page) {
   background: #07080d;
 }
@@ -629,7 +629,7 @@ button.nav-group-header {
   display: none;
 }
 
-/* ── Main content ────────────────────────────────────────────── */
+/* â”€â”€ Main content â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .main {
   flex: 1;
   min-width: 0;
@@ -651,7 +651,7 @@ button.nav-group-header {
   flex-direction: column;
 }
 
-/* Lista /computadoras: título + filtros visibles; solo la grilla hace scroll */
+/* Lista /computadoras: tÃ­tulo + filtros visibles; solo la grilla hace scroll */
 .page--computadora-list {
   flex: 1;
   min-height: 0;
@@ -747,7 +747,7 @@ button.nav-group-header {
   margin-bottom: 1rem;
 }
 
-/* Pestañas detalle (p. ej. computadora: hardware / software) */
+/* PestaÃ±as detalle (p. ej. computadora: hardware / software) */
 .detail-tabs {
   display: flex;
   flex-wrap: wrap;
@@ -791,7 +791,7 @@ a.detail-tab {
   box-sizing: border-box;
 }
 
-/* Pestañas clásicas dentro de un bloque (misma línea inferior + solapa activa enlazada al contenido) */
+/* PestaÃ±as clÃ¡sicas dentro de un bloque (misma lÃ­nea inferior + solapa activa enlazada al contenido) */
 .detail-tabs-block {
   @apply bg-white border border-slate-200 rounded-xl shadow-sm p-4 mb-4;
 }
@@ -831,18 +831,18 @@ a.detail-tab {
   opacity: 0.95;
 }
 
-/* Acento en la solapa activa (sin perder el aspecto de pestaña) */
+/* Acento en la solapa activa (sin perder el aspecto de pestaÃ±a) */
 .detail-tabs-block .detail-tab--active {
   box-shadow: 0 -1px 0 var(--card-bg), inset 0 2px 0 0 var(--color-danger);
 }
 
-/* Solo fila de pestañas (p. ej. detalle PC HW/SW) */
+/* Solo fila de pestaÃ±as (p. ej. detalle PC HW/SW) */
 .detail-tabs-block--tabs-only {
   margin-bottom: 1rem;
   padding-bottom: 0.2rem;
 }
 
-/* Pestañas + resumen + filtros en un solo bloque blanco */
+/* PestaÃ±as + resumen + filtros en un solo bloque blanco */
 .detail-tabs-block--unified {
   margin-bottom: 1rem;
   padding-bottom: 0;
@@ -867,7 +867,7 @@ a.detail-tab {
   margin-top: 0;
 }
 
-/* ── Cards ───────────────────────────────────────────────────── */
+/* â”€â”€ Cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .card {
   @apply bg-white rounded-xl border border-slate-200 shadow-sm p-6 mb-6;
 }
@@ -880,7 +880,7 @@ a.detail-tab {
   @apply text-base font-semibold text-slate-800 mb-3 mt-6;
 }
 
-/* ── Tables ──────────────────────────────────────────────────── */
+/* â”€â”€ Tables â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .table-wrap {
   @apply overflow-x-auto overflow-y-auto max-h-[600px] border border-slate-200 rounded-lg bg-white shadow-sm mt-4;
 }
@@ -910,7 +910,7 @@ a.detail-tab {
   @apply px-4 py-8 text-center text-slate-400 italic;
 }
 
-/* ── Badges ──────────────────────────────────────────────────── */
+/* â”€â”€ Badges â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .badge {
   display: inline-block;
   padding: 0.2rem 0.6rem;
@@ -950,7 +950,7 @@ a.detail-tab {
   border: 1px solid rgba(0, 137, 123, 0.28);
 }
 
-/* ── Buttons ─────────────────────────────────────────────────── */
+/* â”€â”€ Buttons â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .btn {
   @apply inline-flex items-center gap-2 px-4 py-2 font-medium text-sm rounded-lg transition-all shadow-sm;
 }
@@ -975,7 +975,7 @@ a.detail-tab {
   @apply px-3 py-1.5 text-xs;
 }
 
-/* ── Detail definition list ──────────────────────────────────── */
+/* â”€â”€ Detail definition list â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .detail-dl {
   @apply grid gap-y-4 gap-x-6 text-sm m-0;
   grid-template-columns: 180px minmax(0, 1fr);
@@ -1097,14 +1097,14 @@ a.detail-tab {
   min-height: 72px;
 }
 
-/* ── UUID monospace ──────────────────────────────────────────── */
+/* â”€â”€ UUID monospace â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .uuid {
   font-family: var(--mono);
   font-size: 0.82rem;
   color: var(--text-muted);
 }
 
-/* ── Dashboard ───────────────────────────────────────────────── */
+/* â”€â”€ Dashboard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -1164,7 +1164,7 @@ a.detail-tab {
   outline-offset: -2px;
 }
 
-/* Impresoras agrupadas — links a PCs en una celda */
+/* Impresoras agrupadas â€” links a PCs en una celda */
 .td-pcs-impresora {
   max-width: 28rem;
   line-height: 1.45;
@@ -1215,7 +1215,7 @@ a.detail-tab {
   margin-bottom: 1rem;
 }
 
-/* ── Estado messages ─────────────────────────────────────────── */
+/* â”€â”€ Estado messages â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .estado-msg {
   text-align: center;
   padding: 3rem;
@@ -1226,7 +1226,7 @@ a.detail-tab {
   color: var(--color-danger);
 }
 
-/* ── Responsive ──────────────────────────────────────────────── */
+/* â”€â”€ Responsive â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 @media (max-width: 768px) {
   html {
     height: auto;
@@ -1292,7 +1292,7 @@ a.detail-tab {
   }
 }
 
-/* ── Inventario equipos (toolbar estilo tarjeta clara) ─────────── */
+/* â”€â”€ Inventario equipos (toolbar estilo tarjeta clara) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .inventory-page-title {
   @apply text-2xl font-bold tracking-tight text-slate-900 mb-1;
 }
@@ -1434,7 +1434,7 @@ a.detail-tab {
   color: var(--color-danger);
 }
 
-/* ── Sync agente (puntos en listado) ─────────────────────────── */
+/* â”€â”€ Sync agente (puntos en listado) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .table-col-sync {
   width: 2.75rem;
   text-align: center;
@@ -1469,7 +1469,7 @@ a.detail-tab {
   box-shadow: 0 0 0 2px rgba(198, 40, 40, 0.18);
 }
 
-/* ── Dashboard métricas (tarjetas horizontales) ─────────────── */
+/* â”€â”€ Dashboard mÃ©tricas (tarjetas horizontales) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .dashboard-metrics-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr));
@@ -1614,7 +1614,7 @@ a.metric-card.dashboard-metric-link:active {
   }
 }
 
-/* Tarjeta periféricos (barras horizontales) */
+/* Tarjeta perifÃ©ricos (barras horizontales) */
 .dashboard-perifericos-card {
   box-shadow: 0 2px 12px var(--shadow, rgba(0, 0, 0, 0.08));
 }
@@ -1683,7 +1683,7 @@ a.metric-card.dashboard-metric-link:active {
   }
 }
 
-/* ── Sistema (agente / Firestore) — alineado a MiniAgente Tareas ─ */
+/* â”€â”€ Sistema (agente / Firestore) â€” alineado a MiniAgente Tareas â”€ */
 .section {
   margin-bottom: 1.25rem;
   padding: 1.25rem;
@@ -1857,3 +1857,450 @@ a.metric-card.dashboard-metric-link:active {
   color: var(--color-danger);
   border: 1px solid rgba(156, 19, 19, 0.28);
 }
+
+/* â”€â”€ Sistema / Config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+
+.sys-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* Stats cards */
+.sys-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.85rem;
+}
+@media (max-width: 900px) {
+  .sys-stats-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 520px) {
+  .sys-stats-grid { grid-template-columns: 1fr; }
+}
+
+.sys-stat-card {
+  background: var(--card-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 1rem 1.15rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+.sys-stat-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+  margin-bottom: 0.25rem;
+}
+.sys-stat-value {
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: var(--color-primary);
+  line-height: 1;
+}
+.sys-stat-value--blue { color: #3b82f6; }
+.sys-stat-value-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+}
+.sys-stat-icon {
+  font-size: 1.35rem;
+  padding: 0.6rem;
+  border-radius: 10px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.sys-stat-icon--blue  { background: rgba(59,130,246,0.1); }
+.sys-stat-icon--green { background: rgba(34,197,94,0.1); }
+.sys-stat-icon--amber { background: rgba(251,191,36,0.1); }
+.sys-stat-icon--slate { background: rgba(100,116,139,0.1); }
+
+/* Split layout */
+.sys-split {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+@media (max-width: 860px) {
+  .sys-split { grid-template-columns: 1fr; }
+}
+
+/* Card reutilizado */
+.sys-left-panel .card,
+.sys-right-panel .card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--card-bg);
+  overflow: hidden;
+}
+
+.sys-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.9rem 1.1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+.sys-card-title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.sys-card-icon {
+  font-size: 1rem;
+  padding: 0.35rem;
+  border-radius: 8px;
+  line-height: 1;
+}
+.sys-card-icon--blue  { background: rgba(59,130,246,0.1); }
+.sys-card-icon--green { background: rgba(34,197,94,0.1); }
+.sys-card-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--color-primary);
+}
+.sys-card-subtitle {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+.sys-card-body {
+  padding: 1rem 1.1rem;
+}
+
+/* Requisitos del instalador */
+.sys-installer-reqs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  background: rgba(100,116,139,0.06);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0.65rem 0.85rem;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 0.75rem;
+}
+.sys-reqs-title {
+  font-weight: 700;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+  margin-bottom: 0.2rem;
+}
+
+/* Acciones por lote */
+.sys-batch-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  background: rgba(59,130,246,0.05);
+  border: 1px solid rgba(59,130,246,0.2);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.85rem;
+  margin-bottom: 0.75rem;
+}
+.sys-batch-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #3b82f6;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Lista de nodos */
+.sys-nodes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  max-height: 340px;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.sys-node-item {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--card-bg);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.sys-node-item:hover {
+  background: rgba(100,116,139,0.04);
+}
+.sys-node-item--selected {
+  background: rgba(59,130,246,0.05);
+  border-color: rgba(59,130,246,0.35);
+}
+.sys-node-check {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.sys-node-info {
+  flex: 1 1 10rem;
+  min-width: 0;
+}
+.sys-node-hostname {
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: var(--color-primary);
+}
+.sys-node-meta {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 0.15rem;
+}
+.sys-node-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex-shrink: 0;
+}
+.sys-node-error {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+
+/* ── Terminal de logs (Modo Claro) ─────────────────────────────────────────── */
+.sys-terminal {
+  background: var(--card-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  color: var(--color-text);
+  box-shadow: 0 2px 12px var(--shadow);
+}
+
+.sys-terminal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.85rem 1.1rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-light);
+}
+.sys-terminal-title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+.sys-terminal-icon {
+  font-size: 1.1rem;
+  background: rgba(52,211,153,0.15);
+  color: #10b981;
+  padding: 0.35rem 0.45rem;
+  border-radius: 8px;
+  line-height: 1;
+}
+.sys-terminal-title {
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-primary);
+}
+.sys-terminal-subtitle {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 0.1rem;
+}
+.sys-terminal-subtitle code {
+  background: rgba(100,116,139,0.1);
+  padding: 0.05rem 0.3rem;
+  border-radius: 3px;
+  font-size: 0.68rem;
+  color: var(--color-text);
+}
+.sys-terminal-badges {
+  display: flex;
+  gap: 0.4rem;
+}
+.sys-terminal-src-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  padding: 0.2rem 0.55rem;
+  border-radius: 4px;
+  border: 1px solid;
+}
+.sys-terminal-src-badge--act {
+  background: #ffffff;
+  color: #2563eb;
+  border-color: rgba(59,130,246,0.25);
+}
+.sys-terminal-src-badge--dbg {
+  background: #ffffff;
+  color: #475569;
+  border-color: rgba(100,116,139,0.25);
+}
+
+/* Filtros en terminal */
+.sys-terminal-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.75rem 1.1rem;
+  border-bottom: 1px dashed var(--color-border);
+  background: var(--card-bg);
+}
+.sys-terminal-label {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 0.3rem;
+  font-family: 'JetBrains Mono', monospace;
+}
+.sys-terminal-input {
+  width: 100%;
+  background: var(--card-bg);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  border-radius: 6px;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.78rem;
+  font-family: 'JetBrains Mono', monospace;
+  transition: border-color 0.15s;
+  outline: none;
+  box-sizing: border-box;
+}
+.sys-terminal-input:focus {
+  border-color: var(--color-sidebar-bar);
+  box-shadow: 0 0 0 2px rgba(92, 107, 192, 0.2);
+}
+.sys-terminal-input option {
+  background: var(--card-bg);
+}
+
+/* Barra de acciones */
+.sys-terminal-actionbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.6rem 1.1rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-light);
+}
+.sys-terminal-count {
+  font-size: 0.78rem;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.sys-count-highlight { color: var(--color-primary); font-weight: 700; }
+.sys-clear-filters {
+  background: none;
+  border: none;
+  color: #3b82f6;
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+  margin-left: 0.5rem;
+}
+.sys-clear-filters:hover { color: #2563eb; }
+
+/* Feedback */
+.sys-terminal-feedback {
+  padding: 0.55rem 1.1rem;
+  font-size: 0.78rem;
+  font-family: 'JetBrains Mono', monospace;
+  border-bottom: 1px solid var(--color-border);
+}
+.sys-terminal-feedback--ok  { background: rgba(52,211,153,0.1); color: #059669; }
+.sys-terminal-feedback--err { background: rgba(239,68,68,0.1);  color: #dc2626; }
+
+/* Tabla */
+.sys-terminal-table-wrap {
+  overflow-x: auto;
+  max-height: 360px;
+  overflow-y: auto;
+}
+.sys-terminal-empty {
+  padding: 2rem 1.1rem;
+  text-align: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  font-style: italic;
+  margin: 0;
+}
+.sys-terminal-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--color-text);
+}
+.sys-terminal-table thead {
+  position: sticky;
+  top: 0;
+  background: var(--color-bg-light);
+  z-index: 1;
+  box-shadow: 0 1px 0 var(--color-border);
+}
+.sys-terminal-table thead th {
+  padding: 0.5rem 0.85rem;
+  text-align: left;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+.sys-terminal-table tbody tr {
+  border-bottom: 1px solid var(--color-border);
+  transition: background 0.1s;
+}
+.sys-terminal-table tbody tr:hover { background: var(--hover-bg); }
+.sys-terminal-table tbody tr.sys-row-debug { opacity: 0.85; }
+.sys-terminal-table td {
+  padding: 0.4rem 0.85rem;
+  vertical-align: top;
+  color: var(--color-text) !important;
+}
+.sys-td-ts   { color: var(--text-muted); white-space: nowrap; font-size: 0.75rem; }
+.sys-td-host { font-weight: 700; color: var(--color-primary); font-size: 0.8rem; }
+.sys-td-uuid { font-size: 0.68rem; color: var(--text-muted); margin-top: 0.1rem; }
+.sys-td-ver  { color: var(--text-muted); font-weight: 700; white-space: nowrap; }
+.td-detalle-log {
+  color: var(--color-text) !important;
+  max-width: 340px;
+  line-height: 1.4;
+  word-break: break-word;
+}
+

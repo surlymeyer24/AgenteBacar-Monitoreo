@@ -21,6 +21,7 @@ public class PerifericoManual {
     private String fabricante;
     private String conexion;
     private String computadoraHostname;
+    private String ubicacion;
     private String notas;
     /** ISO-8601 fecha calendario ({@code yyyy-MM-dd}). */
     private String fechaAlta;

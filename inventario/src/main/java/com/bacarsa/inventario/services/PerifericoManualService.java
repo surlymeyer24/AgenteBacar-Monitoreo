@@ -50,6 +50,7 @@ public class PerifericoManualService {
         p.setFabricante(blankToNull(dto.getFabricante()));
         p.setConexion(blankToNull(dto.getConexion()));
         p.setComputadoraHostname(blankToNull(dto.getComputadoraHostname()));
+        p.setUbicacion(blankToNull(dto.getUbicacion()));
         p.setNotas(blankToNull(dto.getNotas()));
         LocalDate fa = dto.getFechaAlta() != null ? dto.getFechaAlta() : LocalDate.now();
         p.setFechaAlta(fa.toString());
@@ -76,11 +77,16 @@ public class PerifericoManualService {
         campos.put("fabricante", dto.getFabricante() != null && !dto.getFabricante().isBlank() ? dto.getFabricante().trim() : null);
         campos.put("conexion", dto.getConexion() != null && !dto.getConexion().isBlank() ? dto.getConexion().trim() : null);
         campos.put("computadoraHostname", dto.getComputadoraHostname() != null && !dto.getComputadoraHostname().isBlank() ? dto.getComputadoraHostname().trim() : null);
+        campos.put("ubicacion", dto.getUbicacion() != null && !dto.getUbicacion().isBlank() ? dto.getUbicacion().trim() : null);
         campos.put("notas", dto.getNotas() != null && !dto.getNotas().isBlank() ? dto.getNotas().trim() : null);
         if (dto.getFechaAlta() != null)
             campos.put("fechaAlta", dto.getFechaAlta().toString());
         repository.actualizar(id, campos);
         return obtenerPorId(id);
+    }
+
+    public void eliminar(String id) throws ExecutionException, InterruptedException {
+        repository.eliminar(id);
     }
 
     public PerifericoManualDTO asignar(String id, String computadoraHostname, String motivo)

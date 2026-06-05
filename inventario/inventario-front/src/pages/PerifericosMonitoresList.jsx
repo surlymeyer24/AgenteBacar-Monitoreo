@@ -52,7 +52,6 @@ function PerifericosMonitoresList() {
   return (
     <StudioPageShell
       title="Administración de Monitores"
-      subtitle="Gestión de pantallas y displays enlazados a las estaciones de trabajo corporativas."
     >
       <PerifericosTable 
         items={filas} 

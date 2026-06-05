@@ -5,6 +5,8 @@ import {
 import { 
   INITIAL_ASSETS, INITIAL_USERS, INITIAL_ASSIGNMENTS, INITIAL_CONSUMABLES, INITIAL_ACTIVITIES, INITIAL_AGENT_COMPUTERS 
 } from './mockData';
+import { signInAnonymously } from 'firebase/auth';
+import { getFirebaseAuth } from '../../src/lib/firebase';
 import Dashboard from './components/Dashboard';
 import AssetsList from './components/AssetsList';
 import UserProfile from './components/UserProfile';
@@ -70,7 +72,7 @@ export default function App() {
   const triggerNewAssetForm = useRef<() => void>(null);
 
   // Handle Login
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!loginEmail.trim() || !loginPassword.trim()) {
       setLoginError('Por favor complete todos los datos.');
@@ -78,8 +80,19 @@ export default function App() {
     }
     // Allow standard entry for demo or specialized Bacar emails
     if (loginEmail.includes('@') && loginPassword.length >= 4) {
-      setIsAuthenticated(true);
-      setLoginError('');
+      try {
+        const auth = getFirebaseAuth();
+        if (auth) {
+          await signInAnonymously(auth);
+        }
+        setIsAuthenticated(true);
+        setLoginError('');
+      } catch (err) {
+        console.error("Firebase auth error:", err);
+        // Fallback: entramos a la UI de todas formas
+        setIsAuthenticated(true);
+        setLoginError('');
+      }
     } else {
       setLoginError('Usuario o contraseña no válida.');
     }

@@ -83,11 +83,6 @@ export default function AsignacionesBoard({ computadoras, onUpdateComputer }) {
     const nextState = rowNewStatus[c.uuid] || c.estadoIt || c.estadoActual || 'Asignada';
     const motiveText = rowMotive[c.uuid] || '';
 
-    if (!motiveText.trim()) {
-      alert('Debe especificar un motivo detallado obligatoriamente para cambiar el estado.');
-      return;
-    }
-
     try {
       await updateEstado(c.uuid, nextState, motiveText);
       if (onUpdateComputer) {
@@ -183,7 +178,7 @@ export default function AsignacionesBoard({ computadoras, onUpdateComputer }) {
                 <th className="py-2.5 px-4 min-w-[250px]">CAMBIAR ESTADO</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-xs">
+            <tbody className="divide-y divide-slate-100 text-[14px]">
               {unifiedFilteredComputers.length > 0 ? (
                 unifiedFilteredComputers.map((c) => {
                   const currentAssignee = rowAssignee[c.uuid] !== undefined ? rowAssignee[c.uuid] : (c.responsableInventario || c.responsable_inventario || '');
@@ -216,11 +211,11 @@ export default function AsignacionesBoard({ computadoras, onUpdateComputer }) {
                             placeholder="Nombre o referencia"
                             value={currentAssignee}
                             onChange={(evt) => setRowAssignee(prev => ({ ...prev, [c.uuid]: evt.target.value }))}
-                            className="px-2.5 py-1 bg-white border border-slate-200 hover:border-slate-300 focus:border-[#0c66e4] focus:bg-white text-[11px] rounded transition-all font-semibold text-slate-700 w-full"
+                            className="px-2.5 py-1 bg-white border border-slate-200 hover:border-slate-300 focus:border-[#0c66e4] focus:bg-white text-[12px] rounded transition-all font-semibold text-slate-700 w-full"
                           />
                           <button
                             onClick={() => handleSaveCustody(c)}
-                            className="px-3 py-1 bg-[#0c66e4] hover:bg-blue-700 text-white font-bold text-[10px] rounded transition-colors cursor-pointer"
+                            className="px-3 py-1 bg-[#0c66e4] hover:bg-blue-700 text-white font-bold text-[11px] rounded transition-colors cursor-pointer"
                           >
                             Guardar
                           </button>
@@ -235,13 +230,13 @@ export default function AsignacionesBoard({ computadoras, onUpdateComputer }) {
 
                       <td className="py-3 px-4">
                         {currentItState === 'Asignada' ? (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-50 border border-indigo-200 text-indigo-700">Asignada</span>
+                          <span className="px-2 py-0.5 rounded-full text-xs font-extrabold bg-indigo-50 border border-indigo-200 text-indigo-700">Asignada</span>
                         ) : currentItState === 'Disponible' ? (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 border border-emerald-200 text-emerald-700">Disponible</span>
+                          <span className="px-2 py-0.5 rounded-full text-xs font-extrabold bg-emerald-50 border border-emerald-200 text-emerald-700">Disponible</span>
                         ) : currentItState === 'En Reparación' ? (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-50 border border-amber-200 text-amber-700">Reparación</span>
+                          <span className="px-2 py-0.5 rounded-full text-xs font-extrabold bg-amber-50 border border-amber-200 text-amber-700">Reparación</span>
                         ) : (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-50 border border-rose-200 text-rose-700">De baja</span>
+                          <span className="px-2 py-0.5 rounded-full text-xs font-extrabold bg-rose-50 border border-rose-200 text-rose-700">De baja</span>
                         )}
                       </td>
 
@@ -251,7 +246,7 @@ export default function AsignacionesBoard({ computadoras, onUpdateComputer }) {
                             <select
                               value={nextStateSelected}
                               onChange={(evt) => setRowNewStatus(prev => ({ ...prev, [c.uuid]: evt.target.value }))}
-                              className="bg-white border border-slate-200 px-1.5 py-0.5 rounded text-[10px] text-slate-700 font-bold cursor-pointer"
+                              className="bg-white border border-slate-200 px-1.5 py-0.5 rounded text-xs text-slate-700 font-bold cursor-pointer"
                             >
                               <option value="Asignada">Asignada</option>
                               <option value="Disponible">Disponible (Sin asignar)</option>
@@ -262,14 +257,14 @@ export default function AsignacionesBoard({ computadoras, onUpdateComputer }) {
                           <div className="flex gap-1.5">
                             <input 
                               type="text"
-                              placeholder="Motivo (obligatorio)"
+                              placeholder="Motivo (opcional)"
                               value={currentMotiveText}
                               onChange={(evt) => setRowMotive(prev => ({ ...prev, [c.uuid]: evt.target.value }))}
-                              className="px-2 py-0.5 bg-white border border-slate-200 hover:border-slate-300 focus:border-[#0c66e4] text-[10px] rounded transition-all font-medium text-slate-800 w-full"
+                              className="px-2 py-0.5 bg-white border border-slate-200 hover:border-slate-300 focus:border-[#0c66e4] text-xs rounded transition-all font-medium text-slate-800 w-full"
                             />
                             <button
                               onClick={() => handleApplyStateChange(c)}
-                              className="px-2 py-0.5 bg-slate-800 hover:bg-slate-900 text-white font-bold text-[10px] rounded transition-colors shrink-0 cursor-pointer"
+                              className="px-2 py-0.5 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded transition-colors shrink-0 cursor-pointer"
                             >
                               Aplicar
                             </button>

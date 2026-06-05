@@ -68,3 +68,12 @@ export function updateEstadoPerifericoM(id, estado, motivo) {
     return res.json();
   });
 }
+
+export function deletePerifericoM(id) {
+  return apiFetch(`${BASE_URL}/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  }).then(res => {
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return true;
+  });
+}

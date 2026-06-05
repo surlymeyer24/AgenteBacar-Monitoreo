@@ -152,7 +152,7 @@ export default function ComputadoraAsignaciones() {
   async function guardarEstado(uuid) {
     const est = (estadoSel[uuid] ?? '').trim();
     const mot = (motivoEstado[uuid] ?? '').trim();
-    if (!est || !mot) return;
+    if (!est) return;
     setSavingEst(uuid);
     setMsgEst(null);
     try {
@@ -284,7 +284,7 @@ export default function ComputadoraAsignaciones() {
       </div>
 
       <div className="table-wrap table-wrap--scroll">
-        <table className="table">
+        <table className="table" style={{ fontSize: '15px' }}>
           <thead>
             <tr>
               <th>Hostname</th>
@@ -355,7 +355,7 @@ export default function ComputadoraAsignaciones() {
                       <input
                         className="inventory-input"
                         type="text"
-                        placeholder="Motivo (obligatorio)"
+                        placeholder="Motivo (opcional)"
                         value={motivoEstado[c.uuid] ?? ''}
                         onChange={e => setMotivoEstado(prev => ({ ...prev, [c.uuid]: e.target.value }))}
                       />
@@ -365,7 +365,6 @@ export default function ComputadoraAsignaciones() {
                         disabled={
                           savingEst === c.uuid
                           || !(estadoSel[c.uuid] ?? '').trim()
-                          || !(motivoEstado[c.uuid] ?? '').trim()
                         }
                         onClick={() => guardarEstado(c.uuid)}
                       >
