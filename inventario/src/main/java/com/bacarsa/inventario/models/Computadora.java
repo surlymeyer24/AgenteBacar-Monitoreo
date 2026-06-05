@@ -62,6 +62,10 @@ public class Computadora {
     @Setter(onMethod_ = @PropertyName("responsable_inventario"))
     private String responsableInventario;
 
+    @Getter(onMethod_ = @PropertyName("anydesk_id"))
+    @Setter(onMethod_ = @PropertyName("anydesk_id"))
+    private String anydeskId;
+
     public Computadora() {
         this.historialEstados = new ArrayList<>();
         this.discos = new ArrayList<>();

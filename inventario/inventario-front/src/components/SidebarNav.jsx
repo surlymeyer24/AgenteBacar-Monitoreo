@@ -1,146 +1,147 @@
-import { useState, useEffect, useMemo } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
-import { TOPICOS } from '../constants/topicos';
-import { CHEVRON_ICON_PROPS, NAV_ICONS } from '../lib/navIcons';
-import NavIcon from './NavIcon';
+import { useState } from 'react';
+import { NavLink } from 'react-router-dom';
+import { 
+  Laptop, Cpu, Network, Layers, 
+  Terminal, ChevronRight, Layers2, FileText,
+  Users, Video, Server, HardDrive
+} from 'lucide-react';
 
-function pathMatchesChild(pathname, childPath) {
-  if (childPath === '/') return pathname === '/';
-  return pathname === childPath || pathname.startsWith(`${childPath}/`);
-}
+export default function SidebarNav({ sidebarCollapsed }) {
+  const [hardwareExpanded, setHardwareExpanded] = useState(true);
+  const [perifericosExpanded, setPerifericosExpanded] = useState(true);
+  const [infraestructuraExpanded, setInfraestructuraExpanded] = useState(true);
 
-function getAutoExpandedIds(pathname) {
-  const ids = {};
-  TOPICOS.forEach(t => {
-    if (!t.children) return;
-    const matchChildren = t.children.some(c => pathMatchesChild(pathname, c.path));
-    const matchGroupPath = t.path && pathMatchesChild(pathname, t.path);
-    if (matchChildren || matchGroupPath) ids[t.id] = true;
-  });
-  return ids;
-}
-
-function NavChevron({ open }) {
-  const Chevron = open ? NAV_ICONS.ChevronDown : NAV_ICONS.ChevronRight;
-  return <Chevron {...CHEVRON_ICON_PROPS} className="nav-group-chevron-svg" />;
-}
-
-/** Ítem de menú: Lucide (`iconKey`) o emoji (`icono`), como en la rama Redes. */
-function NavItemIcon({ item, size }) {
-  if (item.icono) {
-    return (
-      <span className="nav-link-emoji" aria-hidden>
-        {item.icono}
-      </span>
-    );
-  }
-  return <NavIcon name={item.iconKey} size={size} />;
-}
-
-function SidebarNav() {
-  const location = useLocation();
-  const [expanded, setExpanded] = useState({});
-  const autoExpanded = useMemo(() => getAutoExpandedIds(location.pathname), [location.pathname]);
-
-  useEffect(() => {
-    setExpanded(prev => {
-      const next = { ...prev };
-      Object.keys(autoExpanded).forEach(id => {
-        if (autoExpanded[id]) next[id] = true;
-      });
-      return next;
-    });
-  }, [autoExpanded]);
-
-  function toggleGroup(id) {
-    setExpanded(prev => {
-      const auto = getAutoExpandedIds(location.pathname);
-      const current = prev[id] !== undefined ? prev[id] : !!auto[id];
-      return { ...prev, [id]: !current };
-    });
-  }
-
-  function groupIsOpen(item) {
-    if (expanded[item.id] !== undefined) return expanded[item.id];
-    return !!autoExpanded[item.id];
-  }
-
-  function navLinkClass({ isActive }) {
-    return `nav-link${isActive ? ' active' : ''}`;
-  }
-
-  function groupHeaderNavClass({ isActive }) {
-    return `nav-link nav-group-header nav-group-header-link${isActive ? ' active' : ''}`;
-  }
+  const navLinkClass = ({ isActive }) => `nav-link w-full text-left ${isActive ? 'active' : ''}`;
 
   return (
     <nav className="nav">
-      {TOPICOS.map(item => {
-        if (item.children?.length) {
-          const open = groupIsOpen(item);
-          if (item.path) {
-            return (
-              <div key={item.id} className="nav-group">
-                <div className="nav-group-header-row">
-                  <NavLink to={item.path} className={groupHeaderNavClass}>
-                    <NavItemIcon item={item} />
-                    <span className="nav-link-text">{item.label}</span>
-                  </NavLink>
-                  <button
-                    type="button"
-                    className="nav-group-chevron-btn"
-                    onClick={e => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      toggleGroup(item.id);
-                    }}
-                    aria-expanded={open}
-                    aria-label={open ? 'Contraer menú' : 'Expandir menú'}
-                  >
-                    <NavChevron open={open} />
-                  </button>
-                </div>
-                <div className={`nav-group-children${open ? '' : ' is-collapsed'}`}>
-                  {item.children.map(child => (
-                    <NavLink key={child.id} to={child.path} className={navLinkClass}>
-                      <NavItemIcon item={child} size={18} />
-                      <span className="nav-link-text">{child.label}</span>
-                    </NavLink>
-                  ))}
-                </div>
-              </div>
-            );
-          }
-          return (
-            <div key={item.id} className="nav-group">
-              <button type="button" className="nav-group-header" onClick={() => toggleGroup(item.id)}>
-                <span className="nav-group-header-inner">
-                  <NavItemIcon item={item} />
-                  <span className="nav-link-text">{item.label}</span>
-                </span>
-                <NavChevron open={open} />
-              </button>
-              <div className={`nav-group-children${open ? '' : ' is-collapsed'}`}>
-                {item.children.map(child => (
-                  <NavLink key={child.id} to={child.path} className={navLinkClass}>
-                    <NavItemIcon item={child} size={18} />
-                    <span className="nav-link-text">{child.label}</span>
-                  </NavLink>
-                ))}
-              </div>
-            </div>
-          );
-        }
+      {/* Section 1: GENERAL */}
+      <div className="nav-section-title">General</div>
+      
+      <NavLink to="/" className={navLinkClass}>
+        <Layers2 className="w-4 h-4 text-indigo-400" />
+        <span className="nav-link-text">Inicio</span>
+      </NavLink>
 
-        return (
-          <NavLink key={item.id} to={item.path} end={item.path === '/'} className={navLinkClass}>
-            <NavItemIcon item={item} />
-            <span className="nav-link-text">{item.label}</span>
-          </NavLink>
-        );
-      })}
+      {/* Section 2: HARDWARE */}
+      <div className="nav-section-title">Hardware</div>
+
+      <div className="nav-group">
+        <button 
+          onClick={() => setHardwareExpanded(!hardwareExpanded)}
+          className="nav-group-header w-full text-left"
+        >
+          <div className="flex items-center gap-2">
+            <Laptop className="w-4 h-4 text-blue-400" />
+            <span className="nav-link-text">Hardware</span>
+          </div>
+          {!sidebarCollapsed && (
+            <ChevronRight className={`w-3 h-3 nav-group-chevron transition-transform duration-200 ${hardwareExpanded ? 'rotate-90' : ''}`} />
+          )}
+        </button>
+        {hardwareExpanded && (
+          <div className="nav-group-children">
+            <NavLink to="/computadoras" className={navLinkClass} end>
+              <span className="nav-link-text pl-2">Computadoras</span>
+            </NavLink>
+            <NavLink to="/perifericos/impresoras" className={navLinkClass}>
+              <span className="nav-link-text pl-2">Impresoras</span>
+            </NavLink>
+            <NavLink to="/perifericos/monitores" className={navLinkClass}>
+              <span className="nav-link-text pl-2">Monitores</span>
+            </NavLink>
+          </div>
+        )}
+      </div>
+
+      <div className="nav-group">
+        <button 
+          onClick={() => setPerifericosExpanded(!perifericosExpanded)}
+          className="nav-group-header w-full text-left"
+        >
+          <div className="flex items-center gap-2">
+            <Cpu className="w-4 h-4 text-amber-500" />
+            <span className="nav-link-text">Periféricos</span>
+          </div>
+          {!sidebarCollapsed && (
+            <ChevronRight className={`w-3 h-3 nav-group-chevron transition-transform duration-200 ${perifericosExpanded ? 'rotate-90' : ''}`} />
+          )}
+        </button>
+        {perifericosExpanded && (
+          <div className="nav-group-children">
+            <NavLink to="/perifericos/teclados" className={navLinkClass}>
+              <span className="nav-link-text pl-2">Teclados</span>
+            </NavLink>
+            <NavLink to="/perifericos/mouse" className={navLinkClass}>
+              <span className="nav-link-text pl-2">Mouse</span>
+            </NavLink>
+            <NavLink to="/perifericos/webcams" className={navLinkClass}>
+              <span className="nav-link-text pl-2">Webcams</span>
+            </NavLink>
+            <NavLink to="/perifericos/parlantes" className={navLinkClass}>
+              <span className="nav-link-text pl-2">Parlantes</span>
+            </NavLink>
+            <NavLink to="/perifericos/microfonos" className={navLinkClass}>
+              <span className="nav-link-text pl-2">Micrófonos</span>
+            </NavLink>
+          </div>
+        )}
+      </div>
+
+      <NavLink to="/perifericos/stock" className={navLinkClass}>
+        <Layers className="w-4 h-4 text-cyan-400" />
+        <span className="nav-link-text">Stock</span>
+      </NavLink>
+
+      {/* Section 3: INFRAESTRUCTURA */}
+      <div className="nav-section-title">Infraestructura</div>
+
+      <div className="nav-group">
+        <button 
+          onClick={() => setInfraestructuraExpanded(!infraestructuraExpanded)}
+          className="nav-group-header w-full text-left"
+        >
+          <div className="flex items-center gap-2">
+            <Network className="w-4 h-4 text-emerald-400" />
+            <span className="nav-link-text">Infraestructura</span>
+          </div>
+          {!sidebarCollapsed && (
+            <ChevronRight className={`w-3 h-3 nav-group-chevron transition-transform duration-200 ${infraestructuraExpanded ? 'rotate-90' : ''}`} />
+          )}
+        </button>
+        {infraestructuraExpanded && (
+          <div className="nav-group-children">
+            <NavLink to="/nvrs" className={navLinkClass}>
+              <span className="nav-link-text pl-2">NVR</span>
+            </NavLink>
+            <NavLink to="/camaras" className={navLinkClass}>
+              <span className="nav-link-text pl-2">Cámaras</span>
+            </NavLink>
+            <NavLink to="/servidores" className={navLinkClass}>
+              <span className="nav-link-text pl-2">Servidores</span>
+            </NavLink>
+            <NavLink to="/routers-switches" className={navLinkClass}>
+              <span className="nav-link-text pl-2">Routers & Switches</span>
+            </NavLink>
+            <NavLink to="/maquinas-tesoreria" className={navLinkClass}>
+              <span className="nav-link-text pl-2">Máq. Tesorería</span>
+            </NavLink>
+          </div>
+        )}
+      </div>
+
+      {/* Section 4: ADMINISTRACIÓN */}
+      <div className="nav-section-title">Administración</div>
+
+      <NavLink to="/perfil" className={navLinkClass}>
+        <FileText className="w-4 h-4 text-purple-400" />
+        <span className="nav-link-text">Mi Perfil</span>
+      </NavLink>
+
+      <NavLink to="/system" className={navLinkClass}>
+        <Terminal className="w-4 h-4 text-slate-400" />
+        <span className="nav-link-text">Sistema</span>
+      </NavLink>
     </nav>
   );
 }
-
-export default SidebarNav;

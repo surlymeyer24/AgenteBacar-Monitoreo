@@ -74,6 +74,7 @@ public class ComputadoraMapper {
         }
         dto.setHistorialEstados(CambioEstadoMapper.toDTOList(computadora.getHistorialEstados()));
         dto.setResponsableInventario(computadora.getResponsableInventario());
+        dto.setAnydeskId(computadora.getAnydeskId());
         return dto;
     }
 

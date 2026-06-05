@@ -65,9 +65,18 @@ public class MaquinaTesoreriaService {
         }
 
         MaquinaTesoreria maquina = new MaquinaTesoreria();
+        
+        String nroSerie = dto.getNroSerie().trim();
+        if (!nroSerie.equalsIgnoreCase("S/N") && !nroSerie.isEmpty()) {
+            // Sanitize slashes so it doesn't break Firestore path
+            String sanitizedSerie = nroSerie.replace("/", "-").replace("\\", "-");
+            String customId = tipo.name() + "-" + sanitizedSerie;
+            maquina.setId(customId);
+        }
+
         maquina.setTipo(tipo);
         maquina.setModelo(dto.getModelo().trim());
-        maquina.setNroSerie(dto.getNroSerie().trim());
+        maquina.setNroSerie(nroSerie);
         maquina.setVida(blankToNull(dto.getVida()));
 
         Estado estado = new Estado();

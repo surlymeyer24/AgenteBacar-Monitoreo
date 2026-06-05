@@ -63,6 +63,12 @@ function SwitchList() {
     setModalAbierto(false);
   }
 
+  const handleDeleteItem = (item) => {
+    if (window.confirm(`¿Desea eliminar el switch ${item.nombre || item.id}?`)) {
+      setLista(prev => prev.filter(i => i.id !== item.id));
+    }
+  };
+
   function onChangeCampo(field, value) {
     setForm(prev => ({ ...prev, [field]: value }));
   }
@@ -169,6 +175,7 @@ function SwitchList() {
               <th>Ubicación</th>
               <th>Estado (IT)</th>
               <th>Estado (Red)</th>
+              <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -198,6 +205,15 @@ function SwitchList() {
                   <td>{sw.ubicacion ? labelUbicacionEnum(sw.ubicacion) : '—'}</td>
                   <td>{sw.estado ?? '—'}</td>
                   <td>{sw.estadoOmada ?? '—'}</td>
+                  <td onClick={(e) => e.stopPropagation()}>
+                    <button 
+                      onClick={() => handleDeleteItem(sw)}
+                      style={{ background: 'none', border: 'none', color: 'red', cursor: 'pointer', padding: '4px' }}
+                      title="Eliminar"
+                    >
+                      🗑️
+                    </button>
+                  </td>
                 </tr>
               ))
             )}

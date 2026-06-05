@@ -1,12 +1,18 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Link } from 'react-router-dom';
-import { Video, Camera, Router, EthernetPort, Banknote } from 'lucide-react';
+import { Video, Camera, Router, EthernetPort, Banknote, Server } from 'lucide-react';
+import { motion } from 'motion/react';
 import { fetchDashboardStats } from '../api/dashboardApi';
 import { fetchCamaras } from '../api/camaraApi';
 import { fetchNvrs } from '../api/nvrApi';
 import { fetchMaquinas } from '../api/maquinaTesoreriaApi';
+import { fetchServidores } from '../api/servidorApi';
+import {
+  StudioPageShell,
+  StudioLoading,
+  StudioError,
+  StudioMetricCard,
+} from '../components/studio/StudioUi';
 
-/** Conteos por NVR (nombre visible); incluye "Sin NVR" y NVR huérfanos en datos. */
 function camarasPorNvrDesdeLista(camaras, nvrs) {
   const list = Array.isArray(camaras) ? camaras : [];
   const nvrList = Array.isArray(nvrs) ? nvrs : [];
@@ -26,84 +32,69 @@ function camarasPorNvrDesdeLista(camaras, nvrs) {
   if (sin > 0) rows.push({ label: 'Sin NVR', count: sin });
   for (const [id, c] of countBy) {
     if (!id || c === 0) continue;
-    if (!idsCatalogo.has(id)) {
-      rows.push({ label: id, count: c });
-    }
+    if (!idsCatalogo.has(id)) rows.push({ label: id, count: c });
   }
   rows.sort((a, b) => b.count - a.count);
   const out = {};
-  for (const r of rows) {
-    out[r.label] = r.count;
-  }
+  for (const r of rows) out[r.label] = r.count;
   return out;
 }
 
-const INFRA_BAR_COLORS = [
-  '#6A1B9A',
-  '#C62828',
-  '#1565C0',
-  '#00838F',
-  '#2E7D32',
-];
+const BAR_COLORS = ['#0c66e4', '#6554c0', '#36b37e', '#ff5630', '#ffab00', '#00a3bf'];
 
-function TarjetaBarrasInfra({ titulo, porClave }) {
-  const conDatos = porClave
-    ? Object.entries(porClave).filter(([, n]) => Number(n) > 0)
-    : [];
+function TarjetaBarras({ titulo, porClave }) {
+  const conDatos = porClave ? Object.entries(porClave).filter(([, n]) => Number(n) > 0) : [];
   const max = Math.max(1, ...conDatos.map(([, n]) => Number(n) || 0));
 
-  if (!porClave || conDatos.length === 0) {
+  if (!conDatos.length) {
     return (
-      <div className="card dashboard-perifericos-card">
-        <h2 className="dashboard-perifericos-card__title">{titulo}</h2>
-        <p className="muted" style={{ margin: 0 }}>
-          Sin datos para mostrar.
-        </p>
+      <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-6 space-y-2">
+        <h2 className="text-base font-semibold text-slate-900">{titulo}</h2>
+        <p className="text-xs text-slate-500 m-0">Sin datos para mostrar.</p>
       </div>
     );
   }
 
   return (
-    <div className="card dashboard-perifericos-card">
-      <h2 className="dashboard-perifericos-card__title">{titulo}</h2>
-      <ul className="dashboard-perifericos-card__list">
-        {conDatos.map(([label, raw], i) => {
+    <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-6 space-y-4">
+      <div className="border-b border-slate-100 pb-3">
+        <h2 className="text-base font-semibold text-slate-900">{titulo}</h2>
+        <p className="text-xs text-slate-500 mt-0.5">Desglose distributivo del inventario.</p>
+      </div>
+      <div className="space-y-4">
+        {conDatos.map(([label, raw], index) => {
           const n = Number(raw) || 0;
-          const pct = Math.round((n / max) * 100);
-          const color = INFRA_BAR_COLORS[i % INFRA_BAR_COLORS.length];
+          const pct = (n / max) * 100;
+          const colorClass = BAR_COLORS[index % BAR_COLORS.length];
           return (
-            <li key={label} className="dashboard-perifericos-card__row">
-              <span className="dashboard-perifericos-card__label">{label}</span>
-              <div
-                className="dashboard-perifericos-card__track"
-                role="presentation"
-                aria-hidden="true"
-              >
-                <div
-                  className="dashboard-perifericos-card__fill"
-                  style={{
-                    width: `${pct}%`,
-                    backgroundColor: color,
-                  }}
+            <div key={label} className="space-y-1">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-medium text-slate-700">{label}</span>
+                <span className="font-semibold text-slate-900 font-mono">{n}</span>
+              </div>
+              <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${pct}%` }}
+                  transition={{ duration: 0.6, ease: 'easeOut' }}
+                  className="h-full rounded-full"
+                  style={{ backgroundColor: colorClass }}
                 />
               </div>
-              <span className="dashboard-perifericos-card__value">{n}</span>
-            </li>
+            </div>
           );
         })}
-      </ul>
+      </div>
     </div>
   );
 }
-
-const INFRA_METRIC_LINK_CLASS =
-  'metric-card dashboard-metric-icon-card dashboard-metric-link';
 
 function InfraestructuraDashboard() {
   const [stats, setStats] = useState(null);
   const [listaNvrs, setListaNvrs] = useState([]);
   const [camaras, setCamaras] = useState([]);
   const [totalMaquinas, setTotalMaquinas] = useState(0);
+  const [totalServidores, setTotalServidores] = useState(0);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
 
@@ -115,141 +106,108 @@ function InfraestructuraDashboard() {
       fetchNvrs().catch(() => []),
       fetchCamaras().catch(() => []),
       fetchMaquinas().catch(() => []),
+      fetchServidores().catch(() => []),
     ])
-      .then(([s, nvrs, cams, maqs]) => {
+      .then(([s, nvrs, cams, maqs, srvs]) => {
         setStats(s ?? null);
         setListaNvrs(Array.isArray(nvrs) ? nvrs : []);
         setCamaras(Array.isArray(cams) ? cams : []);
         setTotalMaquinas(Array.isArray(maqs) ? maqs.length : 0);
+        setTotalServidores(Array.isArray(srvs) ? srvs.length : 0);
       })
       .catch(() => setError('No se pudo cargar el resumen de infraestructura.'))
       .finally(() => setCargando(false));
   }, []);
 
-  useEffect(() => {
-    cargar();
-  }, [cargar]);
+  useEffect(() => { cargar(); }, [cargar]);
 
-  const totalNvrs = listaNvrs.length;
-  const totalCamaras = camaras.length;
   const camarasPorNvr = useMemo(
     () => camarasPorNvrDesdeLista(camaras, listaNvrs),
-    [camaras, listaNvrs]
+    [camaras, listaNvrs],
   );
 
-  if (cargando) return <p className="estado-msg">Cargando...</p>;
+  if (cargando) return <StudioLoading message="Cargando infraestructura…" />;
 
   const s = stats ?? {};
+  const totalNvrs = listaNvrs.length;
+  const totalCamaras = camaras.length;
   const totalRouters = Number(s.totalRouters ?? 0);
   const totalSwitches = Number(s.totalSwitches ?? 0);
-
-  const totalActivos =
-    totalNvrs + totalCamaras + totalRouters + totalSwitches + totalMaquinas;
+  const totalActivos = totalNvrs + totalCamaras + totalRouters + totalSwitches + totalMaquinas + totalServidores;
   const subt =
     totalActivos === 0
       ? 'Sin equipos registrados'
       : `${totalActivos} activo${totalActivos === 1 ? '' : 's'} en inventario`;
 
   return (
-    <div className="page">
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-end',
-          flexWrap: 'wrap',
-          gap: '0.75rem',
-          marginBottom: '0.35rem',
-        }}
-      >
-        <div>
-          <h1 className="inventory-page-title" style={{ marginBottom: '0.2rem' }}>
-            Infraestructura
-          </h1>
-          <p className="inventory-page-sub" style={{ margin: 0 }}>{subt}</p>
-        </div>
-      </div>
-      <p className="muted" style={{ marginTop: 0 }}>
-        Videovigilancia (NVR y cámaras), red y tesorería. El desglose de cámaras usa la asignación a NVR
-        de cada cámara.
-      </p>
-
+    <StudioPageShell
+      title="Infraestructura: Red, Videovigilancia y Tesorería"
+      subtitle={`${subt}. Videovigilancia (NVR y cámaras), red corporativa y equipos de tesorería.`}
+    >
       {error ? (
-        <p className="estado-msg error" role="alert">
+        <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm font-medium" role="alert">
           {error}
-        </p>
+        </div>
       ) : null}
 
-      <div className="dashboard-metrics-row" style={{ marginBottom: '1rem' }}>
-        <Link
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
+        <StudioMetricCard
+          title="NVR"
+          value={totalNvrs}
+          subtitle="unid."
+          icon={Video}
+          iconClass="bg-purple-50 text-purple-600"
           to="/nvrs"
-          className={`${INFRA_METRIC_LINK_CLASS} metric-card--purple`}
-        >
-          <div>
-            <p className="metric-card__title">NVR</p>
-            <p className="metric-card__value">{totalNvrs}</p>
-          </div>
-          <Video size={36} color="#6a1b9a" opacity={0.85} />
-        </Link>
-        <Link
+        />
+        <StudioMetricCard
+          title="Cámaras"
+          value={totalCamaras}
+          subtitle="equipos"
+          icon={Camera}
+          iconClass="bg-red-50 text-red-600"
           to="/camaras"
-          className={`${INFRA_METRIC_LINK_CLASS} metric-card--red`}
-        >
-          <div>
-            <p className="metric-card__title">Cámaras</p>
-            <p className="metric-card__value">{totalCamaras}</p>
-          </div>
-          <Camera size={36} color="#c62828" opacity={0.85} />
-        </Link>
-        <Link
+        />
+        <StudioMetricCard
+          title="Routers"
+          value={totalRouters}
+          subtitle="unid."
+          icon={Router}
+          iconClass="bg-blue-50 text-blue-600"
           to="/routers"
-          className={`${INFRA_METRIC_LINK_CLASS} metric-card--blue`}
-        >
-          <div>
-            <p className="metric-card__title">Routers</p>
-            <p className="metric-card__value">{totalRouters}</p>
-          </div>
-          <Router size={36} color="#1565c0" opacity={0.85} />
-        </Link>
-        <Link
+        />
+        <StudioMetricCard
+          title="Switches"
+          value={totalSwitches}
+          subtitle="unid."
+          icon={EthernetPort}
+          iconClass="bg-emerald-50 text-emerald-600"
           to="/switches"
-          className={`${INFRA_METRIC_LINK_CLASS} metric-card--green`}
-        >
-          <div>
-            <p className="metric-card__title">Switches</p>
-            <p className="metric-card__value">{totalSwitches}</p>
-          </div>
-          <EthernetPort size={36} color="#2e7d32" opacity={0.85} />
-        </Link>
-        <Link
+        />
+        <StudioMetricCard
+          title="Máq. tesorería"
+          value={totalMaquinas}
+          subtitle="unid."
+          icon={Banknote}
+          iconClass="bg-orange-50 text-orange-600"
           to="/maquinas-tesoreria"
-          className={`${INFRA_METRIC_LINK_CLASS} metric-card--orange`}
-        >
-          <div>
-            <p className="metric-card__title">Máq. tesorería</p>
-            <p className="metric-card__value">{totalMaquinas}</p>
-          </div>
-          <Banknote size={36} color="#ef6c00" opacity={0.85} />
-        </Link>
-      </div>
-
-      <div className="dashboard-charts-row">
-        <div style={{ gridColumn: '1 / -1' }}>
-          <TarjetaBarrasInfra titulo="Cámaras por NVR" porClave={camarasPorNvr} />
-        </div>
-      </div>
-
-      <div className="dashboard-charts-row">
-        <TarjetaBarrasInfra
-          titulo="Routers por ubicación"
-          porClave={s.porUbicacionRouters ?? {}}
         />
-        <TarjetaBarrasInfra
-          titulo="Switches por ubicación"
-          porClave={s.porUbicacionSwitches ?? {}}
+        <StudioMetricCard
+          title="Servidores"
+          value={totalServidores}
+          subtitle="unid."
+          icon={Server}
+          iconClass="bg-slate-100 text-slate-600"
+          to="/servidores"
         />
       </div>
-    </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <TarjetaBarras titulo="Cámaras por NVR" porClave={camarasPorNvr} />
+        <TarjetaBarras titulo="Routers por ubicación" porClave={s.porUbicacionRouters ?? {}} />
+      </div>
+
+      <TarjetaBarras titulo="Switches por ubicación" porClave={s.porUbicacionSwitches ?? {}} />
+    </StudioPageShell>
   );
 }
 

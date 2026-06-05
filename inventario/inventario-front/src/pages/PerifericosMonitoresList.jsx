@@ -1,15 +1,24 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import { fetchMonitoresReportadosAgente } from '../api/monitorApi';
+import {
+  StudioPageShell,
+  StudioLoading,
+  StudioError,
+} from '../components/studio/StudioUi';
+import PerifericosTable from '../components/PerifericosTable';
 
 function fmtNumOGuion(n, dec = 1) {
-  if (n == null || n === '') return '—';
+  if (n == null || n === '') return 'N/A';
   const x = Number(n);
-  return Number.isFinite(x) ? x.toFixed(dec) : '—';
+  return Number.isFinite(x) ? x.toFixed(dec) : 'N/A';
 }
 
 function claveFila(r, index) {
   return `${r.pcUuid ?? ''}-${r.nombre ?? ''}-${r.resolucion ?? ''}-${index}`;
+}
+
+function limpiarNombre(n) {
+  return (n ?? '—').replace(/\u0000/g, '');
 }
 
 function PerifericosMonitoresList() {
@@ -37,61 +46,22 @@ function PerifericosMonitoresList() {
     };
   }, []);
 
-  if (cargando) return <p className="estado-msg">Cargando...</p>;
-  if (error) return <p className="estado-msg error">{error}</p>;
+  if (cargando) return <StudioLoading />;
+  if (error) return <StudioError message={error} />;
 
   return (
-    <div className="page">
-      <h1>Monitores</h1>
-      <p className="muted">
-        Monitores reportados por el agente en cada computadora. Los datos salen del mismo origen que
-        el detalle de PC, en una sola respuesta del servidor.
-      </p>
-      <div className="card">
-        <div className="table-wrap" style={{ marginTop: 0 }}>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>PC origen</th>
-                <th>Nombre</th>
-                <th>Resolución</th>
-                <th>Pulgadas</th>
-                <th>Ancho cm</th>
-                <th>Alto cm</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filas.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="table-empty">
-                    Sin monitores reportados
-                  </td>
-                </tr>
-              ) : (
-                filas.map((f, index) => (
-                  <tr key={claveFila(f, index)}>
-                    <td>
-                      {f.pcUuid ? (
-                        <Link className="link-inline" to={`/computadoras/${f.pcUuid}`}>
-                          {f.pcHostname ?? f.pcUuid ?? '—'}
-                        </Link>
-                      ) : (
-                        (f.pcHostname ?? '—')
-                      )}
-                    </td>
-                    <td>{f.nombre ?? '—'}</td>
-                    <td>{f.resolucion ?? '—'}</td>
-                    <td>{fmtNumOGuion(f.pulgadas, 1)}</td>
-                    <td>{fmtNumOGuion(f.anchoCm, 1)}</td>
-                    <td>{fmtNumOGuion(f.altoCm, 1)}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+    <StudioPageShell
+      title="Administración de Monitores"
+      subtitle="Gestión de pantallas y displays enlazados a las estaciones de trabajo corporativas."
+    >
+      <PerifericosTable 
+        items={filas} 
+        type="monitor" 
+        renderSpecs={(mon) => (
+          <>Resolución: {mon.resolucion || '—'} <span className="text-slate-300 mx-1">|</span> Pulgadas: {fmtNumOGuion(mon.pulgadas, 1)}"</>
+        )} 
+      />
+    </StudioPageShell>
   );
 }
 

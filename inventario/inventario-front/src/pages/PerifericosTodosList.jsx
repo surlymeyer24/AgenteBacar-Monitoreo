@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { Search } from 'lucide-react';
 import { fetchComputadoras, fetchComputadora } from '../api/computadoraApi';
 import {
   esTeclado,
@@ -8,6 +9,13 @@ import {
   filtrarUsbParaInventario,
   filtrarAudioParaInventario,
 } from '../utils/perifericos';
+import {
+  StudioPageShell,
+  StudioLoading,
+  StudioError,
+  StudioFilterBar,
+} from '../components/studio/StudioUi';
+import PerifericosTable from '../components/PerifericosTable';
 
 function fmtNum(n, dec = 1) {
   if (n == null || n === '') return null;
@@ -55,19 +63,19 @@ function tipoUsb(d) {
 }
 
 const TIPO_BADGE = {
-  'Impresora':  'badge-router',
-  'Monitor':    'badge-info',
-  'Teclado':    'badge-neutral',
-  'Mouse':      'badge-neutral',
-  'Webcam':     'badge-switch',
-  'Bluetooth':  'badge-switch',
-  'Micrófono':  'badge-info',
-  'Parlante':   'badge-success',
-  'USB (otro)': 'badge-neutral',
+  Impresora: 'bg-emerald-100 text-emerald-800',
+  Monitor: 'bg-blue-100 text-blue-800',
+  Teclado: 'bg-orange-100 text-orange-800',
+  Mouse: 'bg-indigo-100 text-indigo-800',
+  Webcam: 'bg-rose-100 text-rose-800',
+  Bluetooth: 'bg-cyan-100 text-cyan-800',
+  Micrófono: 'bg-teal-100 text-teal-800',
+  Parlante: 'bg-purple-100 text-purple-800',
+  'USB (otro)': 'bg-slate-100 text-slate-600',
 };
 
 function chipTipo(tipo) {
-  return <span className={`badge ${TIPO_BADGE[tipo] ?? 'badge-neutral'}`}>{tipo}</span>;
+  return TIPO_BADGE[tipo] ?? 'bg-slate-100 text-slate-600';
 }
 
 function push(out, uuid, tipo, hostname, nombre, fabClase, detalle) {
@@ -75,6 +83,7 @@ function push(out, uuid, tipo, hostname, nombre, fabClase, detalle) {
     key: `${uuid}-${tipo}-${nombre ?? ''}-${out.length}`,
     tipo,
     hostname,
+    uuid,
     nombre: nombre ?? '—',
     fabClase: fabClase ?? '—',
     detalle: detalle ?? '—',
@@ -162,8 +171,8 @@ function PerifericosTodosList() {
     return list;
   }, [filas, filtroTipo, buscar]);
 
-  if (cargando) return <p className="estado-msg">Cargando...</p>;
-  if (error) return <p className="estado-msg error">{error}</p>;
+  if (cargando) return <StudioLoading />;
+  if (error) return <StudioError message={error} />;
 
   const total = filas.length;
   const visibles = filasFiltradas.length;
@@ -173,98 +182,46 @@ function PerifericosTodosList() {
       : `${visibles} de ${total} periférico${total === 1 ? '' : 's'}`;
 
   return (
-    <div className="page">
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-end',
-          flexWrap: 'wrap',
-          gap: '0.75rem',
-          marginBottom: '0.35rem',
-        }}
-      >
-        <div>
-          <h1 className="inventory-page-title" style={{ marginBottom: '0.2rem' }}>Todos los periféricos</h1>
-          <p className="inventory-page-sub" style={{ margin: 0 }}>{subt}</p>
+    <StudioPageShell
+      title="Todos los Periféricos Detectados"
+      subtitle={`${subt}. Vista agregada de impresoras, monitores, USB y audio reportados por el agente.`}
+    >
+      <StudioFilterBar>
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+          <input
+            id="perif-buscar"
+            type="search"
+            placeholder="Buscar por hostname o nombre del dispositivo…"
+            value={buscar}
+            onChange={e => setBuscar(e.target.value)}
+            autoComplete="off"
+            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600 transition-all text-slate-700"
+          />
         </div>
-      </div>
-      <p className="muted" style={{ marginTop: 0 }}>
-        Vista agregada de impresoras físicas (se excluyen virtuales), monitores, USB y audio reportados por el agente en cada PC.
-      </p>
+        <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600">
+          <label htmlFor="perif-tipo">Tipo:</label>
+          <select
+            id="perif-tipo"
+            value={filtroTipo}
+            onChange={e => setFiltroTipo(e.target.value)}
+            className="bg-transparent border-none outline-none font-bold text-slate-800 cursor-pointer"
+          >
+            <option value="">{`Todos (${total})`}</option>
+            {tiposDisponibles.map(t => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
+        </div>
+      </StudioFilterBar>
 
-      <div className="inventory-toolbar-card">
-        <div className="inventory-toolbar-row">
-          <div className="inventory-field inventory-field--grow">
-            <label className="inventory-field__label" htmlFor="perif-buscar">Buscar</label>
-            <input
-              id="perif-buscar"
-              className="inventory-input"
-              type="search"
-              placeholder="PC origen (hostname) o nombre del dispositivo…"
-              value={buscar}
-              onChange={e => setBuscar(e.target.value)}
-              autoComplete="off"
-            />
-          </div>
-          <div className="inventory-field inventory-field--sm" style={{ minWidth: '12rem' }}>
-            <label className="inventory-field__label" htmlFor="perif-tipo">Tipo</label>
-            <select
-              id="perif-tipo"
-              className="inventory-select"
-              value={filtroTipo}
-              onChange={e => setFiltroTipo(e.target.value)}
-            >
-              <option value="">{`Todos (${total})`}</option>
-              {tiposDisponibles.map(t => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </div>
-
-      <div className="card">
-        <div className="table-wrap" style={{ marginTop: 0 }}>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Tipo</th>
-                <th>PC origen</th>
-                <th>Nombre</th>
-                <th>Fabricante / clase</th>
-                <th>Detalle</th>
-              </tr>
-            </thead>
-            <tbody>
-              {total === 0 ? (
-                <tr>
-                  <td colSpan={5} className="table-empty">
-                    Sin periféricos reportados
-                  </td>
-                </tr>
-              ) : visibles === 0 ? (
-                <tr>
-                  <td colSpan={5} className="table-empty">
-                    Ningún resultado con los filtros actuales
-                  </td>
-                </tr>
-              ) : (
-                filasFiltradas.map(f => (
-                  <tr key={f.key}>
-                    <td>{chipTipo(f.tipo)}</td>
-                    <td>{f.hostname}</td>
-                    <td>{f.nombre}</td>
-                    <td>{f.fabClase}</td>
-                    <td>{f.detalle}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+      <PerifericosTable 
+        items={filasFiltradas} 
+        renderSpecs={(f) => (
+          <>{f.fabClase !== '—' ? `${f.fabClase} ` : ''}<span className="text-slate-300 mx-1">|</span> {f.detalle}</>
+        )} 
+      />
+    </StudioPageShell>
   );
 }
 

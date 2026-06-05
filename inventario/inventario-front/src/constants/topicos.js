@@ -35,6 +35,7 @@ export const TOPICOS = [
       { id: 'routers', label: 'Routers', path: '/routers', iconKey: 'Router' },
       { id: 'switches', label: 'Switches', path: '/switches', iconKey: 'EthernetPort' },
       { id: 'maquinas-tesoreria', label: 'Máq. Tesorería', path: '/maquinas-tesoreria', iconKey: 'Banknote' },
+      { id: 'servidores', label: 'Servidores', path: '/servidores', iconKey: 'Server' },
     ],
   },
   { id: 'sistema', label: 'Sistema', iconKey: 'Settings', path: '/system' },

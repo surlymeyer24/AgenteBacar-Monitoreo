@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, Fragment } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   fetchComputadora,
@@ -12,7 +12,11 @@ import AgregarPerifericoForms from '../components/AgregarPerifericoForms';
 import { UBICACIONES_COMPUTADORA } from '../constants/ubicaciones';
 import { ESTADOS_OPERATIVOS, ESTADO_OPERATIVO_LABELS } from '../constants/estados';
 import { textoConexionAgente } from '../utils/estadoConexion';
-import { filtrarUsbParaInventario, filtrarAudioParaInventario } from '../utils/perifericos';
+import { filtrarUsbParaInventario, filtrarAudioParaInventario, esTeclado, esMouse, esWebcamClaseCamera } from '../utils/perifericos';
+import {
+  ArrowLeft, Trash2, Info, HardDrive, MemoryStick, Printer, Usb, Monitor, Speaker, Component, Terminal, CheckCircle, Shield, ShieldCheck, RotateCcw, Play, Clock, User, ChevronLeft, Laptop, Search
+} from 'lucide-react';
+import { StudioLoading, StudioError } from '../components/studio/StudioUi';
 
 function fmtFechaIso(s) {
   if (s == null || s === '') return '—';
@@ -20,12 +24,9 @@ function fmtFechaIso(s) {
   return Number.isNaN(d.getTime()) ? s : d.toLocaleString('es-AR');
 }
 
-/** Fecha/hora legible en es-AR y texto relativo (“hace 5 minutos”). */
 function textoHaceDesde(date) {
   let diffMs = Date.now() - date.getTime();
-  if (diffMs < 0) {
-    return 'fecha en el futuro';
-  }
+  if (diffMs < 0) return 'fecha en el futuro';
   const sec = Math.floor(diffMs / 1000);
   if (sec < 45) return 'hace instantes';
   const min = Math.floor(sec / 60);
@@ -46,59 +47,20 @@ function fmtUltimaSincronizacion(raw) {
   if (raw == null || raw === '') return '—';
   const d = new Date(raw);
   if (Number.isNaN(d.getTime())) return String(raw);
-  const legible = d.toLocaleString('es-AR', {
-    dateStyle: 'long',
-    timeStyle: 'short',
-  });
+  const legible = d.toLocaleString('es-AR', { dateStyle: 'long', timeStyle: 'short' });
   const rel = textoHaceDesde(d);
   return `${legible} (${rel})`;
 }
 
-function siNo(v) {
-  if (v == null) return '—';
-  return v ? 'Sí' : 'No';
+function fmtUbicacion(u) {
+  if (!u) return 'Sin asignar';
+  return u.replace(/_/g, ' ').replace(/\w\S*/g, (w) => w.charAt(0).toUpperCase() + w.substring(1).toLowerCase());
 }
 
 function fmtNumOGuion(n, dec = 1) {
   if (n == null || n === '') return '—';
   const x = Number(n);
   return Number.isFinite(x) ? x.toFixed(dec) : '—';
-}
-
-const PROGRAMA_COL_PRIORITY = [
-  'documentoId', 'nombre', 'name', 'version', 'editor', 'fabricante', 'publisher',
-  'ruta', 'ruta_instalacion', 'install_location',
-];
-
-function columnasProgramas(programas) {
-  if (!programas?.length) return [];
-  const keys = new Set();
-  for (const p of programas) Object.keys(p).forEach(k => keys.add(k));
-  const pri = PROGRAMA_COL_PRIORITY.filter(k => keys.has(k));
-  const rest = [...keys].filter(k => !PROGRAMA_COL_PRIORITY.includes(k)).sort();
-  return [...pri, ...rest];
-}
-
-function etiquetaColumnaPrograma(clave) {
-  const m = {
-    documentoId: 'ID documento',
-    nombre: 'Nombre',
-    name: 'Nombre',
-    version: 'Versión',
-    editor: 'Editor',
-    fabricante: 'Fabricante',
-    publisher: 'Editor',
-    ruta: 'Ruta',
-    ruta_instalacion: 'Ruta de instalación',
-    install_location: 'Ruta de instalación',
-  };
-  return m[clave] ?? clave;
-}
-
-function celdaPrograma(v) {
-  if (v == null || v === '') return '—';
-  if (typeof v === 'object') return JSON.stringify(v);
-  return String(v);
 }
 
 const WIN_VER_KEYS_ORDER = ['edicion', 'display_version', 'build', 'ubr', 'build_lab'];
@@ -125,6 +87,16 @@ function valorWindowsDetallado(v) {
   return String(v);
 }
 
+function limpiarNombreMonitor(n) {
+  return (n ?? '—').replace(/\u0000/g, '');
+}
+
+function ramTotalGb(modulos) {
+  if (!modulos?.length) return null;
+  const sum = modulos.reduce((acc, m) => acc + (Number(m.capacidadGB) || 0), 0);
+  return sum > 0 ? sum : null;
+}
+
 function ComputadoraDetail() {
   const { uuid } = useParams();
   const navigate = useNavigate();
@@ -147,6 +119,8 @@ function ComputadoraDetail() {
   const [solapa, setSolapa] = useState('hardware');
   const [eliminando, setEliminando] = useState(false);
   const [msgEliminar, setMsgEliminar] = useState(null);
+  const [copiedAnydesk, setCopiedAnydesk] = useState(false);
+  const [buscarPrograma, setBuscarPrograma] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -164,33 +138,29 @@ function ComputadoraDetail() {
       .finally(() => {
         if (!cancelled) setCargando(false);
       });
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [uuid]);
 
-  if (cargando) return <p className="estado-msg">Cargando...</p>;
-  if (error) return <p className="estado-msg error">{error}</p>;
-  if (!c) return <p className="estado-msg">Computadora no encontrada</p>;
+  if (cargando) return <StudioLoading />;
+  if (error) return <StudioError message={error} />;
+  if (!c) return <StudioError message="Computadora no encontrada" />;
 
   function guardarUbicacion(e) {
-    e.preventDefault();
+    e?.preventDefault();
     if (!ubicacionSel) return;
     setGuardandoUbi(true);
     setMsgUbi(null);
     updateUbicacion(uuid, ubicacionSel)
       .then(data => {
-        if (data) {
-          setC(data);
-          listado?.mergeEnListado?.(data);
-        } else setMsgUbi('No se encontró la computadora');
+        if (data) { setC(data); listado?.mergeEnListado?.(data); alert('Ubicación de red actualizada exitosamente.'); }
+        else setMsgUbi('No se encontró la computadora');
       })
       .catch(() => setMsgUbi('No se pudo guardar la ubicación'))
       .finally(() => setGuardandoUbi(false));
   }
 
   function guardarResponsableInventario(e) {
-    e.preventDefault();
+    e?.preventDefault();
     setGuardandoRi(true);
     setMsgRi(null);
     updateResponsableInventario(uuid, textoResponsableInv.trim() || null)
@@ -199,6 +169,7 @@ function ComputadoraDetail() {
           setC(data);
           setTextoResponsableInv(data.responsableInventario ?? '');
           listado?.mergeEnListado?.(data);
+          alert('Se ha guardado la asignación de inventario con éxito.');
         } else {
           setMsgRi('No se encontró la computadora');
         }
@@ -208,19 +179,14 @@ function ComputadoraDetail() {
   }
 
   function guardarEstado(e) {
-    e.preventDefault();
+    e?.preventDefault();
     if (!estadoSel || !motivoEstado.trim()) return;
     setGuardandoEstado(true);
     setMsgEstado(null);
     updateEstado(uuid, estadoSel, motivoEstado.trim())
       .then(data => {
-        if (data) {
-          setC(data);
-          setMotivoEstado('');
-          listado?.mergeEnListado?.(data);
-        } else {
-          setMsgEstado('No se encontró la computadora');
-        }
+        if (data) { setC(data); setMotivoEstado(''); listado?.mergeEnListado?.(data); alert('Estado de activo IT actualizado y archivado exitosamente.'); }
+        else { setMsgEstado('No se encontró la computadora'); }
       })
       .catch(() => setMsgEstado('No se pudo cambiar el estado'))
       .finally(() => setGuardandoEstado(false));
@@ -228,21 +194,13 @@ function ComputadoraDetail() {
 
   function solicitarEliminar() {
     const nombre = (c.hostname && String(c.hostname).trim()) ? c.hostname : 'esta PC';
-    if (
-      !window.confirm(
-        `¿Seguro que querés borrar la computadora "${nombre}"? Esta acción no se puede deshacer.`,
-      )
-    ) {
-      return;
-    }
+    if (!window.confirm(`¿Confirma que desea dar de baja y eliminar físicamente el nodo "${nombre}" del sistema? Esta acción no se puede deshacer.`)) return;
     setEliminando(true);
     setMsgEliminar(null);
     deleteComputadora(uuid)
       .then(ok => {
-        if (ok) {
-          listado?.removeEnListado?.(uuid);
-          navigate('/computadoras');
-        } else setMsgEliminar('No se encontró la computadora (quizá ya fue borrada).');
+        if (ok) { alert(`PC "${nombre}" desvinculada exitosamente del sistema de inventario.`); listado?.removeEnListado?.(uuid); navigate('/computadoras'); }
+        else setMsgEliminar('No se encontró la computadora (quizá ya fue borrada).');
       })
       .catch(() => setMsgEliminar('No se pudo eliminar la computadora'))
       .finally(() => setEliminando(false));
@@ -250,453 +208,567 @@ function ComputadoraDetail() {
 
   const historial = c.historialEstados ?? [];
   const programas = c.programas ?? [];
-  const colsProgramas = columnasProgramas(programas);
   const winVer = c.windowsVersionDetallada;
   const winVerKeys = clavesWindowsVersionDetallada(winVer);
+  const totalRam = ramTotalGb(c.modulos);
+  const conexionTexto = textoConexionAgente(c);
+  const isActivo = conexionTexto?.toLowerCase().includes('activ');
+  const esNotebook = (c.tipoEquipo ?? '').toLowerCase().includes('notebook');
 
+  const programasFiltrados = programas.filter(p => {
+    if (!buscarPrograma) return true;
+    const term = buscarPrograma.toLowerCase();
+    const nombre = String(p.nombre ?? p.name ?? '').toLowerCase();
+    const editor = String(p.editor ?? p.fabricante ?? p.publisher ?? '').toLowerCase();
+    return nombre.includes(term) || editor.includes(term);
+  });
+
+  // Periféricos
+  const usbFiltrados = filtrarUsbParaInventario(c.perifericos?.dispositivosUsb ?? []);
+  const teclados = usbFiltrados.filter(u => esTeclado(u));
+  const mouse    = usbFiltrados.filter(u => esMouse(u));
+  const webcams  = usbFiltrados.filter(u => esWebcamClaseCamera(u));
+  const otrosUsb = usbFiltrados.filter(u => !esTeclado(u) && !esMouse(u) && !esWebcamClaseCamera(u));
+
+  // ── JSX ──────────────────────────────────────────────────────────
   return (
-    <div className="page">
-      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.75rem' }}>
-        <button type="button" className="btn btn-secondary btn-sm" onClick={() => navigate('/computadoras')}>
-          ← Volver
-        </button>
-        <button
-          type="button"
-          className="btn btn-danger btn-sm"
-          onClick={solicitarEliminar}
-          disabled={eliminando}
-        >
-          {eliminando ? 'Eliminando…' : 'Eliminar esta PC'}
-        </button>
-      </div>
-      {msgEliminar && (
-        <p className="page error" style={{ marginTop: '0.5rem', marginBottom: 0 }}>
-          {msgEliminar}
-        </p>
-      )}
-
-      <h1 style={{ marginTop: '0.75rem' }}>{c.hostname}</h1>
-
-      <div className="detail-tabs-block detail-tabs-block--tabs-only">
-        <div className="detail-tabs detail-tabs--in-block" role="tablist" aria-label="Vista de computadora">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={solapa === 'hardware'}
-            className={`detail-tab${solapa === 'hardware' ? ' detail-tab--active' : ''}`}
-            onClick={() => setSolapa('hardware')}
+    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 overflow-hidden">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.5)] flex flex-col w-full max-w-7xl max-h-full overflow-hidden ring-1 ring-slate-900/5">
+      
+      {/* Modal header with hostname and status sync */}
+      <div className="bg-slate-900 text-white p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-950 shrink-0">
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => navigate('/computadoras')}
+            className="p-1 hover:bg-slate-800 rounded-md transition-colors mr-1 cursor-pointer"
+            title="Volver al Listado"
           >
-            Hardware
+            <ChevronLeft className="w-6 h-6 text-slate-400" />
           </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={solapa === 'software'}
-            className={`detail-tab${solapa === 'software' ? ' detail-tab--active' : ''}`}
-            onClick={() => setSolapa('software')}
+          <span className={`w-3.5 h-3.5 rounded-full inline-block ${isActivo ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.73)] animate-pulse' : 'bg-slate-400'}`} />
+          <div>
+            <h3 className="font-extrabold text-xl sm:text-2xl text-white leading-tight flex items-center gap-2">
+              {esNotebook ? <Laptop className="w-5 h-5 text-slate-300" /> : <Monitor className="w-5 h-5 text-slate-300" />}
+              {c.hostname}
+            </h3>
+            <p className="text-xs text-slate-400 mt-1">
+              UUID: <span className="font-mono text-slate-300">{c.uuid}</span> <span className="text-slate-600 mx-1.5">•</span> <span className="font-bold text-slate-200">{fmtUbicacion(c.ubicacion)}</span>
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          {(c.anydeskId ?? c.anydesk_id) && (
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText(c.anydeskId ?? c.anydesk_id);
+                setCopiedAnydesk(true);
+                setTimeout(() => setCopiedAnydesk(false), 1800);
+              }}
+              className="px-4 py-2 border border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 font-bold text-sm rounded-lg flex items-center gap-2 transition-colors shrink-0 font-mono"
+              title="Copiar ID de AnyDesk"
+            >
+              {copiedAnydesk ? (
+                <span className="text-emerald-400 font-bold">¡Copiado!</span>
+              ) : (
+                <span>AnyDesk: {(c.anydeskId ?? c.anydesk_id).replace(/(\d{3})(?=\d)/g, '$1 ')}</span>
+              )}
+            </button>
+          )}
+
+          <button 
+            onClick={solicitarEliminar}
+            disabled={eliminando}
+            className="px-4 py-2 border border-red-900/50 text-red-400 hover:bg-red-950/30 hover:border-red-800 font-bold text-sm rounded-lg flex items-center gap-2 transition-colors shrink-0"
           >
-            Software
+            <Trash2 className="w-4 h-4" />
+            {eliminando ? 'Eliminando...' : 'Eliminar esta PC'}
           </button>
         </div>
       </div>
 
-      {solapa === 'hardware' && (
-      <>
-      <div className="card">
-        <h2>Datos generales</h2>
-        <dl className="detail-dl">
-          <dt>UUID</dt><dd className="uuid">{c.uuid}</dd>
-          <dt>Usuario</dt><dd>{c.usuarioActual}</dd>
-          <dt>Ubicación</dt><dd>{c.ubicacion ?? '—'}</dd>
-          <dt>Sistema operativo</dt><dd>{c.sistemaOperativo}</dd>
-          <dt>Arquitectura</dt><dd>{c.arquitectura}</dd>
-          <dt>Conexión (agente)</dt><dd>{textoConexionAgente(c)}</dd>
-          {(c.estadoConexion != null && c.estadoConexion !== '') && (
-            <><dt>Estado conexión (crudo)</dt><dd className="uuid">{c.estadoConexion}</dd></>
-          )}
-          <dt>Última sincronización</dt><dd>{fmtUltimaSincronizacion(c.ultimaSincronizacion)}</dd>
-          <dt>Estado (IT)</dt><dd>{c.estadoActual ?? '—'}</dd>
-        </dl>
-        <form className="ubicacion-form ubicacion-form--assign" onSubmit={guardarResponsableInventario}>
-          <label htmlFor="responsable-inv-pc">Asignado en inventario</label>
-          <div className="ubicacion-form-row">
-            <input
-              id="responsable-inv-pc"
-              type="text"
-              value={textoResponsableInv}
-              onChange={e => setTextoResponsableInv(e.target.value)}
-              placeholder="Nombre, legajo o referencia"
-              autoComplete="off"
-            />
-            <button type="submit" className="btn btn-primary btn-sm" disabled={guardandoRi}>
-              {guardandoRi ? 'Guardando…' : 'Guardar'}
-            </button>
-          </div>
-          {msgRi && <p className="page error" style={{ marginTop: '0.5rem' }}>{msgRi}</p>}
-        </form>
-        <form className="ubicacion-form" onSubmit={guardarUbicacion} style={{ marginTop: '1rem' }}>
-          <label htmlFor="ubicacion-pc">Cambiar ubicación</label>
-          <div className="ubicacion-form-row">
-            <select
-              id="ubicacion-pc"
-              value={ubicacionSel}
-              onChange={e => setUbicacionSel(e.target.value)}
-            >
-              <option value="">Seleccionar…</option>
-              {UBICACIONES_COMPUTADORA.map(u => (
-                <option key={u} value={u}>{u}</option>
-              ))}
-            </select>
-            <button type="submit" className="btn btn-primary btn-sm" disabled={guardandoUbi || !ubicacionSel}>
-              {guardandoUbi ? 'Guardando…' : 'Guardar'}
-            </button>
-          </div>
-          {msgUbi && <p className="page error" style={{ marginTop: '0.5rem' }}>{msgUbi}</p>}
-        </form>
-        <form className="ubicacion-form" style={{ marginTop: '1rem' }} onSubmit={guardarEstado}>
-          <label htmlFor="estado-pc">Cambiar estado (IT)</label>
-          <div className="ubicacion-form-row">
-            <select
-              id="estado-pc"
-              value={estadoSel}
-              onChange={e => setEstadoSel(e.target.value)}
-            >
-              <option value="">Seleccionar…</option>
-              {ESTADOS_OPERATIVOS.map(k => (
-                <option key={k} value={k}>{ESTADO_OPERATIVO_LABELS[k] ?? k}</option>
-              ))}
-            </select>
-          </div>
-          <label htmlFor="motivo-estado-pc" style={{ marginTop: '0.5rem', display: 'block' }}>Motivo (obligatorio)</label>
-          <textarea
-            id="motivo-estado-pc"
-            rows={3}
-            value={motivoEstado}
-            onChange={e => setMotivoEstado(e.target.value)}
-            placeholder="Ej.: alta en inventario, corrección de datos… (si elegís automático, explicá el motivo del ajuste)"
-          />
-          <div style={{ marginTop: '0.5rem' }}>
-            <button
-              type="submit"
-              className="btn btn-primary btn-sm"
-              disabled={guardandoEstado || !estadoSel || !motivoEstado.trim()}
-            >
-              {guardandoEstado ? 'Guardando…' : 'Cambiar estado'}
-            </button>
-          </div>
-          {msgEstado && <p className="page error" style={{ marginTop: '0.5rem' }}>{msgEstado}</p>}
-        </form>
-        <h3 style={{ marginTop: '1.25rem', marginBottom: '0.5rem' }}>Historial de estados (IT)</h3>
-        {historial.length === 0 ? (
-          <p className="estado-msg">Sin cambios de estado registrados</p>
-        ) : (
-          <div className="table-wrap" style={{ marginTop: 0 }}>
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Estado</th>
-                  <th>Motivo</th>
-                  <th>Inicio</th>
-                  <th>Fin</th>
-                  <th>Activo</th>
-                </tr>
-              </thead>
-              <tbody>
-                {historial.map((h, i) => (
-                  <tr key={i}>
-                    <td>{h.estado ?? '—'}</td>
-                    <td>{h.motivo ?? '—'}</td>
-                    <td className="uuid">{fmtFechaIso(h.fechaHoraInicio)}</td>
-                    <td className="uuid">{fmtFechaIso(h.fechaHoraFin)}</td>
-                    <td>{h.activo ? 'Sí' : 'No'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {/* Sub-tab selection bar */}
+      <div className="flex border-b border-slate-200 bg-white px-8 shrink-0">
+        <button 
+          onClick={() => setSolapa('hardware')}
+          className={`py-4 px-6 text-sm font-bold border-b-2 transition-all mr-2 ${solapa === 'hardware' ? 'border-[#0c66e4] text-[#0c66e4] font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+        >
+          Hardware
+        </button>
+        <button 
+          onClick={() => setSolapa('software')}
+          className={`py-4 px-6 text-sm font-bold border-b-2 transition-all ${solapa === 'software' ? 'border-[#0c66e4] text-[#0c66e4] font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+        >
+          Software
+        </button>
+        <button 
+          onClick={() => setSolapa('asignacion')}
+          className={`py-4 px-6 text-sm font-bold border-b-2 transition-all ${solapa === 'asignacion' ? 'border-[#0c66e4] text-[#0c66e4] font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+        >
+          Inventario / Asignación
+        </button>
+      </div>
+
+      {/* Scrollable Modal Content Body */}
+      <div className="p-8 overflow-y-auto space-y-8 flex-1 bg-slate-50">
+        
+        {/* 1. HARDWARE TAB CONTENTS */}
+        {solapa === 'hardware' && (
+          <div className="space-y-8">
+            
+            {/* Resource CPU/RAM Cards Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
+                <span className="text-xs font-extrabold text-slate-400 block uppercase tracking-wider">Procesador</span>
+                <span className="text-sm sm:text-base font-bold text-slate-800 block mt-2 leading-snug">{c.procesador?.nombreRaw ?? c.procesador?.nombre ?? '—'}</span>
+              </div>
+              
+              <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
+                <span className="text-xs font-extrabold text-slate-400 block uppercase tracking-wider">Memoria Total</span>
+                <span className="text-2xl font-black text-slate-900 block mt-2">{totalRam != null ? `${totalRam.toFixed(2)} GB` : '—'}</span>
+                <span className="text-xs text-slate-400 block mt-1">{c.modulos?.length ?? 0} módulo(s) físico(s) reportados</span>
+              </div>
+
+              <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
+                <span className="text-xs font-extrabold text-slate-400 block uppercase tracking-wider">Arquitectura</span>
+                <span className="text-2xl font-black text-slate-900 block mt-2">{c.arquitectura ?? '—'}</span>
+                <span className="text-xs text-emerald-600 font-bold block mt-1 flex items-center gap-1 font-mono">
+                  <CheckCircle className="w-4 h-4 inline text-emerald-500" /> Operativo
+                </span>
+              </div>
+            </div>
+
+            {/* Almacenamiento */}
+            {c.discos?.length > 0 && (
+              <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-4">
+                <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                  <HardDrive className="w-5 h-5 text-[#0c66e4]" />
+                  Almacenamiento
+                </h3>
+                <div className="space-y-5 text-sm border-t border-slate-100 pt-5">
+                  {c.discos.map((d, i) => {
+                    const pct = Number(d.porcentajeUsado) || 0;
+                    const progressCls = pct > 85 ? 'bg-red-500' : pct > 65 ? 'bg-amber-500' : 'bg-[#0c66e4]';
+                    return (
+                      <div key={i} className="space-y-2">
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center font-bold gap-1 sm:gap-0">
+                          <span className="text-slate-800 font-mono">
+                            {d.letra ?? d.puntoMontaje ?? d.nombre ?? `Disco ${i + 1}`} 
+                            <span className="text-slate-500 ml-2 font-normal">({d.modeloDisco || 'Disco Genérico'}{d.tipoDisco ? ` - ${d.tipoDisco}` : ''})</span>
+                          </span>
+                          <span className="text-slate-700 font-mono text-xs sm:text-sm">{d.libreGB ? `${Number(d.libreGB).toFixed(1)} GB Libres` : ''} de {Number(d.totalGB || 0).toFixed(0)} GB ({pct.toFixed(1)}%)</span>
+                        </div>
+                        <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden border border-slate-200">
+                          <div className={`h-full ${progressCls} transition-all duration-300`} style={{ width: `${Math.min(pct, 100)}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Periféricos enlazados */}
+            <div className="pt-2">
+              <h3 className="text-base font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-2">
+                <Usb className="w-6 h-6 text-slate-600" />
+                Periféricos
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                
+                {/* Monitores */}
+                <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-3.5">
+                  <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wide flex items-center gap-1.5 border-b border-slate-100 pb-2.5">
+                    <Monitor className="w-4 h-4 text-[#0c66e4]" />
+                    Monitores Conectados
+                  </h4>
+                  <div className="space-y-2">
+                    {c.perifericos?.monitores?.length > 0 ? (
+                      c.perifericos.monitores.map((m, i) => (
+                        <div key={i} className="text-xs bg-slate-50 border border-slate-200 p-3 rounded-lg shadow-sm hover:bg-slate-100/50 transition-colors">
+                          <span className="font-extrabold text-slate-800 block text-[11px]">{limpiarNombreMonitor(m.nombre)}</span>
+                          <span className="text-[10px] text-slate-500 block mt-1">Resolución: {m.resolucion || '—'} <span className="text-slate-300 mx-1">|</span> {fmtNumOGuion(m.pulgadas, 1)}"</span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-xs text-slate-400 italic">No detectados.</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Impresoras */}
+                <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-3.5">
+                  <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wide flex items-center gap-1.5 border-b border-slate-100 pb-2.5">
+                    <Printer className="w-4 h-4 text-[#0c66e4]" />
+                    Impresoras Enlazadas
+                  </h4>
+                  <div className="space-y-2">
+                    {c.perifericos?.impresoras?.length > 0 ? (
+                      c.perifericos.impresoras.map((prn, i) => (
+                        <div key={i} className="text-xs bg-slate-50 border border-slate-200 p-3 rounded-lg shadow-sm hover:bg-slate-100/50 transition-colors">
+                          <span className="font-extrabold text-slate-800 block text-[11px]">{prn.nombre || '—'}</span>
+                          <span className="text-[10px] text-slate-500 block mt-1">Driver: {prn.driver || '—'} <span className="text-slate-300 mx-1">|</span> Pto: {prn.puerto || '—'}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-xs text-slate-400 italic">No detectadas.</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Teclados / Mouse */}
+                <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-3.5">
+                  <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wide flex items-center gap-1.5 border-b border-slate-100 pb-2.5">
+                    <MemoryStick className="w-4 h-4 text-[#0c66e4]" />
+                    Entrada (USB)
+                  </h4>
+                  <div className="space-y-2">
+                    {teclados.length > 0 || mouse.length > 0 ? (
+                      <>
+                        {teclados.map((t, i) => (
+                          <div key={'t'+i} className="text-xs bg-slate-50 border border-slate-200 p-3 rounded-lg shadow-sm hover:bg-slate-100/50 transition-colors">
+                            <span className="font-extrabold text-slate-800 block text-[11px]">{t.nombre}</span>
+                            <span className="text-[10px] text-slate-500 block mt-1">Dispositivo: Teclado {t.fabricante ? `<span class="text-slate-300 mx-1">|</span> Fab: ${t.fabricante}` : ''}</span>
+                          </div>
+                        ))}
+                        {mouse.map((m, i) => (
+                          <div key={'m'+i} className="text-xs bg-slate-50 border border-slate-200 p-3 rounded-lg shadow-sm hover:bg-slate-100/50 transition-colors">
+                            <span className="font-extrabold text-slate-800 block text-[11px]">{m.nombre}</span>
+                            <span className="text-[10px] text-slate-500 block mt-1">Dispositivo: Mouse {m.fabricante ? `<span class="text-slate-300 mx-1">|</span> Fab: ${m.fabricante}` : ''}</span>
+                          </div>
+                        ))}
+                      </>
+                    ) : (
+                      <div className="text-xs text-slate-400 italic">No detectados.</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Multimedia (Audio / Webcams) */}
+                <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-3.5">
+                  <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wide flex items-center gap-1.5 border-b border-slate-100 pb-2.5">
+                    <Speaker className="w-4 h-4 text-[#0c66e4]" />
+                    Multimedia & Otros
+                  </h4>
+                  <div className="space-y-2">
+                    {webcams.length > 0 || otrosUsb.length > 0 ? (
+                      <>
+                        {webcams.map((w, i) => (
+                          <div key={'w'+i} className="text-xs bg-slate-50 border border-slate-200 p-3 rounded-lg shadow-sm hover:bg-slate-100/50 transition-colors">
+                            <span className="font-extrabold text-slate-800 block text-[11px]">{w.nombre}</span>
+                            <span className="text-[10px] text-slate-500 block mt-1">Dispositivo: Webcam {w.fabricante ? `<span class="text-slate-300 mx-1">|</span> Fab: ${w.fabricante}` : ''}</span>
+                          </div>
+                        ))}
+                        {otrosUsb.slice(0, 3).map((o, i) => (
+                          <div key={'o'+i} className="text-xs bg-slate-50 border border-slate-200 p-3 rounded-lg shadow-sm hover:bg-slate-100/50 transition-colors">
+                            <span className="font-extrabold text-slate-800 block text-[11px] truncate" title={o.nombre}>{o.nombre}</span>
+                            <span className="text-[10px] text-slate-500 block mt-1">Dispositivo: Genérico {o.fabricante ? `<span class="text-slate-300 mx-1">|</span> Fab: ${o.fabricante}` : ''}</span>
+                          </div>
+                        ))}
+                      </>
+                    ) : (
+                      <div className="text-xs text-slate-400 italic">No detectados.</div>
+                    )}
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Agregar Periférico Manualmente */}
+              <div className="mt-6 bg-slate-50/50 border border-slate-200 rounded-xl p-5 shadow-sm space-y-3.5">
+                <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wide flex items-center gap-2 border-b border-slate-100 pb-3">
+                  <Usb className="w-4 h-4 text-slate-500" />
+                  Agregar Periférico Manualmente
+                </h4>
+                <div className="pt-2">
+                  <AgregarPerifericoForms uuid={uuid} onActualizado={data => { setC(data); listado?.mergeEnListado?.(data); }} />
+                </div>
+              </div>
+            </div>
+
+
+
           </div>
         )}
-      </div>
 
-      {c.procesador && (
-        <div className="card">
-          <h2>Procesador</h2>
-          <dl className="detail-dl">
-            <dt>Modelo</dt><dd>{c.procesador.nombreRaw}</dd>
-            <dt>Núcleos físicos</dt><dd>{c.procesador.nucleosFisicos}</dd>
-            <dt>Arquitectura</dt><dd>{c.procesador.arquitectura}</dd>
-            <dt>Fabricante</dt><dd>{c.procesador.fabricante}</dd>
-          </dl>
-        </div>
-      )}
-
-      {c.discos?.length > 0 && (
-        <div className="card">
-          <h2>Discos</h2>
-          <div className="table-wrap" style={{ marginTop: 0 }}>
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Tipo</th>
-                  <th>Modelo</th>
-                  <th>Total GB</th>
-                  <th>Libre GB</th>
-                  <th>Usado GB</th>
-                  <th>% Usado</th>
-                </tr>
-              </thead>
-              <tbody>
-                {c.discos.map((d, i) => (
-                  <tr key={i}>
-                    <td>{d.tipoDisco}</td>
-                    <td>{d.modeloDisco}</td>
-                    <td>{d.totalGB?.toFixed(1)}</td>
-                    <td>{d.libreGB?.toFixed(1)}</td>
-                    <td>{d.usadoGB?.toFixed(1)}</td>
-                    <td>{d.porcentajeUsado?.toFixed(1)}%</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {c.modulos?.length > 0 && (
-        <div className="card">
-          <h2>RAM</h2>
-          <div className="table-wrap" style={{ marginTop: 0 }}>
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Capacidad GB</th>
-                  <th>Velocidad MHz</th>
-                  <th>Modelo</th>
-                  <th>Fabricante</th>
-                </tr>
-              </thead>
-              <tbody>
-                {c.modulos.map((r, i) => (
-                  <tr key={i}>
-                    <td>{r.capacidadGB}</td>
-                    <td>{r.velocidadMHz}</td>
-                    <td>{r.modelo}</td>
-                    <td>{r.fabricante}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {c.perifericos?.impresoras?.length > 0 && (
-        <div className="card">
-          <h2>Impresoras</h2>
-          <div className="table-wrap" style={{ marginTop: 0 }}>
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Nombre</th>
-                  <th>Driver</th>
-                  <th>Puerto</th>
-                  <th>Tipo</th>
-                  <th>Estado (Windows)</th>
-                  <th>Compartida</th>
-                  <th>Predeterminada</th>
-                </tr>
-              </thead>
-              <tbody>
-                {c.perifericos.impresoras.map((p, i) => (
-                  <tr key={i}>
-                    <td>{p.nombre ?? '—'}</td>
-                    <td>{p.driver ?? '—'}</td>
-                    <td>{p.puerto ?? '—'}</td>
-                    <td>{p.tipoImpresora ?? p.tipo ?? '—'}</td>
-                    <td>{p.estado ?? '—'}</td>
-                    <td>{siNo(p.compartida)}</td>
-                    <td>{siNo(p.predeterminada)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {c.perifericos?.dispositivosUsb?.length > 0 && (
-        <div className="card">
-          <h2>Dispositivos USB</h2>
-          <div className="table-wrap" style={{ marginTop: 0 }}>
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Nombre</th>
-                  <th>Fabricante</th>
-                  <th>Categoría</th>
-                  <th>Clase</th>
-                  <th>Conexión</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtrarUsbParaInventario(c.perifericos.dispositivosUsb).map((u, i) => (
-                  <tr key={i}>
-                    <td>{u.nombre ?? '—'}</td>
-                    <td>{u.fabricante ?? '—'}</td>
-                    <td>{u.categoria ?? '—'}</td>
-                    <td>{u.clase ?? '—'}</td>
-                    <td>{u.conexion ?? '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {c.perifericos?.monitores?.length > 0 && (
-        <div className="card">
-          <h2>Monitores</h2>
-          <div className="table-wrap" style={{ marginTop: 0 }}>
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Nombre</th>
-                  <th>Resolución</th>
-                  <th>Pulgadas</th>
-                  <th>Ancho (cm)</th>
-                  <th>Alto (cm)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {c.perifericos.monitores.map((m, i) => (
-                  <tr key={i}>
-                    <td>{m.nombre ?? '—'}</td>
-                    <td>{m.resolucion ?? '—'}</td>
-                    <td>{fmtNumOGuion(m.pulgadas, 1)}</td>
-                    <td>{fmtNumOGuion(m.anchoCm, 1)}</td>
-                    <td>{fmtNumOGuion(m.altoCm, 1)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {(() => {
-        const audio = c.perifericos?.audio;
-        const entrada = filtrarAudioParaInventario(audio?.entrada ?? []);
-        const salida = filtrarAudioParaInventario(audio?.salida ?? []);
-        if (audio == null || (entrada.length === 0 && salida.length === 0)) return null;
-        return (
-          <div className="card">
-            <h2>Audio</h2>
-            {entrada.length > 0 && (
-              <>
-                <h3 style={{ marginTop: '0.5rem', marginBottom: '0.5rem' }}>Entrada</h3>
-                <div className="table-wrap" style={{ marginTop: 0 }}>
-                  <table className="table">
-                    <thead>
-                      <tr>
-                        <th>Nombre</th>
-                        <th>Fabricante</th>
-                        <th>Estado (Windows)</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {entrada.map((a, i) => (
-                        <tr key={`entrada-${i}`}>
-                          <td>{a.nombre ?? '—'}</td>
-                          <td>{a.fabricante ?? '—'}</td>
-                          <td>{a.estado ?? '—'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+        {/* 2. SOFTWARE TAB CONTENTS (MATCHES SECOND SCREENSHOT) */}
+        {solapa === 'software' && (
+          <div className="space-y-6">
+            
+            {/* Operating System details card */}
+            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-5">
+              <h4 className="text-sm font-extrabold text-slate-800 uppercase tracking-widest flex items-center gap-2 pb-3 border-b border-slate-100">
+                <CheckCircle className="w-5 h-5 text-[#0c66e4]" />
+                Sistema operativo
+              </h4>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-y-5 gap-x-6 text-sm">
+                <div>
+                  <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">Sistema Operativo</span>
+                  <span className="font-semibold text-slate-800 block mt-1">{c.sistemaOperativo || '—'}</span>
                 </div>
-              </>
-            )}
-            {salida.length > 0 && (
-              <>
-                <h3 style={{ marginTop: entrada.length > 0 ? '1.25rem' : '0.5rem', marginBottom: '0.5rem' }}>Salida</h3>
-                <div className="table-wrap" style={{ marginTop: 0 }}>
-                  <table className="table">
-                    <thead>
-                      <tr>
-                        <th>Nombre</th>
-                        <th>Fabricante</th>
-                        <th>Estado (Windows)</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {salida.map((a, i) => (
-                        <tr key={`salida-${i}`}>
-                          <td>{a.nombre ?? '—'}</td>
-                          <td>{a.fabricante ?? '—'}</td>
-                          <td>{a.estado ?? '—'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            )}
-          </div>
-        );
-      })()}
-      </>
-      )}
-
-      {solapa === 'software' && (
-        <>
-        <div className="card">
-          <h2>Sistema operativo</h2>
-          <dl className="detail-dl">
-            <dt>Sistema operativo</dt>
-            <dd>{c.sistemaOperativo ?? '—'}</dd>
-            {winVerKeys.length === 0 ? (
-              <><dt>Windows (detallado)</dt><dd className="estado-msg" style={{ margin: 0 }}>Sin datos de <code className="uuid">windows_version_detallada</code></dd></>
-            ) : (
-              winVerKeys.map(k => (
-                <Fragment key={k}>
-                  <dt>{WIN_VER_LABELS[k] ?? k}</dt>
-                  <dd className={k === 'build_lab' ? 'uuid' : ''}>{valorWindowsDetallado(winVer[k])}</dd>
-                </Fragment>
-              ))
-            )}
-          </dl>
-        </div>
-        <div className="card">
-          <h2>Programas</h2>
-          {programas.length === 0 ? (
-            <p className="estado-msg">No hay programas registrados.</p>
-          ) : (
-            <div className="table-wrap" style={{ marginTop: 0 }}>
-              <table className="table">
-                <thead>
-                  <tr>
-                    {colsProgramas.map(col => (
-                      <th key={col}>{etiquetaColumnaPrograma(col)}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {programas.map((p, i) => (
-                    <tr key={p.documentoId ?? i}>
-                      {colsProgramas.map(col => (
-                        <td key={col} className={typeof p[col] === 'object' && p[col] != null ? 'uuid' : ''}>
-                          {celdaPrograma(p[col])}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                {winVerKeys.map(k => (
+                  <div key={k} className={k === 'build_lab' ? 'overflow-hidden col-span-2 md:col-span-1' : ''}>
+                    <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">{WIN_VER_LABELS[k] ?? k}</span>
+                    <span className={`font-semibold text-slate-800 block mt-1 ${k === 'build_lab' ? 'select-all font-mono text-xs truncate' : ''}`} title={valorWindowsDetallado(winVer[k])}>
+                      {valorWindowsDetallado(winVer[k])}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
-          )}
-        </div>
-        </>
-      )}
+
+            {/* Programas Instalados table */}
+            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <h4 className="text-sm font-extrabold text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                  <Play className="w-4 h-4 text-emerald-500 rotate-90 shrink-0 select-none pb-0.5" />
+                  Programas instalados
+                </h4>
+                <div className="relative max-w-sm w-full">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input 
+                    type="text" 
+                    placeholder="Buscar programa..." 
+                    value={buscarPrograma}
+                    onChange={e => setBuscarPrograma(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs rounded-lg pl-9 pr-3 py-2 font-medium focus:bg-white focus:outline-none focus:border-[#0c66e4]"
+                  />
+                </div>
+              </div>
+              
+              <div className="overflow-x-auto border border-slate-200 rounded-xl bg-white shadow-sm">
+                <table className="w-full text-left border-collapse text-sm">
+                  <thead>
+                    <tr className="bg-slate-50/80 border-b border-slate-200 text-xs font-extrabold text-slate-500 uppercase tracking-wider">
+                      <th className="py-3 px-5 font-bold">NOMBRE</th>
+                      <th className="py-3 px-5 font-bold">VERSIÓN</th>
+                      <th className="py-3 px-5 font-bold">EDITOR</th>
+                      <th className="py-3 px-5 font-bold">FECHA_INSTALACIÓN</th>
+                      <th className="py-3 px-5 font-bold">RUTA</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {programasFiltrados.length > 0 ? programasFiltrados.map((prog, i) => (
+                      <tr key={prog.documentoId ?? i} className="hover:bg-slate-50/50 transition-colors text-xs leading-snug">
+                        <td className="py-3 px-5 font-bold text-slate-900">{prog.nombre ?? prog.name ?? '—'}</td>
+                        <td className="py-3 px-5 font-mono text-slate-700">{prog.version ?? '—'}</td>
+                        <td className="py-3 px-5 text-slate-500 font-semibold">{prog.editor ?? prog.fabricante ?? prog.publisher ?? '—'}</td>
+                        <td className="py-3 px-5 font-mono text-slate-500">{prog.fecha_instalacion ?? prog.fechaInstalacion ?? '—'}</td>
+                        <td className="py-3 px-5 font-mono text-slate-400 truncate max-w-[200px]" title={prog.ruta ?? prog.ruta_instalacion ?? prog.install_location}>{prog.ruta ?? prog.ruta_instalacion ?? prog.install_location ?? '—'}</td>
+                      </tr>
+                    )) : (
+                      <tr>
+                        <td colSpan="5" className="py-6 text-center text-slate-400 italic">
+                          {buscarPrograma ? 'No se encontraron programas con esa bǭsqueda.' : 'No hay programas registrados.'}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+        )}
+
+      
+        {/* 3. ASIGNACIÓN TAB CONTENTS */}
+        {solapa === 'asignacion' && (
+          <div className="space-y-8">
+            {/* Datos Generales Grid panel */}
+            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-4">
+              <h4 className="text-sm font-extrabold text-slate-800 uppercase tracking-widest flex items-center gap-2 pb-3 border-b border-slate-100">
+                <Info className="w-5 h-5 text-[#0c66e4]" />
+                Datos generales
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 text-sm">
+                <div>
+                  <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">UUID del Sistema</span>
+                  <span className="font-semibold text-slate-800 font-mono select-all text-xs block mt-1">{c.uuid}</span>
+                </div>
+                <div>
+                  <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">Ubicación</span>
+                  <span className="font-semibold text-slate-800 block mt-1">{fmtUbicacion(c.ubicacion)}</span>
+                </div>
+                <div>
+                  <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">Arquitectura</span>
+                  <span className="font-semibold text-slate-800 block mt-1">{c.arquitectura ?? '—'}</span>
+                </div>
+                <div>
+                  <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">Estado Conexión (Crudo)</span>
+                  <span className={`inline-flex items-center px-2.5 py-0.5 mt-1.5 font-bold rounded text-xs ${isActivo ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-slate-100 text-slate-600 border border-slate-200'}`}>
+                    {c.estadoConexion || 'UNKNOWN'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">Estado (IT)</span>
+                  <span className="font-extrabold text-[#0c66e4] block mt-1">{c.estadoActual || 'Sin asignar'}</span>
+                </div>
+                <div>
+                  <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">Usuario</span>
+                  <span className="font-semibold text-slate-800 block mt-1">{c.usuarioActual ?? 'SYSTEM'} {c.responsableInventario ? `/ ${c.responsableInventario}` : ''}</span>
+                </div>
+                <div>
+                  <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">Sistema Operativo</span>
+                  <span className="font-semibold text-slate-800 block mt-1">{c.sistemaOperativo ?? '—'}</span>
+                </div>
+                <div>
+                  <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">Conexión (Agente)</span>
+                  <span className={`font-bold block mt-1 ${isActivo ? 'text-emerald-600' : 'text-slate-500'}`}>{conexionTexto ?? 'Sin datos'}</span>
+                </div>
+                <div>
+                  <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">Última Sincronización</span>
+                  <span className="font-mono text-slate-600 text-xs block mt-1">{fmtUltimaSincronizacion(c.ultimaSincronizacion)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Operational controls */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              
+              {/* ASIGNADO EN INVENTARIO */}
+              <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-3">
+                <div>
+                  <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wide block">Asignado en Inventario</h4>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Señale el nombre o clave de la persona que tiene en resguardo físico esta PC.</p>
+                </div>
+                <form className="flex gap-2 text-xs text-slate-800" onSubmit={guardarResponsableInventario}>
+                  <input 
+                    type="text" 
+                    value={textoResponsableInv}
+                    onChange={(e) => setTextoResponsableInv(e.target.value)}
+                    placeholder="ej. Juan Pérez (Soporte)"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 font-semibold text-slate-700 focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#0c66e4]"
+                  />
+                  <button 
+                    type="submit"
+                    disabled={guardandoRi}
+                    className="px-4 py-1.5 bg-[#0c66e4] hover:bg-[#0055cc] text-white font-bold rounded-lg shrink-0 transition-colors cursor-pointer disabled:opacity-50"
+                  >
+                    Guardar
+                  </button>
+                </form>
+                {msgRi && <p className="text-xs text-red-600 m-0">{msgRi}</p>}
+              </div>
+
+              {/* CAMBIAR UBICACIÓN */}
+              <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-3">
+                <div>
+                  <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wide block">Cambiar Ubicación</h4>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Modifique la zona administrativa vinculada de red para sincronización de políticas.</p>
+                </div>
+                <form className="flex gap-2 text-xs text-slate-800" onSubmit={guardarUbicacion}>
+                  <select 
+                    value={ubicacionSel}
+                    onChange={(e) => setUbicacionSel(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 font-bold text-slate-700 focus:bg-white focus:outline-none cursor-pointer"
+                  >
+                    <option value="">Seleccionar...</option>
+                    {UBICACIONES_COMPUTADORA.map(u => (
+                      <option key={u} value={u}>{u}</option>
+                    ))}
+                  </select>
+                  <button 
+                    type="submit"
+                    disabled={guardandoUbi || !ubicacionSel}
+                    className="px-4 py-1.5 bg-[#0c66e4] hover:bg-[#0055cc] text-white font-bold rounded-lg shrink-0 transition-colors cursor-pointer disabled:opacity-50"
+                  >
+                    Guardar
+                  </button>
+                </form>
+                {msgUbi && <p className="text-xs text-red-600 m-0">{msgUbi}</p>}
+              </div>
+
+            </div>
+
+            {/* CAMBIAR ESTADO (IT) WITH motive */}
+            <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
+              <div>
+                <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wide">Cambiar Estado (IT)</h4>
+                <p className="text-[10px] text-slate-400 mt-0.5">Modifique el ciclo de vida de este activo computacional con justificación técnica obligatoria.</p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs text-slate-800">
+                <div className="space-y-1.5">
+                  <label className="font-extrabold text-slate-700 block">Nuevo Estado IT</label>
+                  <select 
+                    value={estadoSel}
+                    onChange={(e) => setEstadoSel(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 font-bold text-slate-700 cursor-pointer focus:bg-white focus:outline-none"
+                  >
+                    <option value="">Seleccionar estado...</option>
+                    {ESTADOS_OPERATIVOS.map(k => (
+                      <option key={k} value={k}>{ESTADO_OPERATIVO_LABELS[k] ?? k}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="sm:col-span-2 space-y-1.5">
+                  <label className="font-extrabold text-slate-700 block">Motivo (Obligatorio)</label>
+                  <input 
+                    type="text"
+                    value={motivoEstado}
+                    onChange={(e) => setMotivoEstado(e.target.value)}
+                    placeholder="Describa el motivo detallado de esta transición de activos..."
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 font-medium text-slate-700 focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#0c66e4]"
+                  />
+                </div>
+              </div>
+
+              {msgEstado && <p className="text-xs text-red-600 m-0">{msgEstado}</p>}
+
+              <div className="flex justify-end pt-3 border-t border-slate-100">
+                <button 
+                  onClick={guardarEstado}
+                  disabled={guardandoEstado || !estadoSel || !motivoEstado.trim()}
+                  className="px-4 py-2 bg-[#0c66e4] hover:bg-[#0055cc] disabled:opacity-50 text-white font-bold text-xs rounded-lg transition-colors shadow-sm cursor-pointer"
+                >
+                  {guardandoEstado ? 'Guardando...' : 'Cambiar estado'}
+                </button>
+              </div>
+            </div>
+
+            {/* HISTORIAL DE ESTADOS (IT) */}
+            <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-3.5">
+              <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-widest flex items-center gap-1.5 pb-2 border-b border-slate-100">
+                <Clock className="w-4 h-4 text-[#0c66e4]" />
+                Historial de Estados (IT)
+              </h4>
+              <div className="space-y-3 pt-1">
+                {historial && historial.length > 0 ? (
+                  historial.map((entry, idx) => (
+                    <div key={idx} className="bg-slate-50 border border-slate-200 p-4 rounded-xl text-xs flex flex-col sm:flex-row sm:justify-between gap-4 sm:items-start shadow-sm transition-colors">
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className={`font-extrabold bg-blue-50 border px-2.5 py-0.5 rounded-full text-[10px] uppercase font-mono ${entry.activo ? 'border-blue-200 text-[#0c66e4]' : 'border-slate-200 text-slate-500'}`}>
+                            {entry.estado} {entry.activo && '(VIGENTE)'}
+                          </span>
+                        </div>
+                        {entry.motivo && <p className="text-slate-700 font-semibold leading-relaxed mt-1">{entry.motivo}</p>}
+                        {entry.autor && (
+                          <div className="text-[10px] text-slate-400 flex items-center gap-1.5 mt-1">
+                            <User className="w-3.5 h-3.5" /> Administrador: <span className="font-bold text-slate-500">{entry.autor}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-[10px] text-slate-400 font-mono text-right flex flex-col sm:items-end gap-1 shrink-0 mt-2 sm:mt-0">
+                        <span className="font-bold text-slate-500 bg-slate-200/50 border border-slate-200/70 p-1 px-2.5 rounded">{fmtFechaIso(entry.fechaHoraInicio)}</span>
+                        {entry.fechaHoraFin && <span>Fin: {fmtFechaIso(entry.fechaHoraFin)}</span>}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-xs text-slate-400 italic">No hay registros previos en la bitácora de activos IT.</div>
+                )}
+              </div>
+            </div>
+
+
+          </div>
+        )}
+</div>
+      </div>
     </div>
   );
 }

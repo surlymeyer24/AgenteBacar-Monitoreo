@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate, Outlet } from 'react-router-dom';
+import { Laptop, Monitor, Search, Copy, Cpu, UserCheck } from 'lucide-react';
+import AsignacionesBoard from '../components/AsignacionesBoard';
 import { fetchComputadoras, updateUbicacion, deleteComputadora } from '../api/computadoraApi';
 import { useComputadorasList } from '../context/ComputadorasListContext';
-import ComputadoraSubnav from '../components/ComputadoraSubnav';
 import { UBICACIONES_COMPUTADORA, labelUbicacionEnum, coincideUbicacionFiltro } from '../constants/ubicaciones';
 import { textoConexionAgente } from '../utils/estadoConexion';
 import {
@@ -10,6 +11,20 @@ import {
   CICLO_SYNC_AGENTE_MINUTOS,
   MINUTOS_LABEL_UMBRAL_ACTIVO,
 } from '../utils/syncActividad';
+import {
+  StudioPageShell,
+  StudioLoading,
+  StudioError,
+  StudioPrimaryButton,
+  StudioFilterBar,
+  StudioDataTable,
+  studioTableClass,
+  studioThClass,
+  studioTdClass,
+  syncDotClass,
+  estadoBadgeClass,
+  osBadgeClass,
+} from '../components/studio/StudioUi';
 
 const ORDEN_OPTS = [
   { value: 'hostname-asc', label: 'Hostname A-Z' },
@@ -33,11 +48,24 @@ function cmpUbicacion(a, b) {
 function coincideBusqueda(c, q) {
   if (!q || !q.trim()) return true;
   const n = q.trim().toLowerCase();
-  const blob = [c.hostname, c.usuarioActual, c.responsableInventario, c.uuid, c.ubicacion, c.sistemaOperativo, c.estadoActual]
+  const blob = [c.hostname, c.usuarioActual, c.responsableInventario, c.uuid, c.ubicacion, c.sistemaOperativo, c.estadoActual, anydeskIdDe(c)]
     .filter(Boolean)
     .join(' ')
     .toLowerCase();
   return blob.includes(n);
+}
+
+function fmtAnydeskId(id) {
+  if (!id) return '—';
+  return String(id).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+}
+
+/** ID AnyDesk desde API (camelCase o snake_case del agente). */
+function anydeskIdDe(c) {
+  const raw = c?.anydeskId ?? c?.anydesk_id ?? c?.anydesk ?? null;
+  if (raw == null || raw === '') return null;
+  const s = String(raw).trim();
+  return s || null;
 }
 
 function esNotebookTipo(c) {
@@ -62,13 +90,6 @@ function coincideFiltroActividadSync(c, filtro) {
   return true;
 }
 
-function claseSyncDot(n) {
-  if (n === 'activo') return 'sync-dot sync-dot--activo';
-  if (n === 'intermedio') return 'sync-dot sync-dot--intermedio';
-  if (n === 'sin_datos') return 'sync-dot sync-dot--sin-datos';
-  return 'sync-dot sync-dot--critico';
-}
-
 function tituloSyncDot(n) {
   if (n === 'activo') {
     return `Sync reciente (ciclo agente ~${CICLO_SYNC_AGENTE_MINUTOS} min; menos de ~${MINUTOS_LABEL_UMBRAL_ACTIVO} min)`;
@@ -82,6 +103,7 @@ function tituloSyncDot(n) {
 
 function ComputadoraList() {
   const { todas, setTodas, cargando, error } = useComputadorasList();
+  const [viewPerspective, setViewPerspective] = useState('inventario');
   const [buscar, setBuscar] = useState('');
   const [filtroUbicacion, setFiltroUbicacion] = useState('');
   const [filtroTipoEquipo, setFiltroTipoEquipo] = useState('');
@@ -92,8 +114,17 @@ function ComputadoraList() {
   const [aplicandoMasivo, setAplicandoMasivo] = useState(false);
   const [borrandoMasivo, setBorrandoMasivo] = useState(false);
   const [msgMasivo, setMsgMasivo] = useState(null);
+  const [copiedAnydesk, setCopiedAnydesk] = useState(null);
   const headerCbRef = useRef(null);
   const navigate = useNavigate();
+
+  function copiarAnydesk(id, e) {
+    e.stopPropagation();
+    if (!id) return;
+    navigator.clipboard.writeText(String(id).replace(/\s/g, ''));
+    setCopiedAnydesk(id);
+    setTimeout(() => setCopiedAnydesk(null), 1500);
+  }
 
   const antesFiltroTipo = useMemo(() => {
     let list = todas.filter(c => coincideUbicacionFiltro(c.ubicacion, filtroUbicacion));
@@ -244,8 +275,8 @@ function ComputadoraList() {
     }
   }
 
-  if (cargando) return <p className="estado-msg">Cargando...</p>;
-  if (error) return <p className="estado-msg error">{error}</p>;
+  if (cargando) return <StudioLoading />;
+  if (error) return <StudioError message={error} />;
 
   const total = todas.length;
   const visibles = computadoras.length;
@@ -255,176 +286,206 @@ function ComputadoraList() {
       : `${visibles} de ${total} equipos`;
 
   return (
-    <div className="page page--computadora-list">
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-end',
-          flexWrap: 'wrap',
-          gap: '0.75rem',
-          marginBottom: '0.35rem',
-        }}
-      >
-        <div>
-          <h1 className="inventory-page-title" style={{ marginBottom: '0.2rem' }}>Inventario</h1>
+    <div className="flex flex-col flex-1 min-h-0 space-y-4">
+      <StudioPageShell
+        title="Inventario de Computadoras"
+        subtitle={`${subt}. Listado operativo del parque informático Bacar.`}
+        actions={
+          <StudioPrimaryButton to="/computadoras/nueva">Nueva computadora</StudioPrimaryButton>
+        }
+      />
+
+      {/* MAIN CATEGORY TABS */}
+      <div className="flex items-center border-b border-slate-200 bg-slate-100/60 px-4 pt-2.5 rounded-t-xl gap-2 text-slate-700 shrink-0">
+        <div className="flex items-end gap-1">
+          {/* Inventario Tab */}
+          <button
+            id="tab-inventario-btn"
+            onClick={() => setViewPerspective('inventario')}
+            className={`flex items-center gap-2 px-5 py-2 text-xs font-bold transition-all relative rounded-t-lg border-t border-l border-r cursor-pointer ${
+              viewPerspective === 'inventario'
+                ? 'bg-white border-slate-200 text-slate-900 border-b-transparent translate-y-[1px] z-10 shadow-xs'
+                : 'bg-transparent border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'
+            }`}
+          >
+            <Cpu className="w-3.5 h-3.5 text-slate-500" />
+            <span>Inventario Técnico</span>
+            {viewPerspective === 'inventario' && (
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#0c66e4] rounded-t-full" />
+            )}
+          </button>
+
+          {/* Asignación Tab */}
+          <button
+            id="tab-asignacion-btn"
+            onClick={() => setViewPerspective('asignacion')}
+            className={`flex items-center gap-2 px-5 py-2 text-xs font-bold transition-all relative rounded-t-lg border-t border-l border-r cursor-pointer ${
+              viewPerspective === 'asignacion'
+                ? 'bg-white border-slate-200 text-slate-900 border-b-transparent translate-y-[1px] z-10 shadow-xs'
+                : 'bg-transparent border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'
+            }`}
+          >
+            <UserCheck className="w-3.5 h-3.5 text-slate-500" />
+            <span>Asignaciones / Estado IT</span>
+            {viewPerspective === 'asignacion' && (
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#0c66e4] rounded-t-full" />
+            )}
+          </button>
         </div>
-        <Link to="/computadoras/nueva" className="btn btn-primary btn-sm">Nueva computadora</Link>
       </div>
 
-      <div className="detail-tabs-block detail-tabs-block--unified">
-        <ComputadoraSubnav variant="inBlock" />
-        <p className="detail-tabs-block__meta">{subt}</p>
-        <div className="detail-tabs-block__toolbar">
-        <div className="inventory-toolbar-row">
-          <div className="inventory-field inventory-field--grow">
-            <label className="inventory-field__label" htmlFor="inv-buscar">Buscar</label>
-            <input
-              id="inv-buscar"
-              className="inventory-input"
-              type="search"
-              placeholder="Hostname, usuario, asignado, UUID…"
-              value={buscar}
-              onChange={e => setBuscar(e.target.value)}
-              autoComplete="off"
-            />
-          </div>
-          <div className="inventory-field inventory-field--sm">
-            <label className="inventory-field__label" htmlFor="inv-ubicacion">Ubicación</label>
+
+
+      {viewPerspective === 'inventario' && (
+        <div className="flex flex-col flex-1 min-h-0 space-y-4">
+          <StudioFilterBar>
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+          <input
+            id="inv-buscar"
+            type="search"
+            placeholder="Hostname, AnyDesk ID, usuario, UUID…"
+            value={buscar}
+            onChange={e => setBuscar(e.target.value)}
+            autoComplete="off"
+            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600 transition-all text-slate-700"
+          />
+        </div>
+        <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600">
+          <label htmlFor="inv-ubicacion">Ubicación:</label>
+          <select
+            id="inv-ubicacion"
+            value={filtroUbicacion}
+            onChange={e => setFiltroUbicacion(e.target.value)}
+            className="bg-transparent border-none outline-none font-bold text-slate-800 cursor-pointer"
+          >
+            <option value="">{`Todas (${total})`}</option>
+            {UBICACIONES_COMPUTADORA.map(u => (
+              <option key={u} value={u}>{labelUbicacionEnum(u)}</option>
+            ))}
+          </select>
+        </div>
+        <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600">
+          <label htmlFor="inv-tipo-equipo">Tipo:</label>
+          <select
+            id="inv-tipo-equipo"
+            value={filtroTipoEquipo}
+            onChange={e => setFiltroTipoEquipo(e.target.value)}
+            className="bg-transparent border-none outline-none font-bold text-slate-800 cursor-pointer"
+          >
+            <option value="">{`Todos (${antesFiltroTipo.length})`}</option>
+            <option value="notebook">{`Notebook (${conteosTipo.notebook})`}</option>
+            <option value="pc">{`PC (${conteosTipo.pc})`}</option>
+          </select>
+        </div>
+        <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600">
+          <label htmlFor="inv-actividad-sync">Sync:</label>
+          <select
+            id="inv-actividad-sync"
+            value={filtroConexion}
+            onChange={e => setFiltroConexion(e.target.value)}
+            className="bg-transparent border-none outline-none font-bold text-slate-800 cursor-pointer"
+          >
+            <option value="">{`Todos (${antesFiltroConexion.length})`}</option>
+            <option value="activo">{`Reciente (< ~${MINUTOS_LABEL_UMBRAL_ACTIVO} min)`}</option>
+            <option value="intermedio">Entre ~12 min y 1 h</option>
+            <option value="sin_actividad">Sin actividad (+1 h)</option>
+          </select>
+        </div>
+        <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600">
+          <label htmlFor="inv-orden">Ordenar:</label>
+          <select
+            id="inv-orden"
+            value={orden}
+            onChange={e => setOrden(e.target.value)}
+            className="bg-transparent border-none outline-none font-bold text-slate-800 cursor-pointer"
+          >
+            {ORDEN_OPTS.map(o => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        </div>
+      </StudioFilterBar>
+
+      {seleccion.size > 0 ? (
+        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs flex flex-wrap items-end gap-3">
+          <p className="text-xs font-semibold text-slate-600 m-0">
+            <strong>{seleccion.size}</strong> equipo{seleccion.size === 1 ? '' : 's'} seleccionado{seleccion.size === 1 ? '' : 's'}
+          </p>
+          <div className="flex items-center gap-2 text-xs">
+            <label htmlFor="inv-ubicacion-masiva" className="font-semibold text-slate-600">Nueva ubicación:</label>
             <select
-              id="inv-ubicacion"
-              className="inventory-select"
-              value={filtroUbicacion}
-              onChange={e => setFiltroUbicacion(e.target.value)}
+              id="inv-ubicacion-masiva"
+              value={ubicacionDestino}
+              onChange={e => setUbicacionDestino(e.target.value)}
+              className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-bold text-slate-800"
             >
-              <option value="">{`Todas (${total})`}</option>
+              <option value="">Elegir…</option>
               {UBICACIONES_COMPUTADORA.map(u => (
                 <option key={u} value={u}>{labelUbicacionEnum(u)}</option>
               ))}
             </select>
           </div>
-          <div className="inventory-field inventory-field--sm">
-            <label className="inventory-field__label" htmlFor="inv-tipo-equipo">Tipo</label>
-            <select
-              id="inv-tipo-equipo"
-              className="inventory-select"
-              value={filtroTipoEquipo}
-              onChange={e => setFiltroTipoEquipo(e.target.value)}
-            >
-              <option value="">{`Todos (${antesFiltroTipo.length})`}</option>
-              <option value="notebook">{`Notebook (${conteosTipo.notebook})`}</option>
-              <option value="pc">{`PC (${conteosTipo.pc})`}</option>
-            </select>
-          </div>
-          <div className="inventory-field inventory-field--sm">
-            <label className="inventory-field__label" htmlFor="inv-actividad-sync">Actividad (sync)</label>
-            <select
-              id="inv-actividad-sync"
-              className="inventory-select"
-              value={filtroConexion}
-              onChange={e => setFiltroConexion(e.target.value)}
-            >
-              <option value="">{`Todos (${antesFiltroConexion.length})`}</option>
-              <option value="activo">{`Sync reciente (menos de ~${MINUTOS_LABEL_UMBRAL_ACTIVO} min)`}</option>
-              <option value="intermedio">{`Sync entre ~${MINUTOS_LABEL_UMBRAL_ACTIVO} min y 1 h`}</option>
-              <option value="sin_actividad">Sin actividad (más de 1 h o sin fecha)</option>
-            </select>
-          </div>
-          <div className="inventory-field inventory-field--sm">
-            <label className="inventory-field__label" htmlFor="inv-orden">Ordenar</label>
-            <select
-              id="inv-orden"
-              className="inventory-select"
-              value={orden}
-              onChange={e => setOrden(e.target.value)}
-            >
-              {ORDEN_OPTS.map(o => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {seleccion.size > 0 ? (
-          <div className="inventory-toolbar-row inventory-toolbar-row--bulk">
-            <p className="inventory-bulk-hint">
-              <strong>{seleccion.size}</strong> equipo{seleccion.size === 1 ? '' : 's'} seleccionado{seleccion.size === 1 ? '' : 's'}
-            </p>
-            <div className="inventory-field inventory-field--sm" style={{ minWidth: '11rem' }}>
-              <label className="inventory-field__label" htmlFor="inv-ubicacion-masiva">Nueva ubicación</label>
-              <select
-                id="inv-ubicacion-masiva"
-                className="inventory-select"
-                value={ubicacionDestino}
-                onChange={e => setUbicacionDestino(e.target.value)}
-              >
-                <option value="">Elegir…</option>
-                {UBICACIONES_COMPUTADORA.map(u => (
-                  <option key={u} value={u}>{labelUbicacionEnum(u)}</option>
-                ))}
-              </select>
-            </div>
-            <button
-              type="button"
-              className="btn btn-primary btn-sm"
-              disabled={borrandoMasivo || aplicandoMasivo || !ubicacionDestino}
-              onClick={aplicarUbicacionMasiva}
-            >
-              {aplicandoMasivo ? 'Aplicando…' : 'Cambiar ubicación'}
-            </button>
-            <button
-              type="button"
-              className="btn btn-danger btn-sm"
-              disabled={borrandoMasivo || aplicandoMasivo}
-              onClick={eliminarSeleccionadas}
-            >
-              {borrandoMasivo ? 'Eliminando…' : 'Eliminar seleccionadas'}
-            </button>
-          </div>
-        ) : null}
-
-        {msgMasivo ? (
-          <p
-            className={`inventory-toolbar-msg ${msgMasivo.tipo === 'ok' ? 'inventory-toolbar-msg--ok' : 'inventory-toolbar-msg--err'}`}
-            role="status"
+          <button
+            type="button"
+            className="px-3 py-1.5 bg-[#0c66e4] hover:bg-[#0055cc] disabled:opacity-50 text-white rounded-lg text-xs font-semibold"
+            disabled={borrandoMasivo || aplicandoMasivo || !ubicacionDestino}
+            onClick={aplicarUbicacionMasiva}
           >
-            {msgMasivo.texto}
-          </p>
-        ) : null}
+            {aplicandoMasivo ? 'Aplicando…' : 'Cambiar ubicación'}
+          </button>
+          <button
+            type="button"
+            className="px-3 py-1.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-lg text-xs font-semibold"
+            disabled={borrandoMasivo || aplicandoMasivo}
+            onClick={eliminarSeleccionadas}
+          >
+            {borrandoMasivo ? 'Eliminando…' : 'Eliminar seleccionadas'}
+          </button>
         </div>
-      </div>
+      ) : null}
 
-      <div className="table-wrap table-wrap--scroll">
-        <table className="table">
-          <thead>
-            <tr>
-              <th className="table-col-check" scope="col">
+      {msgMasivo ? (
+        <p
+          className={`text-xs font-semibold px-4 py-2 rounded-lg border ${
+            msgMasivo.tipo === 'ok'
+              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+              : 'bg-red-50 text-red-800 border-red-200'
+          }`}
+          role="status"
+        >
+          {msgMasivo.texto}
+        </p>
+      ) : null}
+
+      <StudioDataTable className="flex-1 min-h-0">
+        <table className={`${studioTableClass()} text-sm relative`}>
+          <thead className="sticky top-0 z-10">
+            <tr className="bg-slate-50 border-b border-slate-200 text-sm font-semibold text-slate-600 uppercase tracking-widest">
+              <th className={`${studioThClass()} text-center w-10`} scope="col">
                 <input
                   ref={headerCbRef}
                   type="checkbox"
-                  className="table-checkbox"
+                  className="rounded border-slate-300"
                   checked={todasVisiblesSeleccionadas && uuidsVisibles.length > 0}
                   onChange={toggleSeleccionarVisibles}
                   title="Seleccionar equipos visibles"
                   aria-label="Seleccionar todos los equipos visibles"
                 />
               </th>
-              <th className="table-col-sync" scope="col" title="Estado según última sync del agente">Sync</th>
-              <th title="Tipo de equipo">Tipo</th>
-              <th>UUID</th>
-              <th>Hostname</th>
-              <th>Usuario</th>
-              <th title="Asignado en inventario, no confundir con usuario del agente">Asignado</th>
-              <th>Ubicación</th>
-              <th>SO</th>
-              <th>Conexión</th>
-              <th>Estado</th>
+              <th className={`${studioThClass()} text-center`}>Sync</th>
+              <th className={studioThClass()}>Hostname</th>
+              <th className={studioThClass()}>AnyDesk ID</th>
+              <th className={studioThClass()}>Sistema operativo</th>
+              <th className={studioThClass()}>Ubicación</th>
+              <th className={studioThClass()}>Conexión</th>
+              <th className={studioThClass()}>Estado</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-slate-100">
             {computadoras.length === 0 ? (
               <tr>
-                <td colSpan={11} className="table-empty">
+                <td colSpan={8} className={`${studioTdClass()} text-center text-slate-400 py-10`}>
                   {todas.length === 0
                     ? 'Sin registros'
                     : 'Ningún equipo coincide con los filtros'}
@@ -434,54 +495,105 @@ function ComputadoraList() {
               computadoras.map(c => {
                 const sel = c.uuid && seleccion.has(c.uuid);
                 const nivel = nivelActividadSync(c);
+                const conexion = textoConexionAgente(c);
+                const activo = (conexion || '').toLowerCase() === 'activo' || (conexion || '').toLowerCase() === 'activa';
+                const anydesk = anydeskIdDe(c);
+                const esNotebook = (c.tipoEquipo ?? '').toLowerCase().includes('notebook');
                 return (
                   <tr
                     key={c.uuid}
-                    className={sel ? 'is-selected' : undefined}
+                    className={`hover:bg-slate-50/75 cursor-pointer transition-colors group ${sel ? 'bg-blue-50/40' : ''}`}
                     onClick={() => navigate(`/computadoras/${c.uuid}`)}
-                    style={{ cursor: 'pointer' }}
                   >
-                    <td
-                      className="table-col-check"
-                      onClick={e => e.stopPropagation()}
-                    >
+                    <td className={`${studioTdClass()} text-center`} onClick={e => e.stopPropagation()}>
                       <input
                         type="checkbox"
-                        className="table-checkbox"
+                        className="rounded border-slate-300"
                         checked={!!sel}
                         onChange={() => toggleUuid(c.uuid)}
                         aria-label={`Seleccionar ${c.hostname || c.uuid}`}
                       />
                     </td>
-                    <td
-                      className="table-col-sync"
-                      onClick={e => e.stopPropagation()}
-                    >
+                    <td className={`${studioTdClass()} text-center`}>
                       <span
-                        className={claseSyncDot(nivel)}
+                        className={`w-2.5 h-2.5 rounded-full inline-block ${syncDotClass(nivel)} ${nivel === 'activo' ? 'animate-pulse' : ''}`}
                         title={tituloSyncDot(nivel)}
                         role="img"
                         aria-label={tituloSyncDot(nivel)}
                       />
                     </td>
-                    <td title={c.tipoEquipo ?? '—'}>
-                      {c.tipoEquipo?.toLowerCase().includes('notebook') ? '💻' : c.tipoEquipo ? '🖥️' : '—'}
+                    <td className={`${studioTdClass()} font-bold text-slate-900`}>
+                      <div className="flex items-center gap-1.5">
+                        {esNotebook ? <Laptop className="w-4 h-4 text-slate-400 shrink-0" /> : <Monitor className="w-4 h-4 text-slate-400 shrink-0" />}
+                        <div className="leading-tight">
+                          <span className="text-sm">{c.hostname ?? '—'}</span>
+                          <span className="text-xs text-slate-400 font-normal block font-mono">
+                            {(c.uuid ?? '').slice(0, 8)}
+                          </span>
+                        </div>
+                      </div>
                     </td>
-                    <td className="uuid">{c.uuid?.slice(0, 8)}</td>
-                    <td>{c.hostname}</td>
-                    <td>{c.usuarioActual}</td>
-                    <td>{c.responsableInventario ?? '—'}</td>
-                    <td>{c.ubicacion}</td>
-                    <td>{c.sistemaOperativo}</td>
-                    <td>{textoConexionAgente(c)}</td>
-                    <td>{c.estadoActual ?? '—'}</td>
+                    <td className={studioTdClass()} onClick={e => e.stopPropagation()}>
+                      {anydesk ? (
+                        <button
+                          type="button"
+                          onClick={e => copiarAnydesk(anydesk, e)}
+                          className="font-mono bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-700 font-bold px-2 py-1 rounded transition-colors flex items-center gap-1 text-sm"
+                          title="Copiar ID de AnyDesk"
+                        >
+                          <span>{fmtAnydeskId(anydesk)}</span>
+                          <Copy className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          {copiedAnydesk === anydesk && (
+                            <span className="text-[10px] bg-blue-600 text-white px-1 rounded">Listo</span>
+                          )}
+                        </button>
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
+                    </td>
+                    <td className={studioTdClass()}>
+                      <span className={`px-1.5 py-0.5 rounded text-xs font-bold ${osBadgeClass(c.sistemaOperativo)}`}>
+                        {c.sistemaOperativo ?? '—'}
+                      </span>
+                    </td>
+                    <td className={studioTdClass()}>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                        {c.ubicacion ? labelUbicacionEnum(c.ubicacion) : '—'}
+                      </span>
+                    </td>
+                    <td className={studioTdClass()}>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${
+                        activo ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                      }`}>
+                        {conexion}
+                      </span>
+                    </td>
+                    <td className={studioTdClass()}>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${estadoBadgeClass(c.estadoActual)}`}>
+                        {c.estadoActual ?? '—'}
+                      </span>
+                    </td>
                   </tr>
                 );
               })
             )}
           </tbody>
         </table>
-      </div>
+      </StudioDataTable>
+        </div>
+      )}
+
+      {viewPerspective === 'asignacion' && (
+        <AsignacionesBoard 
+          computadoras={computadoras} 
+          onUpdateComputer={async () => {
+            const fresh = await fetchComputadoras();
+            setTodas(fresh);
+          }} 
+        />
+      )}
+
+      <Outlet />
     </div>
   );
 }

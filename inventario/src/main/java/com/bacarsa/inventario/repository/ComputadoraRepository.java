@@ -17,6 +17,7 @@ import com.bacarsa.inventario.models.Estado;
 import com.bacarsa.inventario.models.ImpresoraFirestore;
 import com.bacarsa.inventario.models.MonitorFirestore;
 import com.bacarsa.inventario.models.Ubicacion;
+import com.bacarsa.inventario.util.AnydeskIdResolver;
 import com.bacarsa.inventario.util.FirestoreJsonHelper;
 import com.google.api.core.ApiFuture;
 import com.google.cloud.Timestamp;
@@ -240,6 +241,13 @@ public class ComputadoraRepository {
             @SuppressWarnings("unchecked")
             Map<String, Object> usuarios = (Map<String, Object>) usuariosObj;
             c.setUsuarioActual((String) usuarios.get("usuario_actual"));
+        }
+
+        if (c.getAnydeskId() == null || c.getAnydeskId().isBlank()) {
+            String anydesk = AnydeskIdResolver.resolver(data);
+            if (anydesk != null) {
+                c.setAnydeskId(anydesk);
+            }
         }
 
         return c;

@@ -26,17 +26,19 @@ import PerifericoManualDetail from './pages/PerifericoManualDetail';
 import CamaraList from './pages/CamaraList';
 import CamaraNueva from './pages/CamaraNueva';
 import CamaraDetail from './pages/CamaraDetail';
-import RouterList from './pages/RouterList';
+import RoutersSwitchesList from './pages/RoutersSwitchesList';
 import RouterDetail from './pages/RouterDetail';
 import NvrList from './pages/NvrList';
 import NvrNueva from './pages/NvrNueva';
 import NvrDetail from './pages/NvrDetail';
-import SwitchList from './pages/SwitchList';
 import SwitchDetail from './pages/SwitchDetail';
 import MaquinaTesoreriaList from './pages/MaquinaTesoreriaList';
 import MaquinaTesoreriaDetail from './pages/MaquinaTesoreriaDetail';
 import InfraestructuraDashboard from './pages/InfraestructuraDashboard';
+import ServidorList from './pages/ServidorList';
+import ServidorDetalle from './pages/ServidorDetalle';
 import System from './pages/System';
+import MiPerfil from './pages/MiPerfil';
 import './App.css';
 import { PerifericosAgenteListadosProvider } from './context/PerifericosAgenteListadosContext';
 
@@ -76,7 +78,7 @@ function AppShell() {
             <Menu size={20} />
           </button>
         </div>
-        <SidebarNav />
+        <SidebarNav sidebarCollapsed={isCollapsed} />
         <SidebarAuthFooter />
       </aside>
       <div className="main">
@@ -118,10 +120,11 @@ function AppRoutes() {
       <Route element={<ProtectedLayout />}>
         <Route path="/" element={<Dashboard />} />
         <Route path="/computadoras" element={<ComputadorasListLayout />}>
-          <Route index element={<ComputadoraList />} />
           <Route path="asignaciones" element={<ComputadoraAsignaciones />} />
           <Route path="nueva" element={<ComputadoraNueva />} />
-          <Route path=":uuid" element={<ComputadoraDetail />} />
+          <Route path="" element={<ComputadoraList />}>
+            <Route path=":uuid" element={<ComputadoraDetail />} />
+          </Route>
         </Route>
         <Route path="/perifericos" element={<PerifericosTodosList />} />
         <Route path="/perifericos/impresoras" element={<PerifericosImpresorasList />} />
@@ -138,16 +141,18 @@ function AppRoutes() {
         <Route path="/camaras" element={<CamaraList />} />
         <Route path="/camaras/nueva" element={<CamaraNueva />} />
         <Route path="/camaras/:id" element={<CamaraDetail />} />
-        <Route path="/routers" element={<RouterList />} />
+        <Route path="/routers-switches" element={<RoutersSwitchesList />} />
         <Route path="/routers/:id" element={<RouterDetail />} />
         <Route path="/nvrs" element={<NvrList />} />
         <Route path="/nvrs/nueva" element={<NvrNueva />} />
         <Route path="/nvrs/:id" element={<NvrDetail />} />
-        <Route path="/switches" element={<SwitchList />} />
         <Route path="/switches/:id" element={<SwitchDetail />} />
         <Route path="/maquinas-tesoreria" element={<MaquinaTesoreriaList />} />
         <Route path="/maquinas-tesoreria/:id" element={<MaquinaTesoreriaDetail />} />
+        <Route path="/servidores" element={<ServidorList />} />
+        <Route path="/servidores/:id" element={<ServidorDetalle />} />
         <Route path="/system" element={<System />} />
+        <Route path="/perfil" element={<MiPerfil />} />
       </Route>
     </Routes>
   );

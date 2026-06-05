@@ -24,6 +24,8 @@ import {
   Video,
   Volume2,
   Webcam,
+  PackageOpen,
+  Server,
 } from 'lucide-react';
 
 /** Misma idea que `navIconProps` en MiniAgente-Front `Layout.tsx`. */
@@ -67,4 +69,6 @@ export const NAV_ICONS = {
   EthernetPort,
   ChevronRight,
   ChevronDown,
+  PackageOpen,
+  Server,
 };

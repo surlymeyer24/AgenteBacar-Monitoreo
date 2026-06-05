@@ -8,7 +8,9 @@ public enum EstadoOperativo {
     ASIGNADA("Asignada", "Equipo dado de alta y con usuario o responsable definido"),
     SIN_ASIGNAR("Sin Asignar", "Equipo en inventario sin usuario/responsable asignado"),
     EN_MANTENIMIENTO("En mantenimiento", "Equipo en mantenimiento, no operativo temporalmente"),
-    BAJA("Baja", "Equipo dado de baja");
+    BAJA("Baja", "Equipo dado de baja"),
+    ACTIVA("Activa", "Equipo activo y operativo"),
+    INACTIVA("Inactiva", "Equipo inactivo o fuera de servicio");
 
     private final String nombre;
     private final String descripcion;

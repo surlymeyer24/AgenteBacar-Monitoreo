@@ -83,6 +83,7 @@ export const COLLECTIONS = {
   HW_COMPUTADORAS: 'computadoras',
   HW_TAREAS: 'tareas',
   LOGS_ACTUALIZACIONES: 'logs_actualizaciones',
+  USUARIOS: 'usuarios',
 };
 
 /** IDs de documentos en {@link COLLECTIONS.CONFIG} (solo lectura desde el front; reglas Firestore). */

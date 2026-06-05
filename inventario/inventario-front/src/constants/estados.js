@@ -4,6 +4,8 @@ export const ESTADOS_OPERATIVOS = [
   'SIN_ASIGNAR',
   'EN_MANTENIMIENTO',
   'BAJA',
+  'ACTIVA',
+  'INACTIVA'
 ];
 
 /** Etiquetas en UI (alineadas con `EstadoOperativo.getNombre()`). */
@@ -12,4 +14,6 @@ export const ESTADO_OPERATIVO_LABELS = {
   SIN_ASIGNAR: 'Sin Asignar',
   EN_MANTENIMIENTO: 'En mantenimiento',
   BAJA: 'Baja',
+  ACTIVA: 'Activa',
+  INACTIVA: 'Inactiva'
 };

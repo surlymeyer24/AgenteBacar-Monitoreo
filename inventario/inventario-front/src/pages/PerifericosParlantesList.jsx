@@ -1,5 +1,10 @@
-import { Link } from 'react-router-dom';
 import { usePerifericosAgenteListados } from '../context/PerifericosAgenteListadosContext';
+import {
+  StudioPageShell,
+  StudioLoading,
+  StudioError,
+} from '../components/studio/StudioUi';
+import PerifericosTable from '../components/PerifericosTable';
 
 function claveFila(f, index) {
   return `${f.pcUuid ?? ''}-${f.nombre ?? ''}-${index}`;
@@ -7,58 +12,29 @@ function claveFila(f, index) {
 
 function PerifericosParlantesList() {
   const { listados, loading, error } = usePerifericosAgenteListados();
-  const filas = listados?.parlantes ?? [];
+  const filas = (listados?.parlantes ?? [])
+    .filter(p => {
+      const nombre = (p.nombre ?? '').toLowerCase();
+      const fabricante = (p.fabricante ?? '').toLowerCase();
+      return !nombre.includes('integrado') && !fabricante.includes('integrado');
+    });
 
-  if (loading) return <p className="estado-msg">Cargando...</p>;
-  if (error) return <p className="estado-msg error">{error?.message ?? 'No se pudo cargar el listado'}</p>;
+  if (loading) return <StudioLoading />;
+  if (error) return <StudioError message={error?.message ?? 'No se pudo cargar el listado'} />;
 
   return (
-    <div className="page">
-      <h1>Parlantes</h1>
-      <p className="muted">
-        Audio de salida reportado por el agente. Comparte datos en memoria con micrófonos y listados USB.
-      </p>
-      <div className="card">
-        <div className="table-wrap" style={{ marginTop: 0 }}>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>PC origen</th>
-                <th>Nombre</th>
-                <th>Fabricante</th>
-                <th>Estado</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filas.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="table-empty">
-                    Sin parlantes reportados
-                  </td>
-                </tr>
-              ) : (
-                filas.map((f, index) => (
-                  <tr key={claveFila(f, index)}>
-                    <td>
-                      {f.pcUuid ? (
-                        <Link className="link-inline" to={`/computadoras/${f.pcUuid}`}>
-                          {f.pcHostname ?? f.pcUuid ?? '—'}
-                        </Link>
-                      ) : (
-                        (f.pcHostname ?? '—')
-                      )}
-                    </td>
-                    <td>{f.nombre ?? '—'}</td>
-                    <td>{f.fabricante ?? '—'}</td>
-                    <td>{f.estado ?? '—'}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+    <StudioPageShell
+      title="Administración de Parlantes"
+      subtitle="Dispositivos de reproducción de audio reportados por el agente en cada estación."
+    >
+      <PerifericosTable 
+        items={filas} 
+        type="parlante" 
+        renderSpecs={(p) => (
+          <>Fabricante: {p.fabricante || 'Standard'} <span className="text-slate-300 mx-1">|</span> {p.estado || 'OK'}</>
+        )} 
+      />
+    </StudioPageShell>
   );
 }
 

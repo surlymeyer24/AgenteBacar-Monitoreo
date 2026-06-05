@@ -5,82 +5,15 @@ import { fetchDashboardStats } from '../api/dashboardApi';
 import { fetchComputadoras } from '../api/computadoraApi';
 import { fetchCamaras } from '../api/camaraApi';
 import { textoConexionAgente } from '../utils/estadoConexion';
-import { Monitor, CheckCircle2, Camera, Keyboard } from 'lucide-react';
 import {
-  PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer,
-} from 'recharts';
+  Monitor, Camera, Keyboard, HardDrive, Cpu, 
+  CheckCircle2, AlertTriangle, ShieldAlert,
+  ClipboardList, Users, Layers, Activity, Plus
+} from 'lucide-react';
+import { motion } from 'motion/react';
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-const PIE_COLORS = ['#2e7d32', '#c62828'];
-
-/** Barras tipo tarjeta referencia (verde / naranja y alternancia). */
-const PERIF_BAR_COLORS = [
-  '#2E7D32',
-  '#D84315',
-  '#1565C0',
-  '#00838F',
-  '#6A1B9A',
-  '#E65100',
-  '#558B2F',
-  '#C62828',
-  '#455A64',
-];
-
-function TarjetaPerifericosPorTipo({ porTipo }) {
-  const conDatos = porTipo ? Object.entries(porTipo).filter(([, n]) => Number(n) > 0) : [];
-  const max = Math.max(1, ...conDatos.map(([, n]) => Number(n) || 0));
-
-  if (!porTipo || conDatos.length === 0) {
-    return (
-      <div className="card dashboard-perifericos-card">
-        <h2 className="dashboard-perifericos-card__title">Periféricos</h2>
-        <p className="muted" style={{ margin: 0 }}>
-          {!porTipo
-            ? 'Sin desglose por tipo (necesitás API con estadísticas actualizadas).'
-            : 'Ningún periférico reportado en las PCs.'}
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="card dashboard-perifericos-card">
-      <h2 className="dashboard-perifericos-card__title">Periféricos</h2>
-      <ul className="dashboard-perifericos-card__list">
-        {conDatos.map(([label, raw], i) => {
-          const n = Number(raw) || 0;
-          const pct = Math.round((n / max) * 100);
-          const color = PERIF_BAR_COLORS[i % PERIF_BAR_COLORS.length];
-          return (
-            <li key={label} className="dashboard-perifericos-card__row">
-              <span className="dashboard-perifericos-card__label">{label}</span>
-              <div
-                className="dashboard-perifericos-card__track"
-                role="presentation"
-                aria-hidden="true"
-              >
-                <div
-                  className="dashboard-perifericos-card__fill"
-                  style={{
-                    width: `${pct}%`,
-                    backgroundColor: color,
-                  }}
-                />
-              </div>
-              <span className="dashboard-perifericos-card__value">{n}</span>
-            </li>
-          );
-        })}
-      </ul>
-    </div>
-  );
-}
-
-function estadoBadgeClass(estado) {
-  const e = (estado ?? '').toLowerCase();
-  if (e === 'activo' || e === 'activa') return 'badge badge-success';
-  if (e === 'baja' || e === 'inactivo' || e === 'inactiva') return 'badge badge-error';
-  return 'badge badge-neutral';
-}
+const PIE_COLORS = ['#36b37e', '#ff5630']; // Tailwind emerald and red equivalent
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -89,6 +22,7 @@ function Dashboard() {
   const [camaras, setCamaras] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedChartType, setSelectedChartType] = useState('type');
 
   const cargar = useCallback(() => {
     setCargando(true);
@@ -128,8 +62,8 @@ function Dashboard() {
     };
   }, []);
 
-  if (cargando && !stats) return <p className="estado-msg">Cargando...</p>;
-  if (error && !stats) return <p className="estado-msg error">{error}</p>;
+  if (cargando && !stats) return <div className="p-8 text-center text-slate-500">Cargando dashboard...</div>;
+  if (error && !stats) return <div className="p-8 text-center text-red-500 font-medium">{error}</div>;
 
   const s = stats ?? {};
   const totalPc = Number(s.totalComputadoras ?? 0);
@@ -143,160 +77,269 @@ function Dashboard() {
     { name: `Inactivas: ${inactivas}`, value: Math.max(inactivas, 0) },
   ];
 
+  const porTipo = s.perifericosPorTipo ? Object.entries(s.perifericosPorTipo).filter(([, n]) => Number(n) > 0) : [];
+  const maxPerif = Math.max(1, ...porTipo.map(([, n]) => Number(n) || 0));
+
   return (
-    <div className="page">
-      <h1>Dashboard de Inventario - Componentes de PC</h1>
-
-      {error && stats ? (
-        <p className="estado-msg error" role="alert">{error}</p>
-      ) : null}
-
-      {/* Metric cards */}
-      <div className="dashboard-metrics-row">
-        <div className="metric-card metric-card--blue dashboard-metric-icon-card">
-          <div>
-            <p className="metric-card__title">Total Computadoras</p>
-            <p className="metric-card__value">{totalPc}</p>
-          </div>
-          <Monitor size={36} color="#1565c0" opacity={0.8} />
+    <div className="space-y-6">
+      {/* Top Banner / Corporate Greeting */}
+      <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Consola de Control de Inventario IT</h1>
+          <p className="text-slate-500 text-sm">Estado de activos, stock de periféricos y asignaciones en tiempo real.</p>
         </div>
-        <div className="metric-card metric-card--blue dashboard-metric-icon-card">
-          <div>
-            <p className="metric-card__title">Computadoras Activas</p>
-            <p className="metric-card__value">{activas}</p>
-          </div>
-          <CheckCircle2 size={36} color="#1565c0" opacity={0.8} />
-        </div>
-        <div className="metric-card metric-card--red dashboard-metric-icon-card">
-          <div>
-            <p className="metric-card__title">Cámaras Instaladas</p>
-            <p className="metric-card__value">{totalCamaras}</p>
-          </div>
-          <Camera size={36} color="#c62828" opacity={0.8} />
-        </div>
-        <div className="metric-card metric-card--red dashboard-metric-icon-card">
-          <div>
-            <p className="metric-card__title">Periféricos Totales</p>
-            <p className="metric-card__value">{totalPerifericos}</p>
-          </div>
-          <Keyboard size={36} color="#c62828" opacity={0.8} />
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={() => navigate('/computadoras/nueva')}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-[#0c66e4] hover:bg-[#0055cc] text-white rounded-lg font-medium text-sm transition-colors shadow-xs"
+          >
+            <Plus className="w-4 h-4" />
+            Registrar Computadora
+          </button>
         </div>
       </div>
 
-      {/* Charts */}
-      <div className="dashboard-charts-row">
-        <div className="card">
-          <h2>Estado de Computadoras</h2>
-          <ResponsiveContainer width="100%" height={240}>
-            <PieChart>
-              <Pie
-                data={pieData}
-                cx="50%"
-                cy="50%"
-                outerRadius={85}
-                dataKey="value"
-                label={false}
-              >
-                {pieData.map((_, i) => (
-                  <Cell key={i} fill={PIE_COLORS[i]} />
-                ))}
-              </Pie>
-              <Tooltip />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
+      {error && stats && (
+        <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm font-medium">
+          {error}
+        </div>
+      )}
+
+      {/* KPI Metrics Strip */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Metric 1 */}
+        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs flex items-start justify-between">
+          <div className="space-y-2">
+            <span className="text-xs font-semibold text-slate-500 tracking-wider uppercase">Total Computadoras</span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-bold text-slate-900">{totalPc}</span>
+              <span className="text-xs text-slate-500">unid.</span>
+            </div>
+          </div>
+          <div className="p-3 bg-blue-50 rounded-lg text-blue-600">
+            <Monitor className="w-6 h-6" />
+          </div>
         </div>
 
-        <TarjetaPerifericosPorTipo porTipo={s.perifericosPorTipo} />
+        {/* Metric 2 */}
+        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs flex items-start justify-between">
+          <div className="space-y-2">
+            <span className="text-xs font-semibold text-slate-500 tracking-wider uppercase">Computadoras Activas</span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-bold text-emerald-600">{activas}</span>
+              <span className="text-xs text-slate-500">online</span>
+            </div>
+          </div>
+          <div className="p-3 bg-emerald-50 rounded-lg text-emerald-600">
+            <CheckCircle2 className="w-6 h-6" />
+          </div>
+        </div>
+
+        {/* Metric 3 */}
+        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs flex items-start justify-between">
+          <div className="space-y-2">
+            <span className="text-xs font-semibold text-slate-500 tracking-wider uppercase">Cámaras Instaladas</span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-bold text-slate-900">{totalCamaras}</span>
+              <span className="text-xs text-slate-500">equipos</span>
+            </div>
+          </div>
+          <div className="p-3 bg-purple-50 rounded-lg text-purple-600">
+            <Camera className="w-6 h-6" />
+          </div>
+        </div>
+
+        {/* Metric 4 */}
+        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs flex items-start justify-between">
+          <div className="space-y-2">
+            <span className="text-xs font-semibold text-slate-500 tracking-wider uppercase">Periféricos Totales</span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-bold text-slate-900">{totalPerifericos}</span>
+              <span className="text-xs text-slate-500">detectados</span>
+            </div>
+          </div>
+          <div className="p-3 bg-orange-50 rounded-lg text-orange-600">
+            <Keyboard className="w-6 h-6" />
+          </div>
+        </div>
       </div>
 
-      {/* Listado de Computadoras */}
-      <div className="card">
-        <h2>🖥️ Listado de Computadoras</h2>
-        <div className="table-wrap" style={{ marginTop: 0, maxHeight: '280px', overflowY: 'auto' }}>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Nombre</th>
-                <th>Estado</th>
-                <th>Especificaciones</th>
-                <th>Ubicación</th>
-              </tr>
-            </thead>
-            <tbody>
-              {computadoras.length === 0 ? (
-                <tr><td colSpan={5} className="table-empty">Sin datos</td></tr>
-              ) : (
-                computadoras.map((c, i) => {
-                  const conexionAgente = textoConexionAgente(c);
+      {/* Main Grid Content Area: Charts & Alerts */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* Interactive Asset Breakdown Visualizer - Card 1 */}
+        <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-6 lg:col-span-2 space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="space-y-0.5">
+              <h2 className="text-base font-semibold text-slate-900">Métricas de Periféricos</h2>
+              <p className="text-xs text-slate-500">Análisis distributivo físico por tipo de periférico.</p>
+            </div>
+          </div>
+
+          <div className="space-y-5 py-2">
+            {porTipo.length === 0 ? (
+              <p className="text-sm text-slate-500">Ningún periférico reportado en las PCs.</p>
+            ) : (
+              <div className="space-y-4.5">
+                {porTipo.map(([label, raw], index) => {
+                  const n = Number(raw) || 0;
+                  const percentage = (n / maxPerif) * 100;
+                  const colors = ['bg-[#0c66e4]', 'bg-[#00a3bf]', 'bg-[#6554c0]', 'bg-[#ff5630]', 'bg-[#36b37e]', 'bg-[#ffab00]'];
+                  const colorClass = colors[index % colors.length];
+                  
                   return (
-                  <tr
-                    key={c.uuid}
-                    className="table-row-link"
-                    onClick={() => navigate(`/computadoras/${c.uuid}`)}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <td>{i + 1}</td>
-                    <td>{c.hostname ?? '—'}</td>
-                    <td>
-                      <span className={estadoBadgeClass(conexionAgente)}>
-                        {conexionAgente}
-                      </span>
-                    </td>
-                    <td>{c.procesador?.nombre ?? '—'}</td>
-                    <td>{c.ubicacion ?? '—'}</td>
-                  </tr>
+                    <div key={label} className="group space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2 font-medium text-slate-700">
+                          <span className="text-slate-400 group-hover:text-amber-500 transition-colors">
+                            <Cpu className="w-4 h-4" />
+                          </span>
+                          <span>{label}</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="font-semibold text-slate-900 font-mono">{n}</span>
+                        </div>
+                      </div>
+                      
+                      {/* Interactive Bar */}
+                      <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden relative">
+                        <motion.div 
+                          initial={{ width: 0 }}
+                          animate={{ width: `${percentage}%` }}
+                          transition={{ duration: 0.6, ease: 'easeOut' }}
+                          className={`h-full rounded-full transition-all duration-300 ${colorClass}`}
+                        />
+                      </div>
+                    </div>
                   );
-                })
-              )}
-            </tbody>
-          </table>
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Action Center & Critical Alerts - Card 2 */}
+        <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-6 flex flex-col space-y-4">
+          <div className="space-y-0.5 border-b border-slate-100 pb-3">
+            <h2 className="text-base font-semibold text-slate-900">Estado de Computadoras</h2>
+            <p className="text-xs text-slate-500">Proporción de equipos activos en la red.</p>
+          </div>
+          <div className="flex-1 flex flex-col justify-center min-h-[240px]">
+            <ResponsiveContainer width="100%" height={240}>
+              <PieChart>
+                <Pie
+                  data={pieData}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={85}
+                  dataKey="value"
+                  label={false}
+                >
+                  {pieData.map((_, i) => (
+                    <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       </div>
 
-      {/* Cámaras Instaladas */}
-      <div className="card">
-        <h2>📷 Cámaras Instaladas</h2>
-        <p className="muted" style={{ marginTop: '0.35rem', marginBottom: '0.75rem' }}>
-          El inventario por ubicación se gestiona desde cada{' '}
-          <Link to="/nvrs">NVR</Link>.
-        </p>
-        <div className="table-wrap" style={{ marginTop: 0, maxHeight: '280px', overflowY: 'auto' }}>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Nombre</th>
-                <th>Tipo</th>
-                <th>Ubicación</th>
-              </tr>
-            </thead>
-            <tbody>
-              {camaras.length === 0 ? (
-                <tr><td colSpan={4} className="table-empty">Sin datos</td></tr>
-              ) : (
-                camaras.map((cam, i) => (
-                  <tr
-                    key={cam.id ?? i}
-                    className="table-row-link"
-                    onClick={() =>
-                      navigate(
-                        cam.nvrId
-                          ? `/nvrs/${encodeURIComponent(cam.nvrId)}`
-                          : `/camaras/${encodeURIComponent(cam.id ?? '')}`,
-                      )}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <td>{i + 1}</td>
-                    <td>{cam.nombre ?? '—'}</td>
-                    <td>{cam.tipo ?? '—'}</td>
-                    <td>{cam.ubicacion ?? '—'}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+      {/* Data Tables */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Computadoras */}
+        <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-6 space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <h2 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+              <Monitor className="w-5 h-5 text-blue-500" />
+              Listado de Computadoras
+            </h2>
+          </div>
+          <div className="overflow-y-auto max-h-[300px] border border-slate-100 rounded-lg">
+            <table className="w-full text-left text-sm whitespace-nowrap">
+              <thead className="bg-slate-50 sticky top-0 text-slate-500 font-medium text-xs uppercase">
+                <tr>
+                  <th className="px-4 py-3">Nombre</th>
+                  <th className="px-4 py-3">Estado</th>
+                  <th className="px-4 py-3 hidden sm:table-cell">Especificaciones</th>
+                  <th className="px-4 py-3 text-right">Ubicación</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {computadoras.length === 0 ? (
+                  <tr><td colSpan={4} className="px-4 py-8 text-center text-slate-400">Sin datos</td></tr>
+                ) : (
+                  computadoras.map((c) => {
+                    const conexionAgente = textoConexionAgente(c);
+                    const isActive = (conexionAgente || '').toLowerCase() === 'activo' || (conexionAgente || '').toLowerCase() === 'activa';
+                    return (
+                      <tr
+                        key={c.uuid}
+                        className="hover:bg-slate-50 cursor-pointer transition-colors"
+                        onClick={() => navigate(`/computadoras/${c.uuid}`)}
+                      >
+                        <td className="px-4 py-3 font-medium text-slate-800">{c.hostname ?? '—'}</td>
+                        <td className="px-4 py-3">
+                          <span className={`px-2 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase ${isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
+                            {conexionAgente}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-slate-500 hidden sm:table-cell">{c.procesador?.nombre ?? '—'}</td>
+                        <td className="px-4 py-3 text-right text-slate-600">{c.ubicacion ?? '—'}</td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Camaras */}
+        <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-6 space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <h2 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+              <Camera className="w-5 h-5 text-purple-500" />
+              Cámaras Instaladas
+            </h2>
+          </div>
+          <div className="overflow-y-auto max-h-[300px] border border-slate-100 rounded-lg">
+            <table className="w-full text-left text-sm whitespace-nowrap">
+              <thead className="bg-slate-50 sticky top-0 text-slate-500 font-medium text-xs uppercase">
+                <tr>
+                  <th className="px-4 py-3">Nombre</th>
+                  <th className="px-4 py-3">Tipo</th>
+                  <th className="px-4 py-3 text-right">Ubicación</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {camaras.length === 0 ? (
+                  <tr><td colSpan={3} className="px-4 py-8 text-center text-slate-400">Sin datos</td></tr>
+                ) : (
+                  camaras.map((cam, i) => (
+                    <tr
+                      key={cam.id ?? i}
+                      className="hover:bg-slate-50 cursor-pointer transition-colors"
+                      onClick={() =>
+                        navigate(
+                          cam.nvrId
+                            ? `/nvrs/${encodeURIComponent(cam.nvrId)}`
+                            : `/camaras/${encodeURIComponent(cam.id ?? '')}`,
+                        )}
+                    >
+                      <td className="px-4 py-3 font-medium text-slate-800">{cam.nombre ?? '—'}</td>
+                      <td className="px-4 py-3 text-slate-500">{cam.tipo ?? '—'}</td>
+                      <td className="px-4 py-3 text-right text-slate-600">{cam.ubicacion ?? '—'}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
