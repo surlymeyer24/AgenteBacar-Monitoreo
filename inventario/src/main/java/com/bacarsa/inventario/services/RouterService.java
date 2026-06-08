@@ -1,9 +1,11 @@
 package com.bacarsa.inventario.services;
 
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
+import java.util.Map;
 
 import org.springframework.stereotype.Service;
 
@@ -95,5 +97,47 @@ public class RouterService {
             return null;
         }
         return s.trim();
+    }
+
+    public RouterDTO update(String id, RouterCreateDTO dto) throws ExecutionException, InterruptedException {
+        Router routerExistente = routerRepository.findById(id);
+        if (routerExistente == null) {
+            throw new IllegalArgumentException("Router no encontrado: " + id);
+        }
+
+        validarCrear(dto);
+        
+        UbicacionRed ubicacion;
+        try {
+            ubicacion = UbicacionRed.valueOf(dto.getUbicacion().trim());
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalArgumentException("Ubicación de red inválida: " + dto.getUbicacion(), ex);
+        }
+
+        Map<String, Object> campos = new HashMap<>();
+        campos.put("nombre", dto.getNombre().trim());
+        campos.put("marca", blankToNull(dto.getMarca()));
+        campos.put("modelo", blankToNull(dto.getModelo()));
+        campos.put("ip", blankToNull(dto.getIp()));
+        campos.put("numero_serie", blankToNull(dto.getNumeroSerie()));
+        campos.put("sitio", blankToNull(dto.getSitio()));
+        campos.put("ip_publica", blankToNull(dto.getIpPublica()));
+        campos.put("estado", blankToNull(dto.getEstadoOmada())); 
+        campos.put("version", blankToNull(dto.getVersion()));
+        campos.put("mac_uplink", blankToNull(dto.getMacUplink()));
+        campos.put("salto", dto.getSalto());
+        campos.put("grupo_wlan", blankToNull(dto.getGrupoWlan()));
+        campos.put("firmware", blankToNull(dto.getFirmware()));
+        campos.put("cantidad_puertos_wan", dto.getCantidadPuertosWan());
+        campos.put("cantidad_puertos_lan", dto.getCantidadPuertosLan());
+        campos.put("gateway", blankToNull(dto.getGateway()));
+        campos.put("ubicacion", ubicacion.name());
+        
+        LocalDate fecha = dto.getFechaAlta() != null ? dto.getFechaAlta() : LocalDate.now();
+        campos.put("fecha_alta", fecha.toString()); 
+
+        routerRepository.update(id, campos);
+
+        return obtenerPorId(id);
     }
 }

@@ -140,6 +140,33 @@ public class CamaraService {
         return s.trim();
     }
 
+    public CamaraDTO update(String id, CamaraCreateDTO dto) throws ExecutionException, InterruptedException {
+        Camara camExistente = camaraRepository.findById(id);
+        if (camExistente == null) {
+            throw new IllegalArgumentException("Cámara no encontrada: " + id);
+        }
+
+        validarCrear(dto);
+
+        java.util.Map<String, Object> campos = new java.util.HashMap<>();
+        campos.put("nombre", dto.getNombre().trim());
+        campos.put("marca", blankToNull(dto.getMarca()));
+        campos.put("descripcion", blankToNull(dto.getDescripcion()));
+        campos.put("responsable", blankToNull(dto.getResponsable()));
+        campos.put("ubicacion", dto.getUbicacion().trim());
+        campos.put("direccionIp", blankToNull(dto.getDireccionIp()));
+        campos.put("puerto", dto.getPuerto());
+        campos.put("tipo", blankToNull(dto.getTipo()));
+        campos.put("nvrId", blankToNull(dto.getNvrId()));
+        
+        LocalDate fecha = dto.getFechaAlta() != null ? dto.getFechaAlta() : LocalDate.now();
+        campos.put("fechaAlta", fecha.toString()); 
+
+        camaraRepository.update(id, campos);
+
+        return obtenerPorId(id);
+    }
+
     public CamaraDTO asignarNvr(String idCamara, String idNvr)
             throws ExecutionException, InterruptedException {
         Camara cam = camaraRepository.findById(idCamara);

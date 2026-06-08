@@ -70,4 +70,31 @@ public class NvrService {
         nvrRepository.guardarConId(id, nvr);
         return obtenerPorId(id);
     }
+
+    private static String blankToNull(String s) {
+        if (s == null || s.isBlank()) {
+            return null;
+        }
+        return s.trim();
+    }
+
+    public NvrDTO update(String id, NvrCreateDTO dto) throws ExecutionException, InterruptedException {
+        Nvr nvrExistente = nvrRepository.findById(id);
+        if (nvrExistente == null) {
+            throw new IllegalArgumentException("NVR no encontrada: " + id);
+        }
+        if (dto.getNombre() == null || dto.getNombre().isBlank()) {
+            throw new IllegalArgumentException("El nombre es obligatorio");
+        }
+
+        Map<String, Object> campos = new java.util.HashMap<>();
+        campos.put("nombre", dto.getNombre().trim());
+        campos.put("direccionIp", blankToNull(dto.getDireccionIp()));
+        campos.put("puerto", dto.getPuerto());
+        campos.put("descripcion", blankToNull(dto.getDescripcion()));
+
+        nvrRepository.update(id, campos);
+
+        return obtenerPorId(id);
+    }
 }

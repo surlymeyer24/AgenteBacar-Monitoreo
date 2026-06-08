@@ -47,10 +47,6 @@ function CamaraNueva() {
   function onSubmit(e) {
     e.preventDefault();
     setError(null);
-    if (!form.nvrId.trim()) {
-      setError('Tenés que elegir una NVR.');
-      return;
-    }
     const puertoNum =
       form.puerto.trim() === '' ? undefined : Number.parseInt(form.puerto.trim(), 10);
     const body = {
@@ -62,7 +58,7 @@ function CamaraNueva() {
       ubicacion: form.ubicacion,
       direccionIp: form.direccionIp.trim() || undefined,
       tipo: form.tipo.trim() || undefined,
-      nvrId: form.nvrId.trim(),
+      nvrId: form.nvrId.trim() || undefined,
     };
     if (puertoNum !== undefined && !Number.isNaN(puertoNum)) {
       body.puerto = puertoNum;
@@ -70,30 +66,40 @@ function CamaraNueva() {
     if (form.fechaAlta) {
       body.fechaAlta = form.fechaAlta;
     }
+    const from = searchParams.get('from');
     setEnviando(true);
     createCamara(body)
-      .then(() => navigate(`/nvrs/${encodeURIComponent(form.nvrId.trim())}`))
+      .then(() => {
+        if (from === 'camaras') {
+          navigate('/camaras');
+        } else {
+          navigate(form.nvrId.trim() ? `/nvrs/${encodeURIComponent(form.nvrId.trim())}` : '/nvrs');
+        }
+      })
       .catch(() => setError('No se pudo crear la cámara. Revisá los datos obligatorios.'))
       .finally(() => setEnviando(false));
   }
 
-  const volverNvr = form.nvrId.trim()
-    ? `/nvrs/${encodeURIComponent(form.nvrId.trim())}`
-    : '/nvrs';
+  const from = searchParams.get('from');
+  const volverNvr = from === 'camaras'
+    ? '/camaras'
+    : (form.nvrId.trim()
+      ? `/nvrs/${encodeURIComponent(form.nvrId.trim())}`
+      : '/nvrs');
 
   return (
     <div className="page">
       <Link to={volverNvr} className="btn btn-secondary btn-sm">← Volver</Link>
       <h1 style={{ marginTop: '0.75rem' }}>Nueva cámara</h1>
       <p className="muted" style={{ marginTop: '0.35rem', maxWidth: '36rem' }}>
-        La cámara queda asignada a la NVR elegida y aparece en el detalle de esa NVR.
+        La cámara se puede registrar de manera independiente o asignarse a una NVR existente.
       </p>
       <div className="card" style={{ maxWidth: 520 }}>
         <form onSubmit={onSubmit} className="camara-form">
           <label>
-            NVR <span style={{ color: 'var(--color-danger)' }}>*</span>
-            <select name="nvrId" value={form.nvrId} onChange={onChange} required>
-              <option value="">Seleccionar NVR…</option>
+            NVR (opcional)
+            <select name="nvrId" value={form.nvrId} onChange={onChange}>
+              <option value="">Sin NVR / Seleccionar NVR…</option>
               {nvrs.map(n => (
                 <option key={n.id} value={n.id}>{n.nombre ?? n.id}</option>
               ))}

@@ -43,3 +43,16 @@ export function cambiarEstadoSwitch(id, body) {
     return res.json();
   });
 }
+
+export function actualizarSwitch(id, data) {
+  return apiFetch(`${BASE_URL}/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  }).then(res => {
+    if (res.status === 400) throw new Error('Datos inválidos');
+    if (res.status === 404) throw new Error('Switch no encontrado');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  });
+}

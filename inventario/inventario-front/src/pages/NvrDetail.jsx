@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import { fetchNvr, fetchCamarasPorNvr } from '../api/nvrApi';
+import { fetchNvr, fetchCamarasPorNvr, fetchNvrs, actualizarNvr } from '../api/nvrApi';
 import { fetchCamara, createCamara, asignarNvrCamara, fetchCamaras, deleteCamara } from '../api/camaraApi';
 import {
   parseCamaraImportFile,
   importCamarasRowsToNvr,
   PLANTILLA_CSV_CAMARAS,
 } from '../lib/camarasImport';
+import { UBICACIONES_CAMARA_SUGERIDAS, labelUbicacionEnum } from '../constants/ubicaciones';
+import InfraestructuraModal from '../components/InfraestructuraModal';
 
 function fmtFechaAlta(v) {
   if (v == null || v === '') return '—';
@@ -43,6 +45,122 @@ function NvrDetail() {
   const [msgBorrar, setMsgBorrar] = useState(null);
   const fileInputRef = useRef(null);
   const tablaCamarasRef = useRef(null);
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalForm, setModalForm] = useState({
+    dispositivo: '',
+    nombre: '',
+    marca: '',
+    descripcion: '',
+    responsable: '',
+    ubicacion: '',
+    direccionIp: '',
+    puerto: '',
+    tipo: '',
+    nvrId: '',
+    estado: ''
+  });
+  const [modalError, setModalError] = useState('');
+  const [nvrs, setNvrs] = useState([]);
+
+  useEffect(() => {
+    fetchNvrs()
+      .then(setNvrs)
+      .catch(() => {});
+  }, []);
+
+  const handleOpenAddModal = () => {
+    setModalForm({
+      dispositivo: '',
+      nombre: '',
+      marca: '',
+      descripcion: '',
+      responsable: '',
+      ubicacion: '',
+      direccionIp: '',
+      puerto: '',
+      tipo: 'Domo',
+      nvrId: id || '',
+      estado: 'OPERATIVO'
+    });
+    setModalError('');
+    setIsModalOpen(true);
+  };
+
+  const [isEditNvrModalOpen, setIsEditNvrModalOpen] = useState(false);
+  const [editNvrForm, setEditNvrForm] = useState({});
+  const [editNvrError, setEditNvrError] = useState('');
+
+  const handleOpenEditNvrModal = () => {
+    if (!nvr) return;
+    setEditNvrForm({
+      id: nvr.id,
+      nombre: nvr.nombre || '',
+      direccionIp: nvr.direccionIp || '',
+      puerto: nvr.puerto != null ? String(nvr.puerto) : '',
+      descripcion: nvr.descripcion || ''
+    });
+    setEditNvrError('');
+    setIsEditNvrModalOpen(true);
+  };
+
+  const handleEditNvrSubmit = async (e) => {
+    e.preventDefault();
+    setEditNvrError('');
+    try {
+      const payload = {
+        dispositivo: nvr.id,
+        nombre: editNvrForm.nombre.trim(),
+        direccionIp: editNvrForm.direccionIp?.trim() || undefined,
+        descripcion: editNvrForm.descripcion?.trim() || undefined,
+      };
+      const puertoNum = editNvrForm.puerto && String(editNvrForm.puerto).trim() !== '' 
+        ? Number.parseInt(String(editNvrForm.puerto).trim(), 10) 
+        : undefined;
+      if (puertoNum !== undefined && !Number.isNaN(puertoNum)) {
+        payload.puerto = puertoNum;
+      }
+      await actualizarNvr(nvr.id, payload);
+      const updatedNvr = await fetchNvr(nvr.id);
+      setNvr(updatedNvr);
+      setIsEditNvrModalOpen(false);
+    } catch (err) {
+      setEditNvrError(err.message || 'Error al actualizar NVR');
+    }
+  };
+
+  const handleModalSubmit = async (e) => {
+    e.preventDefault();
+    setModalError('');
+    
+    // Parse port if provided
+    const puertoNum =
+      modalForm.puerto && String(modalForm.puerto).trim() !== '' 
+        ? Number.parseInt(String(modalForm.puerto).trim(), 10) 
+        : undefined;
+
+    try {
+      const body = {
+        dispositivo: modalForm.dispositivo.trim(),
+        nombre: modalForm.nombre.trim(),
+        marca: modalForm.marca?.trim() || undefined,
+        descripcion: modalForm.descripcion?.trim() || undefined,
+        responsable: modalForm.responsable?.trim() || undefined,
+        ubicacion: modalForm.ubicacion,
+        direccionIp: modalForm.direccionIp?.trim() || undefined,
+        tipo: modalForm.tipo?.trim() || undefined,
+        nvrId: modalForm.nvrId?.trim() || undefined,
+      };
+      if (puertoNum !== undefined && !Number.isNaN(puertoNum)) {
+        body.puerto = puertoNum;
+      }
+      await createCamara(body);
+      await recargarCamaras();
+      setIsModalOpen(false);
+    } catch (err) {
+      setModalError(err.message || "Error al guardar");
+    }
+  };
 
   async function recargarCamaras() {
     const cams = await fetchCamarasPorNvr(id);
@@ -169,12 +287,20 @@ function NvrDetail() {
           ← Volver
         </button>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-          <Link
-            to={`/camaras/nueva?nvrId=${encodeURIComponent(id)}`}
+          <button
+            type="button"
             className="btn btn-primary btn-sm"
+            onClick={handleOpenEditNvrModal}
+          >
+            Editar
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={handleOpenAddModal}
           >
             Nueva cámara
-          </Link>
+          </button>
           <Link to="/nvrs/nueva" className="btn btn-secondary btn-sm">
             Crear NVR
           </Link>
@@ -350,6 +476,46 @@ function NvrDetail() {
           </div>
         ) : null}
       </div>
+
+      <InfraestructuraModal 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSubmit={handleModalSubmit}
+        isEdit={false}
+        title="Cámara de Seguridad"
+        error={modalError}
+        formState={modalForm}
+        onChange={(e) => setModalForm({...modalForm, [e.target.name]: e.target.value})}
+        fields={[
+          { name: 'dispositivo', label: 'Dispositivo (ID único / Serie)', type: 'text', placeholder: 'Ej. camara-patio-1', required: true },
+          { name: 'nombre', label: 'Nombre comercial / descriptivo', type: 'text', placeholder: 'Ej. Domo Entrada Principal', required: true },
+          { name: 'nvrId', label: 'NVR (opcional)', type: 'select', options: nvrs.map(n => ({ value: n.id, label: n.nombre ?? n.id })) },
+          { name: 'ubicacion', label: 'Ubicación', type: 'select', options: UBICACIONES_CAMARA_SUGERIDAS.map(u => ({ value: u, label: labelUbicacionEnum(u) })), required: true },
+          { name: 'direccionIp', label: 'Dirección IP', type: 'text', placeholder: 'Ej. 192.168.1.100' },
+          { name: 'puerto', label: 'Puerto', type: 'number', placeholder: 'Ej. 37777' },
+          { name: 'tipo', label: 'Tipo de Cámara / Modelo', type: 'text', placeholder: 'Ej. Domo, Bala, PTZ', required: true },
+          { name: 'marca', label: 'Marca', type: 'text', placeholder: 'Ej. Hikvision, Dahua' },
+          { name: 'responsable', label: 'Responsable', type: 'text', placeholder: 'Ej. Sistemas / Seguridad' },
+          { name: 'descripcion', label: 'Descripción / Notas', type: 'textarea', placeholder: 'Notas adicionales...', fullWidth: true }
+        ]}
+      />
+
+      <InfraestructuraModal 
+        isOpen={isEditNvrModalOpen}
+        onClose={() => setIsEditNvrModalOpen(false)}
+        onSubmit={handleEditNvrSubmit}
+        isEdit={true}
+        title="NVR"
+        error={editNvrError}
+        formState={editNvrForm}
+        onChange={(e) => setEditNvrForm({...editNvrForm, [e.target.name]: e.target.value})}
+        fields={[
+          { name: 'nombre', label: 'Nombre del NVR', type: 'text', required: true },
+          { name: 'direccionIp', label: 'Dirección IP', type: 'text' },
+          { name: 'puerto', label: 'Puerto', type: 'number' },
+          { name: 'descripcion', label: 'Descripción / Notas', type: 'textarea', fullWidth: true }
+        ]}
+      />
     </div>
   );
 }

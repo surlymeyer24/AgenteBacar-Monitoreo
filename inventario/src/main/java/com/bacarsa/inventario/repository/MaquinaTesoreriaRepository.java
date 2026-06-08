@@ -68,11 +68,15 @@ public class MaquinaTesoreriaRepository {
         return ref.getId();
     }
 
-    /** Persiste con ID fijo; sobrescribe el documento si ya existe. */
     public void guardarConId(String id, MaquinaTesoreria maquina) throws ExecutionException, InterruptedException {
         DocumentReference ref = firestore.collection(collectionName).document(id);
         maquina.setId(null);
         ref.set(maquina).get();
+    }
+
+    public void update(String id, Map<String, Object> campos) throws ExecutionException, InterruptedException {
+        DocumentReference docRef = firestore.collection(collectionName).document(id);
+        docRef.update(campos).get();
     }
 
     public void cambiarEstado(String id, Estado nuevoEstado, String motivo)

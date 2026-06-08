@@ -34,6 +34,19 @@ export function crearNvr(data) {
   });
 }
 
+export function actualizarNvr(id, data) {
+  return apiFetch(`${BASE_URL}/${encId(id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  }).then(res => {
+    if (res.status === 400) throw new Error('Datos inválidos');
+    if (res.status === 404) throw new Error('NVR no encontrada');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  });
+}
+
 /** Cámaras vinculadas a una NVR (`GET /api/nvrs/:id/camaras`). */
 export function fetchCamarasPorNvr(nvrId) {
   return apiFetch(`${BASE_URL}/${encId(nvrId)}/camaras`).then(res => {

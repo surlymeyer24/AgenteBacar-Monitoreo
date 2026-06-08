@@ -178,6 +178,51 @@ export default function Dashboard({ assets, users, consumables, activities, onNa
         </div>
       </div>
 
+      {/* Quick IP Telephony Directory row */}
+      <div id="dashboard-telephony-shortcut" className="bg-white rounded-xl border border-slate-200 shadow-xs p-6 space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="space-y-0.5">
+            <h2 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+              <Smartphone className="w-4 h-4 text-blue-600" />
+              <span>Directorio Rápido de Teléfonos IP</span>
+            </h2>
+            <p className="text-xs text-slate-500">Acceso inmediato a conmutador e internos de seguridad corporativa.</p>
+          </div>
+          <button 
+            onClick={() => onNavigate('telefonos')}
+            className="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 group"
+          >
+            <span>Ver Conmutador Completo</span>
+            <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+          {[
+            { name: 'Guardia', ext: '2100', location: 'Acceso Principal', status: 'ONLINE' },
+            { name: 'Monitoreo', ext: '2101', location: 'Sala CCTV', status: 'ONLINE' },
+            { name: 'Sosa Rafael', ext: '2102', location: 'Sistemas', status: 'ONLINE' },
+            { name: 'Supervisores SF', ext: '2103', location: 'Supervisión', status: 'ONLINE' },
+            { name: 'Operaciones', ext: '2104', location: 'Mesa de Operaciones', status: 'ONLINE' }
+          ].map((tel) => (
+            <div 
+              key={tel.ext} 
+              onClick={() => onNavigate('telefonos')}
+              className="p-3 border border-slate-150 hover:border-blue-300 hover:bg-blue-50/20 rounded-xl cursor-pointer transition-all flex flex-col justify-between space-y-2 group"
+            >
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-xs text-slate-900 group-hover:text-blue-705 transition-colors">{tel.name}</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" title="ONLINE"></span>
+              </div>
+              <div className="flex items-baseline justify-between mt-1">
+                <span className="font-mono text-[10px] font-extrabold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">Int: {tel.ext}</span>
+                <span className="text-[9px] text-slate-400 font-medium">{tel.location}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Main Grid Content Area: Charts & Alerts */}
       <div id="dashboard-middle-row" className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         

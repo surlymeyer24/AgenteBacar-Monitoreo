@@ -60,6 +60,18 @@ public class MaquinaTesoreriaController {
         }
     }
 
+    @org.springframework.web.bind.annotation.PutMapping("/{id}")
+    public ResponseEntity<MaquinaTesoreriaDTO> actualizar(
+            @PathVariable String id,
+            @RequestBody MaquinaTesoreriaCreateDTO dto) throws ExecutionException, InterruptedException {
+        try {
+            MaquinaTesoreriaDTO actualizado = maquinaTesoreriaService.update(id, dto);
+            return ResponseEntity.ok(actualizado);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     @PostMapping("/{id}/estado")
     public ResponseEntity<MaquinaTesoreriaDTO> cambiarEstado(
             @PathVariable String id,

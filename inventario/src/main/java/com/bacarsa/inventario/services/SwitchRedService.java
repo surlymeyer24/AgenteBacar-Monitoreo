@@ -95,4 +95,44 @@ public class SwitchRedService {
         }
         return s.trim();
     }
+
+    public SwitchRedDTO update(String id, SwitchRedCreateDTO dto) throws ExecutionException, InterruptedException {
+        SwitchRed swExistente = switchRedRepository.findById(id);
+        if (swExistente == null) {
+            throw new IllegalArgumentException("Switch no encontrado: " + id);
+        }
+
+        validarCrear(dto);
+        
+        UbicacionRed ubicacion;
+        try {
+            ubicacion = UbicacionRed.valueOf(dto.getUbicacion().trim());
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalArgumentException("Ubicación de red inválida: " + dto.getUbicacion(), ex);
+        }
+
+        java.util.Map<String, Object> campos = new java.util.HashMap<>();
+        campos.put("nombre", dto.getNombre().trim());
+        campos.put("marca", blankToNull(dto.getMarca()));
+        campos.put("modelo", blankToNull(dto.getModelo()));
+        campos.put("ip", blankToNull(dto.getIp()));
+        campos.put("numero_serie", blankToNull(dto.getNumeroSerie()));
+        campos.put("sitio", blankToNull(dto.getSitio()));
+        campos.put("ip_publica", blankToNull(dto.getIpPublica()));
+        campos.put("estado", blankToNull(dto.getEstadoOmada())); 
+        campos.put("version", blankToNull(dto.getVersion()));
+        campos.put("mac_uplink", blankToNull(dto.getMacUplink()));
+        campos.put("salto", dto.getSalto());
+        campos.put("cantidad_puertos", dto.getCantidadPuertos());
+        campos.put("tipo", blankToNull(dto.getTipo()));
+        campos.put("vlans", dto.getVlans() != null ? dto.getVlans() : List.of());
+        campos.put("ubicacion", ubicacion.name());
+        
+        LocalDate fecha = dto.getFechaAlta() != null ? dto.getFechaAlta() : LocalDate.now();
+        campos.put("fecha_alta", fecha.toString()); 
+
+        switchRedRepository.update(id, campos);
+
+        return obtenerPorId(id);
+    }
 }

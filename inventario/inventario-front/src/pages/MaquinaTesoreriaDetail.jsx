@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { fetchMaquina, cambiarEstadoMaquina } from '../api/maquinaTesoreriaApi';
+import { fetchMaquina, cambiarEstadoMaquina, actualizarMaquina } from '../api/maquinaTesoreriaApi';
 import { ESTADOS_OPERATIVOS, ESTADO_OPERATIVO_LABELS } from '../constants/estados';
+import InfraestructuraModal from '../components/InfraestructuraModal';
 
 const TIPO_LABELS = {
   VALIDADORA: 'Validadora',
@@ -27,6 +28,42 @@ function MaquinaTesoreriaDetail() {
   const [motivoEstado, setMotivoEstado] = useState('');
   const [guardandoEstado, setGuardandoEstado] = useState(false);
   const [msgEstado, setMsgEstado] = useState(null);
+
+  // Edit Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalForm, setModalForm] = useState({});
+  const [modalError, setModalError] = useState('');
+
+  const handleOpenEditModal = () => {
+    if (!maquina) return;
+    setModalForm({
+      tipo: maquina.tipo || '',
+      modelo: maquina.modelo || '',
+      nroSerie: maquina.nroSerie || '',
+      vida: maquina.vida || ''
+    });
+    setModalError('');
+    setIsModalOpen(true);
+  };
+
+  const handleModalSubmit = async (e) => {
+    e.preventDefault();
+    setModalError('');
+    try {
+      const payload = {
+        tipo: modalForm.tipo,
+        modelo: modalForm.modelo.trim(),
+        nroSerie: modalForm.nroSerie.trim(),
+        vida: modalForm.vida?.trim() || undefined,
+      };
+      await actualizarMaquina(id, payload);
+      const updatedData = await fetchMaquina(id);
+      setMaquina(updatedData);
+      setIsModalOpen(false);
+    } catch (err) {
+      setModalError(err.message || 'Error al actualizar');
+    }
+  };
 
   useEffect(() => {
     setCargando(true);
@@ -66,9 +103,18 @@ function MaquinaTesoreriaDetail() {
 
   return (
     <div className="page">
-      <button type="button" className="btn btn-secondary btn-sm" onClick={() => navigate('/maquinas-tesoreria')}>
-        ← Volver
-      </button>
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
+        <button type="button" className="btn btn-secondary btn-sm" onClick={() => navigate('/maquinas-tesoreria')}>
+          ← Volver
+        </button>
+        <button
+          type="button"
+          className="btn btn-primary btn-sm"
+          onClick={handleOpenEditModal}
+        >
+          Editar
+        </button>
+      </div>
 
       <h1 style={{ marginTop: '0.75rem' }}>
         {TIPO_LABELS[maquina.tipo] ?? maquina.tipo} — {maquina.modelo}
@@ -149,6 +195,23 @@ function MaquinaTesoreriaDetail() {
           </div>
         )}
       </div>
+      
+      <InfraestructuraModal 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSubmit={handleModalSubmit}
+        isEdit={true}
+        title="Máquina Tesorería"
+        error={modalError}
+        formState={modalForm}
+        onChange={(e) => setModalForm({...modalForm, [e.target.name]: e.target.value})}
+        fields={[
+          { name: 'tipo', label: 'Tipo', type: 'select', options: Object.keys(TIPO_LABELS).map(t => ({ value: t, label: TIPO_LABELS[t] })), required: true },
+          { name: 'modelo', label: 'Modelo', type: 'text', required: true },
+          { name: 'nroSerie', label: 'Nro Serie', type: 'text', required: true },
+          { name: 'vida', label: 'Vida Útil / Observación', type: 'text' }
+        ]}
+      />
     </div>
   );
 }

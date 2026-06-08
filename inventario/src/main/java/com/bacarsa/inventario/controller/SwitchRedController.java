@@ -69,4 +69,17 @@ public class SwitchRedController {
             return ResponseEntity.badRequest().build();
         }
     }
+
+    @org.springframework.web.bind.annotation.PutMapping("/{id}")
+    public ResponseEntity<SwitchRedDTO> actualizar(
+            @PathVariable String id,
+            @Valid @RequestBody SwitchRedCreateDTO dto)
+            throws ExecutionException, InterruptedException {
+        try {
+            SwitchRedDTO actualizado = switchRedService.update(id, dto);
+            return ResponseEntity.ok(actualizado);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
 }

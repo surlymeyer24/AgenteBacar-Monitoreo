@@ -126,6 +126,9 @@ export default function SidebarNav({ sidebarCollapsed }) {
             <NavLink to="/maquinas-tesoreria" className={navLinkClass}>
               <span className="nav-link-text pl-2">Máq. Tesorería</span>
             </NavLink>
+            <NavLink to="/telefonos" className={navLinkClass}>
+              <span className="nav-link-text pl-2">Teléfonos IP</span>
+            </NavLink>
           </div>
         )}
       </div>

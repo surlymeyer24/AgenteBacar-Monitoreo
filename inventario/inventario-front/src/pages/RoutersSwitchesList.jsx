@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Network, Upload, RefreshCw, ChevronDown, Plus } from 'lucide-react';
-import { fetchRouters, crearRouter } from '../api/routerApi';
-import { fetchSwitches, crearSwitch } from '../api/switchApi';
+import { fetchRouters, crearRouter, actualizarRouter } from '../api/routerApi';
+import { fetchSwitches, crearSwitch, actualizarSwitch } from '../api/switchApi';
 import { routersSchema } from '../lib/importSchemas/routersSchema';
 import { switchesSchema } from '../lib/importSchemas/switchesSchema';
 import ImportModal from '../components/ImportModal';
@@ -149,10 +149,11 @@ export default function RoutersSwitchesList() {
       if (modalForm.fechaAlta?.trim()) body.fechaAlta = modalForm.fechaAlta.trim();
       
       if (isEditModal) {
-         alert("Backend requiere actualización para edición completa. Simulado en UI.");
-         setLista(prev => prev.map(i => i.id === editingId ? { ...i, ...modalForm } : i));
-         setModalAbierto(false);
-         setGuardando(false);
+         actualizarRouter(editingId, body).then(() => {
+           setModalAbierto(false);
+           cargarLista();
+         }).catch(() => setModalError('No se pudo actualizar el router'))
+           .finally(() => setGuardando(false));
       } else {
          crearRouter(body).then(() => {
            setModalAbierto(false);
@@ -177,10 +178,11 @@ export default function RoutersSwitchesList() {
       if (modalForm.fechaAlta?.trim()) body.fechaAlta = modalForm.fechaAlta.trim();
 
       if (isEditModal) {
-         alert("Backend requiere actualización para edición completa. Simulado en UI.");
-         setLista(prev => prev.map(i => i.id === editingId ? { ...i, ...modalForm } : i));
-         setModalAbierto(false);
-         setGuardando(false);
+         actualizarSwitch(editingId, body).then(() => {
+           setModalAbierto(false);
+           cargarLista();
+         }).catch(() => setModalError('No se pudo actualizar el switch'))
+           .finally(() => setGuardando(false));
       } else {
          crearSwitch(body).then(() => {
            setModalAbierto(false);

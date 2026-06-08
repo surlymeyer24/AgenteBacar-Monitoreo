@@ -135,4 +135,28 @@ public class MaquinaTesoreriaService {
         }
         return s.trim();
     }
+
+    public MaquinaTesoreriaDTO update(String id, MaquinaTesoreriaCreateDTO dto) throws ExecutionException, InterruptedException {
+        MaquinaTesoreria maquinaExistente = maquinaTesoreriaRepository.findById(id);
+        if (maquinaExistente == null) {
+            throw new IllegalArgumentException("Máquina no encontrada: " + id);
+        }
+
+        TipoMaquina tipo;
+        try {
+            tipo = TipoMaquina.valueOf(dto.getTipo().trim().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalArgumentException("Tipo de máquina inválido: " + dto.getTipo(), ex);
+        }
+
+        java.util.Map<String, Object> campos = new java.util.HashMap<>();
+        campos.put("tipo", tipo.name());
+        campos.put("modelo", dto.getModelo().trim());
+        campos.put("nroSerie", dto.getNroSerie().trim());
+        campos.put("vida", blankToNull(dto.getVida()));
+
+        maquinaTesoreriaRepository.update(id, campos);
+
+        return obtenerPorId(id);
+    }
 }

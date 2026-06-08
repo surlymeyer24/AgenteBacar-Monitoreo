@@ -67,6 +67,19 @@ public class CamaraController {
         }
     }
 
+    @org.springframework.web.bind.annotation.PutMapping("/{id}")
+    public ResponseEntity<CamaraDTO> actualizar(
+            @PathVariable String id,
+            @Valid @RequestBody CamaraCreateDTO dto)
+            throws ExecutionException, InterruptedException {
+        try {
+            CamaraDTO actualizado = camaraService.update(id, dto);
+            return ResponseEntity.ok(actualizado);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     @PostMapping("/{id}/ubicacion")
     public ResponseEntity<CamaraDTO> actualizarUbicacion(
             @PathVariable String id,

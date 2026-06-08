@@ -157,8 +157,14 @@ function ImportModal({ isOpen, onClose, onImport, schema, entityName, isImportin
                     <div>
                       <span className="font-bold text-slate-900 block text-xs">Instrucciones del importador inteligente</span>
                       <p className="text-[11px] text-slate-500 font-medium font-sans mt-0.5 leading-relaxed">
-                        El sistema mapeará automáticamente las columnas basadas en cabeceras conocidas. Una vez cargado el archivo, podrás visualizar todas las filas y hacer ediciones rápidas haciendo clic en cualquier celda antes de realizar la importación definitiva.
+                        El sistema mapeará automáticamente las columnas basadas en cabeceras conocidas. Una vez cargado el archivo, podrás visualizar todas las filas y hacer ediciones rápidas.
                       </p>
+                      <div className="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg">
+                        <span className="font-bold text-blue-900 block text-[10px] uppercase tracking-wider mb-1">Columnas detectadas automáticamente:</span>
+                        <p className="text-[11px] text-blue-800 font-mono">
+                          {Object.values(schema).map(arr => arr[0] || '').join(', ')}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>

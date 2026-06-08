@@ -69,4 +69,17 @@ public class RouterController {
             return ResponseEntity.badRequest().build();
         }
     }
+
+    @org.springframework.web.bind.annotation.PutMapping("/{id}")
+    public ResponseEntity<RouterDTO> actualizar(
+            @PathVariable String id,
+            @Valid @RequestBody RouterCreateDTO dto)
+            throws ExecutionException, InterruptedException {
+        try {
+            RouterDTO actualizado = routerService.update(id, dto);
+            return ResponseEntity.ok(actualizado);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
 }

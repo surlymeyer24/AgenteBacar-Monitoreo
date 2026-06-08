@@ -8,7 +8,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 
 interface NetworkInfrastructureProps {
-  category: 'nvr' | 'camaras' | 'routers' | 'switches' | 'tesoreria' | 'servers' | 'routers_switches';
+  category: 'nvr' | 'camaras' | 'routers' | 'switches' | 'tesoreria' | 'servers' | 'routers_switches' | 'telefonos';
 }
 
 interface InfrastructureItem {
@@ -116,6 +116,18 @@ export default function NetworkInfrastructure({ category }: NetworkInfrastructur
           { id: 'MQT-003', name: 'Enfajadora de Billetes SART-300', ip: '192.168.0.105', location: 'SALA RECUENTO A', details: 'Dispositivo hidráulico de atado mecánico', status: 'ONLINE', load: 'Standby' },
           { id: 'MQT-004', name: 'Caja Fuerte de Depósito Inteligente (SmartSafe)', ip: '192.168.0.110', location: 'TESORERÍA', details: 'Apertura retardada digital con bitácora AnyDesk de auditoría', status: 'ONLINE', load: 'Bóveda Auxiliar Cerrada' }
         ];
+      case 'telefonos':
+        return [
+          { id: 'TEL-2100', name: 'Guardia', ip: '192.168.0.70', location: 'Casilla de Guardia', details: 'Teléfono IP Grandstream - Guardia Principal de Acceso', status: 'ONLINE', load: 'Ext: 2100' },
+          { id: 'TEL-2101', name: 'Monitoreo', ip: '192.168.0.71', location: 'Sala CCTV', details: 'Teléfono IP Polycom - Operación de Monitoreo CCTV', status: 'ONLINE', load: 'Ext: 2101' },
+          { id: 'TEL-2102', name: 'Sosa Rafael', ip: '192.168.0.72', location: 'Oficina IT / Sistemas', details: 'Teléfono IP Cisco - Coordinación de Sistemas', status: 'ONLINE', load: 'Ext: 2102' },
+          { id: 'TEL-2103', name: 'Supervisores SF', ip: '192.168.0.73', location: 'Sala Supervisores', details: 'Teléfono IP Fanvil - Central de Supervisión General', status: 'ONLINE', load: 'Ext: 2103' },
+          { id: 'TEL-2104', name: 'Operaciones', ip: '192.168.0.74', location: 'Mesa de Operaciones', details: 'Teléfono IP Grandstream - Logística, Tránsito y Despacho', status: 'ONLINE', load: 'Ext: 2104' },
+          { id: 'TEL-2105', name: 'Sala Armas', ip: '192.168.0.75', location: 'Sala de Armas / Acceso Búnker', details: 'Teléfono IP Blindado - Personal Militar de Custodia', status: 'ONLINE', load: 'Ext: 2105' },
+          { id: 'TEL-2106', name: 'Seguridad Privada', ip: '192.168.0.76', location: 'Puesto de Guardia Privada', details: 'Teléfono IP Grandstream - Seguridad Física Externa', status: 'ONLINE', load: 'Ext: 2106' },
+          { id: 'TEL-2200', name: 'Marcela Santucho', ip: '192.168.0.80', location: 'Oficina Administración', details: 'Teléfono IP Yealink - Encargada de Administración y RRHH', status: 'ONLINE', load: 'Ext: 2200' },
+          { id: 'TEL-2201', name: 'Filmec', ip: '192.168.0.81', location: 'Sala Control Filmec', details: 'Teléfono IP Cisco - Despacho de Blindados', status: 'ONLINE', load: 'Ext: 2201' }
+        ];
       default:
         return [];
     }
@@ -204,6 +216,7 @@ export default function NetworkInfrastructure({ category }: NetworkInfrastructur
     else if (category === 'servers') prefix = 'SRV';
     else if (category === 'tesoreria') prefix = 'MQT';
     else if (category === 'routers_switches') prefix = formType === 'Router' ? 'RTR' : 'SWT';
+    else if (category === 'telefonos') prefix = 'TEL';
 
     const cleanId = `${prefix}-${Math.floor(100 + Math.random() * 900)}`;
 
@@ -357,6 +370,12 @@ export default function NetworkInfrastructure({ category }: NetworkInfrastructur
           title: 'Equipamiento de Tesorería y Conteo',
           description: 'Contadoras Glory, Newton, SmartSafes automatizadas con reporte directo por red ethernet.',
           icon: <Zap className="w-5 h-5 text-yellow-600" />
+        };
+      case 'telefonos':
+        return {
+          title: 'Teléfonos e IP Telephony',
+          description: 'Registro de conmutador, internos de telefonía IP, estado de comunicación y asignaciones activas de Bacarsa.',
+          icon: <Smartphone className="w-5 h-5 text-blue-600" />
         };
     }
   };

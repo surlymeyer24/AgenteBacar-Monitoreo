@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchMaquinas, crearMaquina } from '../api/maquinaTesoreriaApi';
+import { fetchMaquinas, crearMaquina, actualizarMaquina, cambiarEstadoMaquina } from '../api/maquinaTesoreriaApi';
 import ImportModal from '../components/ImportModal';
 import { maquinasTesoreriaSchema } from '../lib/importSchemas/maquinasTesoreriaSchema';
 import InfraestructuraGrid from '../components/InfraestructuraGrid';
@@ -77,15 +77,26 @@ function MaquinaTesoreriaList() {
     setModalError('');
     try {
       if (isEditModal) {
-        alert("Atención: Backend requiere actualización para edición completa. Datos mockeados.");
-        setLista(prev => prev.map(i => i.id === editingId ? { ...i, ...modalForm } : i));
+        const payload = {
+          tipo: modalForm.tipo,
+          modelo: modalForm.modelo.trim(),
+          nroSerie: modalForm.nroSerie.trim(),
+          vida: modalForm.vida?.trim() || undefined,
+        };
+        await actualizarMaquina(editingId, payload);
+        
+        const originalItem = lista.find(m => m.id === editingId);
+        if (originalItem && modalForm.estado && modalForm.estado !== originalItem.estado) {
+          await cambiarEstadoMaquina(editingId, { estado: modalForm.estado, motivo: "Edición manual desde listado" });
+        }
+        cargarLista(filtroTipo);
       } else {
         const payload = { ...modalForm };
         if (!payload.id && !payload.tipo && !payload.nombre) {
           payload.nombre = "Nuevo";
         }
-        // Usually we would call create[Entity] but here we assume it exists
-        // Wait, the API funcs might not match exactly.
+        await crearMaquina(payload);
+        cargarLista(filtroTipo);
       }
       setIsModalOpen(false);
     } catch (err) {
@@ -344,12 +355,12 @@ function MaquinaTesoreriaList() {
         formState={modalForm}
         onChange={(e) => setModalForm({...modalForm, [e.target.name]: e.target.value})}
         fields={[
-      { name: 'tipo', label: 'Tipo (Clasificadora, Validadora)', type: 'text', required: true },
-      { name: 'modelo', label: 'Modelo', type: 'text' },
-      { name: 'nroSerie', label: 'Nro Serie', type: 'text' },
-      { name: 'vida', label: 'Vida Útil', type: 'text' },
-      { name: 'estado', label: 'Estado', type: 'text' }
-    ]}
+          { name: 'tipo', label: 'Tipo', type: 'select', options: TIPOS.map(t => ({ value: t, label: TIPO_LABELS[t] })), required: true },
+          { name: 'modelo', label: 'Modelo', type: 'text', required: true },
+          { name: 'nroSerie', label: 'Nro Serie', type: 'text', required: true },
+          { name: 'vida', label: 'Vida Útil / Observación', type: 'text' },
+          ...(isEditModal ? [{ name: 'estado', label: 'Estado', type: 'select', options: ESTADOS_OPERATIVOS.map(k => ({ value: k, label: ESTADO_OPERATIVO_LABELS[k] ?? k })) }] : [])
+        ]}
       />
 
     </StudioPageShell>

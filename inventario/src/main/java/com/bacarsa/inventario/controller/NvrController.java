@@ -57,6 +57,18 @@ public class NvrController {
             return ResponseEntity.badRequest().build();
         }
     }
+
+    @org.springframework.web.bind.annotation.PutMapping("/{id}")
+    public ResponseEntity<NvrDTO> actualizar(
+            @PathVariable String id,
+            @RequestBody NvrCreateDTO dto) throws ExecutionException, InterruptedException {
+        try {
+            NvrDTO actualizado = nvrService.update(id, dto);
+            return ResponseEntity.ok(actualizado);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
     
     @GetMapping("/{id}/camaras")
     public ResponseEntity<List<CamaraDTO>> listarCamaras(@PathVariable String id)

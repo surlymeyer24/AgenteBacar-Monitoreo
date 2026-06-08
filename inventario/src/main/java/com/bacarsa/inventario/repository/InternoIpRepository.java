@@ -10,7 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
 
 import com.bacarsa.inventario.models.Estado;
-import com.bacarsa.inventario.models.Router;
+import com.bacarsa.inventario.models.InternoIp;
 import com.google.api.core.ApiFuture;
 import com.google.cloud.Timestamp;
 import com.google.cloud.firestore.DocumentReference;
@@ -20,61 +20,69 @@ import com.google.cloud.firestore.QueryDocumentSnapshot;
 import com.google.cloud.firestore.QuerySnapshot;
 
 @Repository
-public class RouterRepository {
+public class InternoIpRepository {
 
     private final Firestore firestore;
     private final String collectionName;
 
-    public RouterRepository(Firestore firestore,
-            @Value("${firebase.collection.routers}") String collectionName) {
+    public InternoIpRepository(Firestore firestore,
+            @Value("${firebase.collection.internos_ip:internos_ip}") String collectionName) {
         this.firestore = firestore;
         this.collectionName = collectionName;
     }
 
-    public List<Router> findAll() throws ExecutionException, InterruptedException {
+    public List<InternoIp> findAll() throws ExecutionException, InterruptedException {
         ApiFuture<QuerySnapshot> future = firestore.collection(collectionName).get();
         List<QueryDocumentSnapshot> documents = future.get().getDocuments();
-        List<Router> result = new ArrayList<>();
+        List<InternoIp> result = new ArrayList<>();
         for (QueryDocumentSnapshot doc : documents) {
-            result.add(snapshotToRouter(doc));
+            result.add(snapshotToInternoIp(doc));
         }
         return result;
     }
 
-    public Router findById(String id) throws ExecutionException, InterruptedException {
+    public InternoIp findById(String id) throws ExecutionException, InterruptedException {
         DocumentSnapshot doc = firestore.collection(collectionName).document(id).get().get();
         if (!doc.exists()) {
             return null;
         }
-        return snapshotToRouter(doc);
+        return snapshotToInternoIp(doc);
     }
 
-    public String create(Router router) throws ExecutionException, InterruptedException {
+    public String create(InternoIp interno) throws ExecutionException, InterruptedException {
         DocumentReference ref = firestore.collection(collectionName).document();
-        ref.set(router).get();
+        ref.set(interno).get();
         return ref.getId();
+    }
+
+    public void update(String id, Map<String, Object> campos) throws ExecutionException, InterruptedException {
+        DocumentReference docRef = firestore.collection(collectionName).document(id);
+        docRef.update(campos).get();
+    }
+
+    public void deleteById(String id) throws ExecutionException, InterruptedException {
+        firestore.collection(collectionName).document(id).delete().get();
     }
 
     public void cambiarEstado(String id, Estado nuevoEstado, String motivo) throws ExecutionException, InterruptedException {
         DocumentReference docRef = firestore.collection(collectionName).document(id);
+        String motivoGuardado = motivo != null ? motivo : "";
 
         firestore.runTransaction(transaction -> {
             DocumentSnapshot doc = transaction.get(docRef).get();
             if (!doc.exists()) {
-                throw new IllegalArgumentException("Router no encontrado: " + id);
+                throw new IllegalArgumentException("Interno no encontrado: " + id);
             }
 
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> historial = (List<Map<String, Object>>) doc.get("historialEstados");
-            if (historial == null) {
-                historial = new ArrayList<>();
-            } else {
-                historial = new ArrayList<>(historial);
-            }
+            List<Map<String, Object>> historial = copiarHistorialMutableDesdeSnapshot(doc);
 
+            // Cerrar el estado vigente (fechaHoraFin == null)
             Timestamp ahora = Timestamp.now();
             for (int i = 0; i < historial.size(); i++) {
                 Map<String, Object> entrada = historial.get(i);
+                if (entrada == null) {
+                    continue;
+                }
                 if (entrada.get("fechaHoraFin") == null) {
                     Map<String, Object> copia = new HashMap<>(entrada);
                     copia.put("fechaHoraFin", ahora);
@@ -82,37 +90,55 @@ public class RouterRepository {
                 }
             }
 
+            // Nueva entrada de estado
             Map<String, Object> estadoMap = new HashMap<>();
             estadoMap.put("nombre", nuevoEstado.getNombre());
             estadoMap.put("descripcion", nuevoEstado.getDescripcion());
 
             Map<String, Object> nuevaEntrada = new HashMap<>();
             nuevaEntrada.put("estado", estadoMap);
-            nuevaEntrada.put("motivo", motivo);
+            nuevaEntrada.put("motivo", motivoGuardado);
             nuevaEntrada.put("fechaHoraInicio", ahora);
             nuevaEntrada.put("fechaHoraFin", null);
 
             historial.add(nuevaEntrada);
 
+            // Escribir historial + actualizar estadoActual top-level
             transaction.update(docRef,
-                    "historialEstados", historial,
-                    "estadoActual", estadoMap);
+                    "historial_estados", historial,
+                    "estado_actual", estadoMap);
 
             return null;
         }).get();
     }
 
-    private static Router snapshotToRouter(DocumentSnapshot doc) {
-        Router r = doc.toObject(Router.class);
-        if (r == null) {
-            r = new Router();
+    private static List<Map<String, Object>> copiarHistorialMutableDesdeSnapshot(DocumentSnapshot doc) {
+        Object raw = doc.get("historial_estados");
+        List<Map<String, Object>> historial = new ArrayList<>();
+        if (!(raw instanceof List<?> lista)) {
+            return historial;
         }
-        r.setId(doc.getId());
-        return r;
+        for (Object item : lista) {
+            if (!(item instanceof Map<?, ?> m)) {
+                continue;
+            }
+            Map<String, Object> entrada = new HashMap<>();
+            for (Map.Entry<?, ?> e : m.entrySet()) {
+                if (e.getKey() != null) {
+                    entrada.put(String.valueOf(e.getKey()), e.getValue());
+                }
+            }
+            historial.add(entrada);
+        }
+        return historial;
     }
 
-    public void update(String id, Map<String, Object> campos) throws ExecutionException, InterruptedException {
-        DocumentReference docRef = firestore.collection("routers").document(id);
-        docRef.update(campos).get();
+    private static InternoIp snapshotToInternoIp(DocumentSnapshot doc) {
+        InternoIp i = doc.toObject(InternoIp.class);
+        if (i == null) {
+            i = new InternoIp();
+        }
+        i.setId(doc.getId());
+        return i;
     }
 }

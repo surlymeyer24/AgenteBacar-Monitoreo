@@ -37,6 +37,7 @@ import MaquinaTesoreriaDetail from './pages/MaquinaTesoreriaDetail';
 import InfraestructuraDashboard from './pages/InfraestructuraDashboard';
 import ServidorList from './pages/ServidorList';
 import ServidorDetalle from './pages/ServidorDetalle';
+import TelefonoIpList from './pages/TelefonoIpList';
 import System from './pages/System';
 import MiPerfil from './pages/MiPerfil';
 import './App.css';
@@ -149,6 +150,7 @@ function AppRoutes() {
         <Route path="/switches/:id" element={<SwitchDetail />} />
         <Route path="/maquinas-tesoreria" element={<MaquinaTesoreriaList />} />
         <Route path="/maquinas-tesoreria/:id" element={<MaquinaTesoreriaDetail />} />
+        <Route path="/telefonos" element={<TelefonoIpList />} />
         <Route path="/servidores" element={<ServidorList />} />
         <Route path="/servidores/:id" element={<ServidorDetalle />} />
         <Route path="/system" element={<System />} />

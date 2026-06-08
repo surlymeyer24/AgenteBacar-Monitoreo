@@ -110,4 +110,10 @@ public class SwitchRedRepository {
         sw.setId(doc.getId());
         return sw;
     }
+
+    public void update(String id, Map<String, Object> campos) throws ExecutionException, InterruptedException {
+        DocumentReference docRef = firestore.collection("switches").document(id);
+        docRef.update(campos).get();
+
+    }
 }

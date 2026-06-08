@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchServidores, crearServidor } from '../api/servidorApi';
+import { fetchServidores, crearServidor, actualizarServidor } from '../api/servidorApi';
 import ImportModal from '../components/ImportModal';
 import { servidoresSchema } from '../lib/importSchemas/servidoresSchema';
 import InfraestructuraGrid from '../components/InfraestructuraGrid';
@@ -69,15 +69,27 @@ function ServidorList() {
     setModalError('');
     try {
       if (isEditModal) {
-        alert("Atención: Backend requiere actualización para edición completa. Datos mockeados.");
-        setLista(prev => prev.map(i => i.id === editingId ? { ...i, ...modalForm } : i));
+        const payload = {
+          nombre: modalForm.nombre.trim(),
+          hostname: modalForm.hostname?.trim() || undefined,
+          ip: modalForm.ip?.trim() || undefined,
+          sistemaOperativo: modalForm.sistemaOperativo?.trim() || undefined,
+          cpu: modalForm.cpu?.trim() || undefined,
+          ram: modalForm.ram?.trim() || undefined,
+          discoTotal: modalForm.discoTotal?.trim() || undefined,
+          ubicacion: modalForm.ubicacion?.trim() || undefined,
+          descripcion: modalForm.descripcion?.trim() || undefined,
+          estado: modalForm.estado || undefined,
+        };
+        await actualizarServidor(editingId, payload);
+        cargarLista();
       } else {
         const payload = { ...modalForm };
         if (!payload.id && !payload.tipo && !payload.nombre) {
           payload.nombre = "Nuevo";
         }
-        // Usually we would call create[Entity] but here we assume it exists
-        // Wait, the API funcs might not match exactly.
+        await crearServidor(payload);
+        cargarLista();
       }
       setIsModalOpen(false);
     } catch (err) {

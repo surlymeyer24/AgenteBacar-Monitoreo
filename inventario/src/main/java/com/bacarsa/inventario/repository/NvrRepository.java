@@ -59,4 +59,9 @@ public class NvrRepository {
         nvr.setId(id); // Aseguramos que el ID del objeto coincida con el ID del documento
         docRef.set(nvr).get(); // Esperamos a que se complete la operación
     }
+
+    public void update(String id, java.util.Map<String, Object> campos) throws ExecutionException, InterruptedException {
+        DocumentReference docRef = firestore.collection(collectionName).document(id);
+        docRef.update(campos).get();
+    }
 }

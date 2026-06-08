@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { fetchCamaras, createCamara, asignarNvrCamara, deleteCamara, updateEstadoCamara } from '../api/camaraApi';
+import { fetchCamaras, createCamara, asignarNvrCamara, deleteCamara, updateEstadoCamara, updateUbicacionCamara, actualizarCamara } from '../api/camaraApi';
 import ImportModal from '../components/ImportModal';
 import { camarasSchema } from '../lib/importSchemas/camarasSchema';
 import { fetchNvrs } from '../api/nvrApi';
@@ -52,13 +52,37 @@ function CamaraList() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModal, setIsEditModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [modalForm, setModalForm] = useState({ tipo: '', modelo: '', nroSerie: '', vida: '', estado: '', ubicacion: '' });
+  const [modalForm, setModalForm] = useState({
+    dispositivo: '',
+    nombre: '',
+    marca: '',
+    descripcion: '',
+    responsable: '',
+    ubicacion: '',
+    direccionIp: '',
+    puerto: '',
+    tipo: '',
+    nvrId: '',
+    estado: ''
+  });
   const [modalError, setModalError] = useState('');
 
   const handleOpenAddModal = () => {
     setIsEditModal(false);
     setEditingId(null);
-    setModalForm({ tipo: 'Domo', modelo: '', nroSerie: '', vida: '', estado: 'OPERATIVO', ubicacion: '' });
+    setModalForm({
+      dispositivo: '',
+      nombre: '',
+      marca: '',
+      descripcion: '',
+      responsable: '',
+      ubicacion: '',
+      direccionIp: '',
+      puerto: '',
+      tipo: 'Domo',
+      nvrId: '',
+      estado: 'OPERATIVO'
+    });
     setModalError('');
     setIsModalOpen(true);
   };
@@ -67,36 +91,112 @@ function CamaraList() {
     setIsEditModal(true);
     setEditingId(item.id);
     setModalForm({
-      ...item,
-      nvrId: item.nvrId || ''
+      dispositivo: item.id || '',
+      nombre: item.nombre || '',
+      marca: item.marca || '',
+      descripcion: item.descripcion || '',
+      responsable: item.responsable || '',
+      ubicacion: item.ubicacion || '',
+      direccionIp: item.direccionIp || '',
+      puerto: item.puerto != null ? String(item.puerto) : '',
+      tipo: item.tipo || '',
+      nvrId: item.nvrId || '',
+      estado: item.estado || ''
     });
     setModalError('');
     setIsModalOpen(true);
   };
 
-  const handleDeleteItem = (item) => {
-    if (window.confirm(`¿Desea eliminar la cámara ${item.nombre || item.id}?`)) {
-      setCamaras(prev => prev.filter(i => i.id !== item.id));
+  const handleDeleteItem = async (item) => {
+    if (!item?.id) return;
+    const nombre = (item.nombre && String(item.nombre).trim()) ? item.nombre : item.id;
+    if (
+      window.confirm(
+        `¿Borrar la cámara "${nombre}" (${item.id})? No se puede deshacer.`,
+      )
+    ) {
+      try {
+        await deleteCamara(item.id);
+        const params = {};
+        if (filtroUbicacion) params.ubicacion = filtroUbicacion;
+        if (filtroNvr) params.nvrId = filtroNvr;
+        const fresh = await fetchCamaras(params);
+        setLista(fresh);
+        if (!filtroUbicacion && !filtroNvr) setCatalogoCompleto(fresh);
+        setSeleccion(prev => {
+          const n = new Set(prev);
+          n.delete(item.id);
+          return n;
+        });
+      } catch {
+        alert('No se pudo eliminar la cámara.');
+      }
     }
   };
 
   const handleModalSubmit = async (e) => {
     e.preventDefault();
     setModalError('');
+    
+    // Parse port if provided
+    const puertoNum =
+      modalForm.puerto && String(modalForm.puerto).trim() !== '' 
+        ? Number.parseInt(String(modalForm.puerto).trim(), 10) 
+        : undefined;
+
     try {
       if (isEditModal) {
-        // Backend lacks full UPDATE API. We can just update what's available or log
-        // For now, if we had actualizarCamara, we would call it. 
-        // We will just do a mock update for the UI and update state if possible.
-        // E.g. await updateEstadoCamara(editingId, modalForm.estado, "Edición manual");
-        const fresh = await fetchCamaras({});
+        const payload = {
+          dispositivo: modalForm.dispositivo.trim(),
+          nombre: modalForm.nombre.trim(),
+          marca: modalForm.marca?.trim() || undefined,
+          descripcion: modalForm.descripcion?.trim() || undefined,
+          responsable: modalForm.responsable?.trim() || undefined,
+          ubicacion: modalForm.ubicacion,
+          direccionIp: modalForm.direccionIp?.trim() || undefined,
+          tipo: modalForm.tipo?.trim() || undefined,
+          nvrId: modalForm.nvrId?.trim() || undefined,
+        };
+        if (puertoNum !== undefined && !Number.isNaN(puertoNum)) {
+          payload.puerto = puertoNum;
+        }
+        await actualizarCamara(editingId, payload);
+        
+        const originalItem = lista.find(c => c.id === editingId);
+        if (originalItem && modalForm.estado && modalForm.estado !== originalItem.estado) {
+          await updateEstadoCamara(editingId, modalForm.estado, "Edición manual desde listado");
+        }
+        
+        // Fetch fresh list to reflect changes
+        const params = {};
+        if (filtroUbicacion) params.ubicacion = filtroUbicacion;
+        if (filtroNvr) params.nvrId = filtroNvr;
+        const fresh = await fetchCamaras(params);
         setLista(fresh);
-        alert("Atención: El backend actual no soporta la edición de todos los campos. Solo se actualizó en la vista local si el API estuviese lista.");
-        setLista(prev => prev.map(i => i.id === editingId ? { ...i, ...modalForm } : i));
+        if (!filtroUbicacion && !filtroNvr) setCatalogoCompleto(fresh);
       } else {
-        await createCamara(modalForm);
-        const fresh = await fetchCamaras({});
+        const body = {
+          dispositivo: modalForm.dispositivo.trim(),
+          nombre: modalForm.nombre.trim(),
+          marca: modalForm.marca?.trim() || undefined,
+          descripcion: modalForm.descripcion?.trim() || undefined,
+          responsable: modalForm.responsable?.trim() || undefined,
+          ubicacion: modalForm.ubicacion,
+          direccionIp: modalForm.direccionIp?.trim() || undefined,
+          tipo: modalForm.tipo?.trim() || undefined,
+          nvrId: modalForm.nvrId?.trim() || undefined,
+        };
+        if (puertoNum !== undefined && !Number.isNaN(puertoNum)) {
+          body.puerto = puertoNum;
+        }
+        await createCamara(body);
+        
+        const params = {};
+        if (filtroUbicacion) params.ubicacion = filtroUbicacion;
+        if (filtroNvr) params.nvrId = filtroNvr;
+        const fresh = await fetchCamaras(params);
         setLista(fresh);
+        if (!filtroUbicacion && !filtroNvr) setCatalogoCompleto(fresh);
       }
       setIsModalOpen(false);
     } catch (err) {
@@ -416,7 +516,7 @@ function CamaraList() {
           <StudioSecondaryButton onClick={() => setModalImportAbierto(true)}>
             Importar Excel/CSV
           </StudioSecondaryButton>
-          <StudioPrimaryButton onClick={() => { setIsEditModal(false); setModalForm({}); setIsModalOpen(true); }}>
+          <StudioPrimaryButton onClick={handleOpenAddModal}>
             Nueva cámara
           </StudioPrimaryButton>
         </>
@@ -582,12 +682,17 @@ function CamaraList() {
         formState={modalForm}
         onChange={(e) => setModalForm({...modalForm, [e.target.name]: e.target.value})}
         fields={[
-          { name: 'tipo', label: 'Tipo de Cámara', type: 'text', placeholder: 'Ej. Domo, Bala, PTZ', required: true },
-          { name: 'modelo', label: 'Modelo / Marca', type: 'text', placeholder: 'Ej. Hikvision...' },
-          { name: 'nroSerie', label: 'Número de Serie', type: 'text', placeholder: 'S/N' },
-          { name: 'ubicacion', label: 'Ubicación', type: 'select', options: UBICACIONES_CAMARA_SUGERIDAS.map(u => ({value: u, label: labelUbicacionEnum(u)})) },
-          { name: 'vida', label: 'Vida Útil', type: 'text', placeholder: 'Ej. 5 Años' },
-          { name: 'estado', label: 'Estado', type: 'select', options: ESTADOS_OPERATIVOS.map(e => ({value: e, label: ESTADO_OPERATIVO_LABELS[e]})) }
+          ...(!isEditModal ? [{ name: 'dispositivo', label: 'Dispositivo (ID único / Serie)', type: 'text', placeholder: 'Ej. camara-patio-1', required: true }] : []),
+          { name: 'nombre', label: 'Nombre comercial / descriptivo', type: 'text', placeholder: 'Ej. Domo Entrada Principal', required: true },
+          { name: 'nvrId', label: 'NVR (opcional)', type: 'select', options: nvrs.map(n => ({ value: n.id, label: n.nombre ?? n.id })) },
+          { name: 'ubicacion', label: 'Ubicación', type: 'select', options: UBICACIONES_CAMARA_SUGERIDAS.map(u => ({ value: u, label: labelUbicacionEnum(u) })), required: true },
+          { name: 'direccionIp', label: 'Dirección IP', type: 'text', placeholder: 'Ej. 192.168.1.100' },
+          { name: 'puerto', label: 'Puerto', type: 'number', placeholder: 'Ej. 37777' },
+          { name: 'tipo', label: 'Tipo de Cámara / Modelo', type: 'text', placeholder: 'Ej. Domo, Bala, PTZ', required: true },
+          { name: 'marca', label: 'Marca', type: 'text', placeholder: 'Ej. Hikvision, Dahua' },
+          { name: 'responsable', label: 'Responsable', type: 'text', placeholder: 'Ej. Sistemas / Seguridad' },
+          { name: 'descripcion', label: 'Descripción / Notas', type: 'textarea', placeholder: 'Notas adicionales...', fullWidth: true },
+          ...(isEditModal ? [{ name: 'estado', label: 'Estado', type: 'select', options: ESTADOS_OPERATIVOS.map(e => ({ value: e, label: ESTADO_OPERATIVO_LABELS[e] })) }] : [])
         ]}
       />
     </StudioPageShell>

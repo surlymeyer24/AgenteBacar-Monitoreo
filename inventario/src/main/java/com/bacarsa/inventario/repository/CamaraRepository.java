@@ -88,6 +88,11 @@ public class CamaraRepository {
         ref.update("ubicacion", ubicacion).get();
     }
 
+    public void update(String id, Map<String, Object> campos) throws ExecutionException, InterruptedException {
+        DocumentReference docRef = firestore.collection(collectionName).document(id);
+        docRef.update(campos).get();
+    }
+
     public void cambiarEstado(String id, Estado nuevoEstado, String motivo) throws ExecutionException, InterruptedException {
         DocumentReference docRef = firestore.collection(collectionName).document(id);
         String motivoGuardado = motivo != null ? motivo : "";

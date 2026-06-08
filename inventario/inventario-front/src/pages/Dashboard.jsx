@@ -8,8 +8,9 @@ import { textoConexionAgente } from '../utils/estadoConexion';
 import {
   Monitor, Camera, Keyboard, HardDrive, Cpu, 
   CheckCircle2, AlertTriangle, ShieldAlert,
-  ClipboardList, Users, Layers, Activity, Plus
+  ClipboardList, Users, Layers, Activity, Plus, Smartphone, ArrowRight, Search
 } from 'lucide-react';
+import { fetchInternos } from '../api/internoIpApi';
 import { motion } from 'motion/react';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
@@ -20,9 +21,11 @@ function Dashboard() {
   const [stats, setStats] = useState(null);
   const [computadoras, setComputadoras] = useState([]);
   const [camaras, setCamaras] = useState([]);
+  const [internos, setInternos] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
   const [selectedChartType, setSelectedChartType] = useState('type');
+  const [filtroTelefono, setFiltroTelefono] = useState('');
 
   const cargar = useCallback(() => {
     setCargando(true);
@@ -31,11 +34,13 @@ function Dashboard() {
       fetchDashboardStats(),
       fetchComputadoras().catch(() => []),
       fetchCamaras().catch(() => []),
+      fetchInternos().catch(() => []),
     ])
-      .then(([statsData, pcs, cams]) => {
+      .then(([statsData, pcs, cams, ints]) => {
         setStats(statsData);
         setComputadoras(pcs ?? []);
         setCamaras(cams ?? []);
+        setInternos(ints ?? []);
       })
       .catch(() => setError('No se pudo cargar el dashboard. Verificá que el servidor esté en ejecución.'))
       .finally(() => setCargando(false));
@@ -69,6 +74,7 @@ function Dashboard() {
   const totalPc = Number(s.totalComputadoras ?? 0);
   const totalCamaras = Number(s.totalCamaras ?? 0);
   const totalPerifericos = Number(s.totalPerifericos ?? 0);
+  const totalTelefonos = internos.length;
   const activas = Number(s.computadorasSyncMenos10Min ?? 0);
   const inactivas = totalPc - activas;
 
@@ -106,7 +112,7 @@ function Dashboard() {
       )}
 
       {/* KPI Metrics Strip */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {/* Metric 1 */}
         <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs flex items-start justify-between">
           <div className="space-y-2">
@@ -161,6 +167,81 @@ function Dashboard() {
           <div className="p-3 bg-orange-50 rounded-lg text-orange-600">
             <Keyboard className="w-6 h-6" />
           </div>
+        </div>
+
+        {/* Metric 5 */}
+        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs flex items-start justify-between">
+          <div className="space-y-2">
+            <span className="text-xs font-semibold text-slate-500 tracking-wider uppercase">Teléfonos IP</span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-bold text-slate-900">{totalTelefonos}</span>
+              <span className="text-xs text-slate-500">equipos</span>
+            </div>
+          </div>
+          <div className="p-3 bg-indigo-50 rounded-lg text-indigo-600">
+            <Smartphone className="w-6 h-6" />
+          </div>
+        </div>
+      </div>
+
+      {/* Quick IP Telephony Directory row */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-6 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-3 gap-3">
+          <div className="space-y-0.5">
+            <h2 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+              <Smartphone className="w-4 h-4 text-blue-600" />
+              <span>Directorio de Teléfonos IP</span>
+            </h2>
+            <p className="text-xs text-slate-500">Acceso a todos los internos del corporativo.</p>
+          </div>
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <div className="relative flex-1 sm:w-48">
+              <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+                <Search className="h-3.5 w-3.5 text-slate-400" />
+              </div>
+              <input
+                type="text"
+                placeholder="Buscar por nombre..."
+                className="block w-full pl-8 pr-3 py-1.5 border border-slate-200 rounded-lg text-xs focus:ring-blue-500 focus:border-blue-500 transition-colors bg-slate-50"
+                value={filtroTelefono}
+                onChange={(e) => setFiltroTelefono(e.target.value)}
+              />
+            </div>
+            <button 
+              onClick={() => navigate('/telefonos')}
+              className="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 group whitespace-nowrap shrink-0"
+            >
+              <span className="hidden sm:inline">Directorio Completo</span>
+              <span className="sm:hidden">Todos</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+            </button>
+          </div>
+        </div>
+
+        <div className="max-h-[250px] overflow-y-auto pr-2 space-y-1" style={{ scrollbarWidth: 'thin' }}>
+          {internos.filter(tel => (tel.asignadoA || 'Sin Asignar').toLowerCase().includes(filtroTelefono.toLowerCase())).map((tel) => (
+            <div 
+              key={tel.id}
+              onClick={() => navigate('/telefonos')}
+              className="p-3 flex items-center justify-between border border-transparent border-b-slate-100 last:border-b-transparent hover:bg-blue-50/30 hover:border-blue-100 rounded-lg cursor-pointer transition-all group"
+            >
+              <div className="flex flex-col">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-sm text-slate-900 group-hover:text-blue-700 transition-colors">{tel.asignadoA || 'Sin Asignar'}</span>
+                  <span className={`w-1.5 h-1.5 rounded-full ${tel.estadoActual === 'ACTIVO' ? 'bg-emerald-500' : 'bg-rose-500'}`} title={tel.estadoActual}></span>
+                </div>
+                <span className="text-xs text-slate-500">{tel.direccionIp}</span>
+              </div>
+              <div className="text-right">
+                <span className="font-mono text-xs font-extrabold text-blue-600 bg-blue-50 px-2 py-1 rounded border border-blue-100">Int: {tel.numeroInterno}</span>
+              </div>
+            </div>
+          ))}
+          {internos.filter(tel => (tel.asignadoA || 'Sin Asignar').toLowerCase().includes(filtroTelefono.toLowerCase())).length === 0 && (
+            <div className="w-full text-center text-slate-400 text-xs py-4">
+              {internos.length === 0 ? 'No hay teléfonos registrados.' : 'No se encontraron resultados.'}
+            </div>
+          )}
         </div>
       </div>
 

@@ -31,6 +31,19 @@ export function crearMaquina(data) {
   });
 }
 
+export function actualizarMaquina(id, data) {
+  return apiFetch(`${BASE_URL}/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  }).then(res => {
+    if (res.status === 400) throw new Error('Datos inválidos');
+    if (res.status === 404) throw new Error('Máquina no encontrada');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  });
+}
+
 export function cambiarEstadoMaquina(id, body) {
   return apiFetch(`${BASE_URL}/${encodeURIComponent(id)}/estado`, {
     method: 'POST',

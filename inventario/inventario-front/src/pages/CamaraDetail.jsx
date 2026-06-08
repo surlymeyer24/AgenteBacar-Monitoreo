@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { fetchCamara, updateEstadoCamara, asignarNvrCamara, deleteCamara } from '../api/camaraApi';
+import { fetchCamara, updateEstadoCamara, asignarNvrCamara, deleteCamara, actualizarCamara } from '../api/camaraApi';
 import { fetchNvrs } from '../api/nvrApi';
 import { ESTADOS_OPERATIVOS, ESTADO_OPERATIVO_LABELS } from '../constants/estados';
+import { UBICACIONES_CAMARA_SUGERIDAS, labelUbicacionEnum } from '../constants/ubicaciones';
+import InfraestructuraModal from '../components/InfraestructuraModal';
 
 function fmtFechaIso(s) {
   if (s == null || s === '') return '—';
@@ -36,6 +38,66 @@ function CamaraDetail() {
   const [msgNvr, setMsgNvr] = useState(null);
   const [eliminando, setEliminando] = useState(false);
   const [msgEliminar, setMsgEliminar] = useState(null);
+
+  // Edit Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalForm, setModalForm] = useState({});
+  const [modalError, setModalError] = useState('');
+
+  const handleOpenEditModal = () => {
+    if (!cam) return;
+    setModalForm({
+      dispositivo: cam.id || '',
+      nombre: cam.nombre || '',
+      marca: cam.marca || '',
+      descripcion: cam.descripcion || '',
+      responsable: cam.responsable || '',
+      ubicacion: cam.ubicacion || '',
+      direccionIp: cam.direccionIp || '',
+      puerto: cam.puerto != null ? String(cam.puerto) : '',
+      tipo: cam.tipo || '',
+      nvrId: cam.nvrId || '',
+      estado: cam.estado || ''
+    });
+    setModalError('');
+    setIsModalOpen(true);
+  };
+
+  const handleModalSubmit = async (e) => {
+    e.preventDefault();
+    setModalError('');
+    try {
+      const payload = {
+        dispositivo: modalForm.dispositivo.trim(),
+        nombre: modalForm.nombre.trim(),
+        marca: modalForm.marca?.trim() || undefined,
+        descripcion: modalForm.descripcion?.trim() || undefined,
+        responsable: modalForm.responsable?.trim() || undefined,
+        ubicacion: modalForm.ubicacion,
+        direccionIp: modalForm.direccionIp?.trim() || undefined,
+        tipo: modalForm.tipo?.trim() || undefined,
+        nvrId: modalForm.nvrId?.trim() || undefined,
+      };
+      const puertoNum = modalForm.puerto && String(modalForm.puerto).trim() !== '' 
+        ? Number.parseInt(String(modalForm.puerto).trim(), 10) 
+        : undefined;
+      if (puertoNum !== undefined && !Number.isNaN(puertoNum)) {
+        payload.puerto = puertoNum;
+      }
+      
+      await actualizarCamara(id, payload);
+      
+      if (modalForm.estado && modalForm.estado !== cam.estado) {
+        await updateEstadoCamara(id, modalForm.estado, "Edición manual desde detalle");
+      }
+      
+      const updatedCam = await fetchCamara(id);
+      setCam(updatedCam);
+      setIsModalOpen(false);
+    } catch (err) {
+      setModalError(err.message || 'Error al actualizar');
+    }
+  };
 
   useEffect(() => {
     fetchNvrs()
@@ -135,6 +197,13 @@ function CamaraDetail() {
             )}
         >
           ← Volver
+        </button>
+        <button
+          type="button"
+          className="btn btn-primary btn-sm"
+          onClick={handleOpenEditModal}
+        >
+          Editar
         </button>
         <button
           type="button"
@@ -257,6 +326,29 @@ function CamaraDetail() {
           </div>
         )}
       </div>
+      
+      <InfraestructuraModal 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSubmit={handleModalSubmit}
+        isEdit={true}
+        title="Cámara de Seguridad"
+        error={modalError}
+        formState={modalForm}
+        onChange={(e) => setModalForm({...modalForm, [e.target.name]: e.target.value})}
+        fields={[
+          { name: 'nombre', label: 'Nombre comercial / descriptivo', type: 'text', required: true },
+          { name: 'nvrId', label: 'NVR (opcional)', type: 'select', options: nvrs.map(n => ({ value: n.id, label: n.nombre ?? n.id })) },
+          { name: 'ubicacion', label: 'Ubicación', type: 'select', options: UBICACIONES_CAMARA_SUGERIDAS.map(u => ({ value: u, label: labelUbicacionEnum(u) })), required: true },
+          { name: 'direccionIp', label: 'Dirección IP', type: 'text' },
+          { name: 'puerto', label: 'Puerto', type: 'number' },
+          { name: 'tipo', label: 'Tipo de Cámara / Modelo', type: 'text', required: true },
+          { name: 'marca', label: 'Marca', type: 'text' },
+          { name: 'responsable', label: 'Responsable', type: 'text' },
+          { name: 'descripcion', label: 'Descripción / Notas', type: 'textarea', fullWidth: true },
+          { name: 'estado', label: 'Estado', type: 'select', options: ESTADOS_OPERATIVOS.map(e => ({ value: e, label: ESTADO_OPERATIVO_LABELS[e] })) }
+        ]}
+      />
     </div>
   );
 }
