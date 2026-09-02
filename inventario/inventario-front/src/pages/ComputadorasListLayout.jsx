@@ -4,6 +4,21 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useComputadoras } from '../hooks/useQueries';
 import { ComputadorasListContext } from '../context/ComputadorasListContext';
 
+const LISTADO_FIELDS = [
+  'uuid', 'hostname', 'tipoEquipo', 'usuarioActual', 'ubicacion',
+  'sistemaOperativo', 'arquitectura', 'estadoActual', 'estadoConexion',
+  'estadoAgente', 'ultimaSincronizacion', 'procesadorNombre',
+  'responsableInventario', 'anydeskId', 'ubicacionStock',
+];
+
+function pickListadoFields(dto) {
+  const picked = {};
+  for (const k of LISTADO_FIELDS) {
+    if (k in dto) picked[k] = dto[k];
+  }
+  return picked;
+}
+
 export default function ComputadorasListLayout() {
   const queryClient = useQueryClient();
   const { data: todas = [], isLoading: cargando, error: queryError } = useComputadoras();
@@ -26,11 +41,12 @@ export default function ComputadorasListLayout() {
 
   const mergeEnListado = useCallback(dto => {
     if (!dto?.uuid) return;
+    const safe = pickListadoFields(dto);
     setTodas(prev => {
       const i = prev.findIndex(p => p.uuid === dto.uuid);
-      if (i < 0) return [...prev, dto];
+      if (i < 0) return [...prev, safe];
       const next = [...prev];
-      next[i] = { ...next[i], ...dto };
+      next[i] = { ...next[i], ...safe };
       return next;
     });
   }, [setTodas]);

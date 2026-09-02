@@ -285,7 +285,6 @@ export default function PerifericoManualList() {
       cantidad: p.cantidad ?? 1,
       fabricante: p.fabricante || null,
       estadoActual: p.estado || 'Sin Asignar',
-      historialEstados: null,
       _ubicacionStock: p.ubicacion || null,
     }));
     return [...liberadas, ...nuevas];
@@ -357,7 +356,7 @@ export default function PerifericoManualList() {
       if (created && nuevaPcUbicacionStock.trim()) {
         await updateEstado(created.uuid, 'SIN_ASIGNAR', 'Ingreso a stock', { ubicacionStock: nuevaPcUbicacionStock.trim() });
         created.estadoActual = 'Sin Asignar';
-        created.historialEstados = [{ activo: true, ubicacionStock: nuevaPcUbicacionStock.trim() }];
+        created.ubicacionStock = nuevaPcUbicacionStock.trim();
       }
       if (created && created.estadoActual === 'Sin Asignar') {
         setPcsStock(prev => [...prev, created]);
@@ -376,11 +375,7 @@ export default function PerifericoManualList() {
     }
   };
 
-  const getUbicacionStock = (pc) => {
-    if (!pc.historialEstados) return null;
-    const actual = pc.historialEstados.find(h => h.activo);
-    return actual?.ubicacionStock || null;
-  };
+  const getUbicacionStock = (pc) => pc.ubicacionStock?.trim() || null;
 
   if (activeTab === 'perifericos' && cargando) {
     return (

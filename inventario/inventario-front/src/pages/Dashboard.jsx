@@ -449,7 +449,7 @@ function Dashboard() {
                           />
                         </td>
                         <td className="px-3 py-2.5 text-slate-500 hidden sm:table-cell max-w-[180px] truncate">
-                          {c.procesador?.nombre ?? '—'}
+                          {c.procesadorNombre ?? '—'}
                         </td>
                         <td className="px-3 py-2.5 text-right text-slate-600">
                           {c.ubicacion ? labelUbicacionEnum(c.ubicacion) : '—'}

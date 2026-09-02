@@ -1,5 +1,6 @@
 package com.bacarsa.inventario.services;
 
+import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Service;
 import com.bacarsa.inventario.dto.CambiarEstadoDTO;
 import com.bacarsa.inventario.dto.ComputadoraCreateDTO;
 import com.bacarsa.inventario.dto.ComputadoraDTO;
+import com.bacarsa.inventario.dto.ComputadoraListadoDTO;
 import com.bacarsa.inventario.mapper.ComputadoraMapper;
 import com.bacarsa.inventario.models.Computadora;
 import com.bacarsa.inventario.models.DispositivoAudioFirestore;
@@ -31,24 +33,21 @@ public class ComputadoraService {
         this.computadoraRepository = computadoraRepository;
     }
 
-    public List<ComputadoraDTO> getAllComputadoras() throws ExecutionException, InterruptedException {
-        return computadoraRepository.findAll().stream()
-                .map(ComputadoraMapper::toListDTO)
-                .collect(Collectors.toList());
+    public List<ComputadoraListadoDTO> getAllComputadoras() throws ExecutionException, InterruptedException {
+        return computadoraRepository.findAllListado();
     }
 
-    public List<ComputadoraDTO> getRecientes(int limit) throws ExecutionException, InterruptedException {
-        return computadoraRepository.findAll().stream()
+    public List<ComputadoraListadoDTO> getRecientes(int limit) throws ExecutionException, InterruptedException {
+        return computadoraRepository.findAllListado().stream()
                 .sorted(Comparator.comparing(
-                        (Computadora c) -> c.getUltimaSincronizacion() != null
-                                ? c.getUltimaSincronizacion().toDate().getTime() : 0L)
+                        (ComputadoraListadoDTO d) -> d.getUltimaSincronizacion() != null
+                                ? Instant.parse(d.getUltimaSincronizacion()) : Instant.EPOCH)
                         .reversed())
                 .limit(limit)
-                .map(ComputadoraMapper::toListDTO)
                 .collect(Collectors.toList());
     }
 
-    public List<ComputadoraDTO> listarComputadoras(String ubicacionRaw) throws ExecutionException, InterruptedException {
+    public List<ComputadoraListadoDTO> listarComputadoras(String ubicacionRaw) throws ExecutionException, InterruptedException {
         if (ubicacionRaw == null || ubicacionRaw.isBlank()) {
             return getAllComputadoras();
         }
@@ -58,9 +57,7 @@ public class ComputadoraService {
         } catch (IllegalArgumentException ex) {
             throw new IllegalArgumentException("Ubicación inválida: " + ubicacionRaw, ex);
         }
-        return computadoraRepository.findByUbicacion(ubicacion).stream()
-                .map(ComputadoraMapper::toListDTO)
-                .collect(Collectors.toList());
+        return computadoraRepository.findByUbicacionListado(ubicacion);
     }
 
     public ComputadoraDTO getByUuid(String uuid) throws ExecutionException, InterruptedException {

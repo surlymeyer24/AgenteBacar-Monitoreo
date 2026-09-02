@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.time.Instant;
 
 import com.google.cloud.Timestamp;
+import com.google.cloud.firestore.annotation.PropertyName;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -17,7 +18,13 @@ public class CambioEstado {
     private Timestamp fechaHoraFin;
     private String motivo;
     private Estado estado;
+
+    @Getter(onMethod_ = @PropertyName("ubicacion_stock"))
+    @Setter(onMethod_ = @PropertyName("ubicacion_stock"))
     private String ubicacionStock;
+
+    @Getter(onMethod_ = @PropertyName("responsable_inventario"))
+    @Setter(onMethod_ = @PropertyName("responsable_inventario"))
     private String responsableInventario;
 
     public boolean esEstadoActual() {

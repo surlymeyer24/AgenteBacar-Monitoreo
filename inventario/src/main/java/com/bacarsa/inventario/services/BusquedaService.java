@@ -8,9 +8,9 @@ import java.util.concurrent.ExecutionException;
 
 import org.springframework.stereotype.Service;
 
+import com.bacarsa.inventario.dto.ComputadoraListadoDTO;
 import com.bacarsa.inventario.dto.ResultadoBusquedaDTO;
 import com.bacarsa.inventario.models.Camara;
-import com.bacarsa.inventario.models.Computadora;
 import com.bacarsa.inventario.models.Router;
 import com.bacarsa.inventario.models.SwitchRed;
 import com.bacarsa.inventario.repository.CamaraRepository;
@@ -46,9 +46,9 @@ public class BusquedaService {
         String busqueda = normalizar(q);
         List<ResultadoBusquedaDTO> resultados = new ArrayList<>();
 
-        List<Computadora> computadoras = computadoraRepository.findAll();
+        List<ComputadoraListadoDTO> computadoras = computadoraRepository.findAllListado();
         int countPc = 0;
-        for (Computadora pc : computadoras) {
+        for (ComputadoraListadoDTO pc : computadoras) {
             if (countPc >= MAX_POR_TIPO) break;
             if (matchComputadora(pc, busqueda)) {
                 resultados.add(toDTO(pc));
@@ -89,11 +89,11 @@ public class BusquedaService {
         return resultados;
     }
 
-    private boolean matchComputadora(Computadora pc, String busqueda) {
+    private boolean matchComputadora(ComputadoraListadoDTO pc, String busqueda) {
         return contiene(pc.getHostname(), busqueda)
                 || contiene(pc.getUsuarioActual(), busqueda)
                 || contiene(pc.getUuid(), busqueda)
-                || contiene(pc.getUbicacion() != null ? pc.getUbicacion().name() : null, busqueda);
+                || contiene(pc.getUbicacion(), busqueda);
     }
 
     private boolean matchCamara(Camara cam, String busqueda) {
@@ -130,9 +130,9 @@ public class BusquedaService {
         return normalizar(campo).contains(busqueda);
     }
 
-    private ResultadoBusquedaDTO toDTO(Computadora pc) {
-        String estado = pc.getEstadoActual() != null ? pc.getEstadoActual().getNombre() : "";
-        String ubicacion = pc.getUbicacion() != null ? pc.getUbicacion().name() : "";
+    private ResultadoBusquedaDTO toDTO(ComputadoraListadoDTO pc) {
+        String estado = pc.getEstadoActual() != null ? pc.getEstadoActual() : "";
+        String ubicacion = pc.getUbicacion() != null ? pc.getUbicacion() : "";
         return new ResultadoBusquedaDTO(
                 "computadora",
                 pc.getUuid(),

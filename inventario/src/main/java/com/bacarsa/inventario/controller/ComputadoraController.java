@@ -18,6 +18,7 @@ import com.bacarsa.inventario.dto.ComandoDTO;
 import com.bacarsa.inventario.dto.ComandoMasivoDTO;
 import com.bacarsa.inventario.dto.ComputadoraCreateDTO;
 import com.bacarsa.inventario.dto.ComputadoraDTO;
+import com.bacarsa.inventario.dto.ComputadoraListadoDTO;
 import com.bacarsa.inventario.dto.ResponsableInventarioDTO;
 import com.bacarsa.inventario.dto.UbicacionUpdateDTO;
 import com.bacarsa.inventario.models.DispositivoAudioFirestore;
@@ -39,14 +40,14 @@ public class ComputadoraController {
     }
 
     @GetMapping("/recientes")
-    public ResponseEntity<List<ComputadoraDTO>> listarRecientes(
+    public ResponseEntity<List<ComputadoraListadoDTO>> listarRecientes(
             @RequestParam(name = "limit", defaultValue = "8") int limit)
             throws ExecutionException, InterruptedException {
         return ResponseEntity.ok(computadoraService.getRecientes(Math.min(limit, 50)));
     }
 
     @GetMapping
-    public ResponseEntity<List<ComputadoraDTO>> listarTodas(
+    public ResponseEntity<List<ComputadoraListadoDTO>> listarTodas(
             @RequestParam(name = "ubicacion", required = false) String ubicacion)
             throws ExecutionException, InterruptedException {
         try {

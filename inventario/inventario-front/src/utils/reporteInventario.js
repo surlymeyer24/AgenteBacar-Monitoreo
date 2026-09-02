@@ -195,7 +195,7 @@ function armarDetalleComputadoras(pcs) {
       tipo: esNotebook(c) ? 'Notebook' : ((c.tipoEquipo ?? '').trim() || 'PC'),
       estado: c.estadoActual ?? '—',
       area: c.ubicacion ? labelUbicacionEnum(c.ubicacion) : '—',
-      procesador: c.procesador?.nombreRaw ?? c.procesador?.nombre ?? '—',
+      procesador: c.procesadorNombre ?? '—',
       arquitectura: c.arquitectura ?? '—',
       sync: sync === 'activo' ? 'Activa' : sync === 'intermedio' ? 'Intermedio' : sync === 'sin_actividad' ? 'Inactiva' : 'Sin datos',
       origen: 'Agente',
@@ -239,7 +239,7 @@ export function construirReporteInventario({
   const porArquitectura = contarPorClave(pcs, c => c.arquitectura);
   const porProcesador = contarPorClave(
     pcs,
-    c => c.procesador?.nombreRaw ?? c.procesador?.nombre,
+    c => c.procesadorNombre,
   );
 
   const porArea = mapaConEtiquetas(s.porUbicacionComputadoras ?? {}, true);

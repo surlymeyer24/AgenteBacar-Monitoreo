@@ -12,7 +12,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.bacarsa.inventario.dto.MigracionEstadoMasivoResultDTO;
+import com.bacarsa.inventario.dto.MigracionUbicacionStockResultDTO;
 import com.bacarsa.inventario.services.MigracionEstadosService;
+import com.bacarsa.inventario.services.MigracionUbicacionStockService;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
@@ -26,10 +28,16 @@ public class AdminMigracionController {
     @Value("${app.migration.bulk-asignada.enabled:false}")
     private boolean bulkAsignadaEnabled;
 
-    private final MigracionEstadosService migracionEstadosService;
+    @Value("${app.migration.ubicacion-stock.enabled:false}")
+    private boolean ubicacionStockEnabled;
 
-    public AdminMigracionController(MigracionEstadosService migracionEstadosService) {
+    private final MigracionEstadosService migracionEstadosService;
+    private final MigracionUbicacionStockService migracionUbicacionStockService;
+
+    public AdminMigracionController(MigracionEstadosService migracionEstadosService,
+                                     MigracionUbicacionStockService migracionUbicacionStockService) {
         this.migracionEstadosService = migracionEstadosService;
+        this.migracionUbicacionStockService = migracionUbicacionStockService;
     }
 
     /**
@@ -46,6 +54,17 @@ public class AdminMigracionController {
         }
         String motivo = body != null ? body.getMotivo() : null;
         MigracionEstadoMasivoResultDTO r = migracionEstadosService.marcarTodasAsignada(motivo);
+        return ResponseEntity.ok(r);
+    }
+
+    @PostMapping("/ubicacion-stock")
+    public ResponseEntity<?> ubicacionStock() throws ExecutionException, InterruptedException {
+        if (!ubicacionStockEnabled) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                    "error",
+                    "Migración deshabilitada. Definí app.migration.ubicacion-stock.enabled=true y reiniciá el servidor."));
+        }
+        MigracionUbicacionStockResultDTO r = migracionUbicacionStockService.migrar();
         return ResponseEntity.ok(r);
     }
 
