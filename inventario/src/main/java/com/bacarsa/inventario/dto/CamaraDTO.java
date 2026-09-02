@@ -25,4 +25,6 @@ public class CamaraDTO {
     private LocalDate fechaAlta;
     private List<CambioEstadoDTO> historialEstados;
     private String nvrId;
+    private String usuario;
+    private String password;
 }

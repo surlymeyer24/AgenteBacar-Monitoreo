@@ -7,6 +7,8 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Repository;
 
 import com.bacarsa.inventario.models.Estado;
@@ -32,6 +34,7 @@ public class MaquinaTesoreriaRepository {
         this.collectionName = collectionName;
     }
 
+    @Cacheable("maquinasTesoreria")
     public List<MaquinaTesoreria> findAll() throws ExecutionException, InterruptedException {
         ApiFuture<QuerySnapshot> future = firestore.collection(collectionName).get();
         List<QueryDocumentSnapshot> documents = future.get().getDocuments();
@@ -42,6 +45,7 @@ public class MaquinaTesoreriaRepository {
         return result;
     }
 
+    @Cacheable(value = "maquinasTesoreria", key = "'tipo:' + #tipo")
     public List<MaquinaTesoreria> findByTipo(TipoMaquina tipo) throws ExecutionException, InterruptedException {
         ApiFuture<QuerySnapshot> future = firestore.collection(collectionName)
                 .whereEqualTo("tipo", tipo.name())
@@ -54,6 +58,7 @@ public class MaquinaTesoreriaRepository {
         return result;
     }
 
+    @Cacheable(value = "maquinasTesoreria", key = "#id")
     public MaquinaTesoreria findById(String id) throws ExecutionException, InterruptedException {
         DocumentSnapshot doc = firestore.collection(collectionName).document(id).get().get();
         if (!doc.exists()) {
@@ -62,23 +67,27 @@ public class MaquinaTesoreriaRepository {
         return snapshotToMaquina(doc);
     }
 
+    @CacheEvict(value = "maquinasTesoreria", allEntries = true)
     public String create(MaquinaTesoreria maquina) throws ExecutionException, InterruptedException {
         DocumentReference ref = firestore.collection(collectionName).document();
         ref.set(maquina).get();
         return ref.getId();
     }
 
+    @CacheEvict(value = "maquinasTesoreria", allEntries = true)
     public void guardarConId(String id, MaquinaTesoreria maquina) throws ExecutionException, InterruptedException {
         DocumentReference ref = firestore.collection(collectionName).document(id);
         maquina.setId(null);
         ref.set(maquina).get();
     }
 
+    @CacheEvict(value = "maquinasTesoreria", allEntries = true)
     public void update(String id, Map<String, Object> campos) throws ExecutionException, InterruptedException {
         DocumentReference docRef = firestore.collection(collectionName).document(id);
         docRef.update(campos).get();
     }
 
+    @CacheEvict(value = "maquinasTesoreria", allEntries = true)
     public void cambiarEstado(String id, Estado nuevoEstado, String motivo)
             throws ExecutionException, InterruptedException {
         DocumentReference docRef = firestore.collection(collectionName).document(id);

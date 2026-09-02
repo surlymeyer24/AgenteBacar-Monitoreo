@@ -1,6 +1,8 @@
 package com.bacarsa.inventario.repository;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Repository;
 import java.util.ArrayList;
 import java.util.List;
@@ -28,6 +30,7 @@ public class NvrRepository {
         this.collectionName = collectionName;
     }
 
+    @Cacheable("nvrs")
     public List<Nvr> findAll() throws ExecutionException, InterruptedException {
         ApiFuture<QuerySnapshot> future = firestore.collection(collectionName).get();
         List<QueryDocumentSnapshot> documents = future.get().getDocuments();
@@ -38,6 +41,7 @@ public class NvrRepository {
         return result;
     }
 
+    @Cacheable(value = "nvrs", key = "#id")
     public Nvr findById(String id) throws ExecutionException, InterruptedException {
         DocumentSnapshot doc = firestore.collection(collectionName).document(id).get().get();
         if (!doc.exists()) {
@@ -54,12 +58,14 @@ public class NvrRepository {
         return nvr;
     }
 
+    @CacheEvict(value = "nvrs", allEntries = true)
     public void guardarConId(String id, Nvr nvr) throws ExecutionException, InterruptedException {
         DocumentReference docRef = firestore.collection(collectionName).document(id);
         nvr.setId(id); // Aseguramos que el ID del objeto coincida con el ID del documento
         docRef.set(nvr).get(); // Esperamos a que se complete la operación
     }
 
+    @CacheEvict(value = "nvrs", allEntries = true)
     public void update(String id, java.util.Map<String, Object> campos) throws ExecutionException, InterruptedException {
         DocumentReference docRef = firestore.collection(collectionName).document(id);
         docRef.update(campos).get();

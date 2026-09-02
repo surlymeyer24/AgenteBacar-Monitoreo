@@ -15,4 +15,8 @@ public class DispositivoUsbFirestore {
     private String categoria;
     private String clase;
     private String conexion;
+    /** Vendor ID USB (hex, p. ej. {@code 046D}), si el agente lo reportó. */
+    private String vid;
+    /** Product ID USB (hex, p. ej. {@code C52B}), si el agente lo reportó. */
+    private String pid;
 }

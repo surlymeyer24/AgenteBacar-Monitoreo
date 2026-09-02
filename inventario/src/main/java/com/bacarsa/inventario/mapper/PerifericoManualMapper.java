@@ -24,6 +24,8 @@ public class PerifericoManualMapper {
         dto.setNotas(p.getNotas());
         dto.setEstado(p.getEstadoActual() == null ? null : p.getEstadoActual().getNombre());
         dto.setFechaAlta(parseFecha(p.getFechaAlta()));
+        dto.setComboId(p.getComboId());
+        dto.setComboNombre(p.getComboNombre());
         dto.setHistorialEstados(CambioEstadoMapper.toDTOList(p.getHistorialEstados()));
         return dto;
     }

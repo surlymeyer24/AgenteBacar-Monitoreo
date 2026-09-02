@@ -13,4 +13,6 @@ public class MonitorAgenteDTO {
     private Double pulgadas;
     private Double anchoCm;
     private Double altoCm;
+    private String numeroSerie;
+    private String fabricante;
 }

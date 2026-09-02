@@ -20,12 +20,15 @@ import {
   Puzzle,
   Router,
   Settings,
+  Tv,
   Tv2,
   Video,
   Volume2,
   Webcam,
   PackageOpen,
   Server,
+  Smartphone,
+  Wifi,
 } from 'lucide-react';
 
 /** Misma idea que `navIconProps` en MiniAgente-Front `Layout.tsx`. */
@@ -54,6 +57,7 @@ export const NAV_ICONS = {
   Cpu,
   Monitor,
   Printer,
+  Tv,
   Tv2,
   Puzzle,
   Keyboard,
@@ -71,4 +75,6 @@ export const NAV_ICONS = {
   ChevronDown,
   PackageOpen,
   Server,
+  Smartphone,
+  Wifi,
 };

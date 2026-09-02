@@ -1,15 +1,18 @@
 package com.bacarsa.inventario.services;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
 import com.bacarsa.inventario.dto.ActualizarPerifericoDTO;
+import com.bacarsa.inventario.dto.ComboCreateDTO;
 import com.bacarsa.inventario.dto.PerifericoManualCreateDTO;
 import com.bacarsa.inventario.dto.PerifericoManualDTO;
 import com.bacarsa.inventario.mapper.PerifericoManualMapper;
@@ -52,6 +55,8 @@ public class PerifericoManualService {
         p.setComputadoraHostname(blankToNull(dto.getComputadoraHostname()));
         p.setUbicacion(blankToNull(dto.getUbicacion()));
         p.setNotas(blankToNull(dto.getNotas()));
+        p.setComboId(blankToNull(dto.getComboId()));
+        p.setComboNombre(blankToNull(dto.getComboNombre()));
         LocalDate fa = dto.getFechaAlta() != null ? dto.getFechaAlta() : LocalDate.now();
         p.setFechaAlta(fa.toString());
 
@@ -81,8 +86,25 @@ public class PerifericoManualService {
         campos.put("notas", dto.getNotas() != null && !dto.getNotas().isBlank() ? dto.getNotas().trim() : null);
         if (dto.getFechaAlta() != null)
             campos.put("fechaAlta", dto.getFechaAlta().toString());
+        if (dto.getComboId() != null)
+            campos.put("comboId", dto.getComboId().isBlank() ? null : dto.getComboId().trim());
+        if (dto.getComboNombre() != null)
+            campos.put("comboNombre", dto.getComboNombre().isBlank() ? null : dto.getComboNombre().trim());
         repository.actualizar(id, campos);
         return obtenerPorId(id);
+    }
+
+    public List<PerifericoManualDTO> crearCombo(ComboCreateDTO dto)
+            throws ExecutionException, InterruptedException {
+        String comboId = UUID.randomUUID().toString();
+        String comboNombre = dto.getComboNombre() != null ? dto.getComboNombre().trim() : null;
+        List<PerifericoManualDTO> resultado = new ArrayList<>();
+        for (PerifericoManualCreateDTO item : dto.getItems()) {
+            item.setComboId(comboId);
+            item.setComboNombre(comboNombre);
+            resultado.add(crear(item));
+        }
+        return resultado;
     }
 
     public void eliminar(String id) throws ExecutionException, InterruptedException {
@@ -111,6 +133,8 @@ public class PerifericoManualService {
             asignado.setComputadoraHostname(hostname);
             asignado.setNotas(original.getNotas());
             asignado.setFechaAlta(original.getFechaAlta());
+            asignado.setComboId(original.getComboId());
+            asignado.setComboNombre(original.getComboNombre());
 
             String nuevoId = repository.create(asignado);
             cambiarEstado(nuevoId, "ASIGNADA", motivoFinal);

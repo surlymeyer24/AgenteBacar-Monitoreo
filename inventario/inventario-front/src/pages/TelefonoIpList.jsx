@@ -161,10 +161,10 @@ export default function TelefonoIpList() {
       subtitle="Registro de internos, estado de comunicación y asignaciones activas."
       actions={
         <>
-          <StudioSecondaryButton onClick={() => setModalImportAbierto(true)}>
+          <StudioSecondaryButton requiresWrite onClick={() => setModalImportAbierto(true)}>
             Importar Excel/CSV
           </StudioSecondaryButton>
-          <StudioPrimaryButton onClick={() => { resetForm(); setIsAddModalOpen(true); }}>
+          <StudioPrimaryButton requiresWrite onClick={() => { resetForm(); setIsAddModalOpen(true); }}>
             Registrar Interno
           </StudioPrimaryButton>
         </>
@@ -223,26 +223,26 @@ export default function TelefonoIpList() {
             <div className="space-y-3 pt-1">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
-                  <span className="font-mono text-xs font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100">Int: {infra.numeroInterno}</span>
+                  <span className="font-mono text-sm font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100">Int: {infra.numeroInterno}</span>
                 </div>
-                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold border ${infra.estadoActual === 'ACTIVO' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-rose-50 text-rose-700 border-rose-100'}`}>
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-extrabold border ${infra.estadoActual === 'ACTIVO' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-rose-50 text-rose-700 border-rose-100'}`}>
                   ● {infra.estadoActual}
                 </span>
               </div>
 
               <div className="space-y-1">
-                <h3 className="font-extrabold text-slate-900 text-sm">{infra.asignadoA || 'Sin Asignar'}</h3>
-                <p className="font-mono text-[11px] text-blue-700 font-bold">{infra.direccionIp || 'IP no registrada'}</p>
+                <h3 className="font-extrabold text-slate-900 text-base">{infra.asignadoA || 'Sin Asignar'}</h3>
+                <p className="font-mono text-xs text-blue-700 font-bold">{infra.direccionIp || 'IP no registrada'}</p>
               </div>
 
-              <div className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-100 min-h-[50px]">
+              <div className="text-sm text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-100 min-h-[50px]">
                 <p><strong>Marca/Mod:</strong> {infra.marcaModelo || '-'}</p>
                 <p><strong>MAC:</strong> {infra.macAddress || '-'}</p>
               </div>
             </div>
 
             <div className="pt-3 border-t border-slate-100 flex gap-2">
-              <button onClick={() => openEdit(infra)} className="flex-1 inline-flex items-center justify-center gap-1 px-2 py-1.5 bg-slate-50 hover:bg-blue-50 text-xs text-slate-700 hover:text-blue-700 border border-slate-200 rounded-md font-semibold transition-colors">
+              <button onClick={() => openEdit(infra)} className="flex-1 inline-flex items-center justify-center gap-1 px-2 py-1.5 bg-slate-50 hover:bg-blue-50 text-sm text-slate-700 hover:text-blue-700 border border-slate-200 rounded-md font-semibold transition-colors">
                 <Edit2 className="w-3 h-3" /> Editar
               </button>
               <button onClick={() => handleDelete(infra.id, infra.numeroInterno)} className="p-1.5 bg-slate-50 hover:bg-rose-50 text-slate-500 hover:text-rose-600 border border-slate-200 rounded-md transition-colors">
@@ -262,11 +262,12 @@ export default function TelefonoIpList() {
       <AnimatePresence>
         {(isAddModalOpen || isEditModalOpen) && (
           <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
-            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-white border border-slate-200 rounded-xl max-w-lg w-full overflow-hidden shadow-2xl">
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-white border border-slate-200 rounded-xl max-w-lg w-full overflow-hidden shadow-2xl border-t-[3px] border-t-accent">
               <div className="px-6 py-4 border-b border-slate-150 bg-slate-50 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Smartphone className="w-5 h-5 text-blue-600" />
-                  <span className="font-extrabold text-sm text-slate-900">{isEditModalOpen ? 'Editar Interno' : 'Registrar Nuevo Interno'}</span>
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="w-1.5 h-6 rounded-full bg-accent shrink-0" aria-hidden />
+                  <Smartphone className="w-5 h-5 text-blue-600 shrink-0" />
+                  <span className="font-extrabold text-sm text-slate-900 uppercase tracking-wide">{isEditModalOpen ? 'Editar Interno' : 'Registrar Nuevo Interno'}</span>
                 </div>
                 <button onClick={() => { setIsAddModalOpen(false); setIsEditModalOpen(false); }} className="p-1 hover:bg-slate-200 rounded text-slate-500">
                   <X className="w-4 h-4" />

@@ -3,7 +3,7 @@ import { apiFetch } from './http.js';
 
 const BASE_URL = `${API_ORIGIN}/api/impresoras`;
 
-/** Lista de impresoras físicas agrupadas por nombre/driver/puerto, con PCs por cada grupo. */
+/** Lista de impresoras físicas de red agrupadas por IP (sin IP se omiten), con PCs por cada grupo. */
 export function fetchImpresorasAgrupadas() {
   return apiFetch(BASE_URL).then(async res => {
     let body = null;

@@ -59,7 +59,7 @@ function PerifericosImpresorasList() {
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Buscar por nombre, driver o computadora conectada..."
+            placeholder="Buscar por nombre, IP, driver o computadora conectada..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-lg pl-9 pr-4 py-2 font-medium focus:bg-white focus:outline-none focus:border-[#0c66e4]"

@@ -8,6 +8,8 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Repository;
 
 import com.bacarsa.inventario.models.Computadora;
@@ -49,6 +51,7 @@ public class ComputadoraRepository {
         this.tareasCollection = tareasCollection;
     }
 
+    @Cacheable("computadoras")
     public List<Computadora> findAll() throws ExecutionException, InterruptedException {
         ApiFuture<QuerySnapshot> future = firestore.collection(collectionName).get();
         List<QueryDocumentSnapshot> documents = future.get().getDocuments();
@@ -59,6 +62,7 @@ public class ComputadoraRepository {
         return result;
     }
 
+    @Cacheable(value = "computadoras", key = "'ubicacion:' + #ubicacion")
     public List<Computadora> findByUbicacion(Ubicacion ubicacion) throws ExecutionException, InterruptedException {
         ApiFuture<QuerySnapshot> future = firestore.collection(collectionName)
                 .whereEqualTo("ubicacion", ubicacion.name())
@@ -71,6 +75,7 @@ public class ComputadoraRepository {
         return result;
     }
 
+    @Cacheable(value = "computadoras", key = "#uuid")
     public Computadora findByUuid(String uuid) throws ExecutionException, InterruptedException {
         DocumentSnapshot doc = firestore.collection(collectionName).document(uuid).get().get();
         if (!doc.exists()) {
@@ -82,6 +87,7 @@ public class ComputadoraRepository {
     /**
      * Lista documentos de la subcolección {@code programas} del agente bajo la computadora {@code uuid}.
      */
+    @Cacheable(value = "computadoras", key = "'programas:' + #uuid")
     public List<Map<String, Object>> listProgramas(String uuid) throws ExecutionException, InterruptedException {
         ApiFuture<QuerySnapshot> future = firestore.collection(collectionName)
                 .document(uuid)
@@ -103,6 +109,7 @@ public class ComputadoraRepository {
         return out;
     }
 
+    @CacheEvict(value = "computadoras", allEntries = true)
     public String create(Computadora computadora) throws ExecutionException, InterruptedException {
         DocumentReference ref = firestore.collection(collectionName).document(computadora.getUuid());
         ref.set(computadora).get();
@@ -115,6 +122,7 @@ public class ComputadoraRepository {
      *
      * @return {@code true} si existía el documento y se eliminó
      */
+    @CacheEvict(value = "computadoras", allEntries = true)
     public boolean deleteByUuid(String uuid) throws ExecutionException, InterruptedException {
         DocumentReference pcRef = firestore.collection(collectionName).document(uuid);
         DocumentSnapshot snap = pcRef.get().get();
@@ -136,40 +144,47 @@ public class ComputadoraRepository {
         return true;
     }
 
+    @CacheEvict(value = "computadoras", allEntries = true)
     public void agregarImpresora(String uuid, ImpresoraFirestore impresora) throws ExecutionException, InterruptedException {
         firestore.collection(collectionName).document(uuid)
                 .update("perifericos.impresoras", FieldValue.arrayUnion(toMap(impresora)))
                 .get();
     }
 
+    @CacheEvict(value = "computadoras", allEntries = true)
     public void agregarMonitor(String uuid, MonitorFirestore monitor) throws ExecutionException, InterruptedException {
         firestore.collection(collectionName).document(uuid)
                 .update("perifericos.monitores", FieldValue.arrayUnion(toMap(monitor)))
                 .get();
     }
 
+    @CacheEvict(value = "computadoras", allEntries = true)
     public void agregarDispositivoUsb(String uuid, DispositivoUsbFirestore usb) throws ExecutionException, InterruptedException {
         firestore.collection(collectionName).document(uuid)
                 .update("perifericos.dispositivos_usb", FieldValue.arrayUnion(toMap(usb)))
                 .get();
     }
 
+    @CacheEvict(value = "computadoras", allEntries = true)
     public void agregarAudioEntrada(String uuid, DispositivoAudioFirestore audio) throws ExecutionException, InterruptedException {
         firestore.collection(collectionName).document(uuid)
                 .update("perifericos.audio.entrada", FieldValue.arrayUnion(toMap(audio)))
                 .get();
     }
 
+    @CacheEvict(value = "computadoras", allEntries = true)
     public void agregarAudioSalida(String uuid, DispositivoAudioFirestore audio) throws ExecutionException, InterruptedException {
         firestore.collection(collectionName).document(uuid)
                 .update("perifericos.audio.salida", FieldValue.arrayUnion(toMap(audio)))
                 .get();
     }
 
+    @CacheEvict(value = "computadoras", allEntries = true)
     public void updateUbicacion(String uuid, Ubicacion ubicacion) throws ExecutionException, InterruptedException {
         firestore.collection(collectionName).document(uuid).update("ubicacion", ubicacion.name()).get();
     }
 
+    @Cacheable(value = "computadoras", key = "'hostname:' + #hostname")
     public Computadora findByHostname(String hostname) throws ExecutionException, InterruptedException {
         DocumentSnapshot doc = firestore.collection(collectionName)
                 .whereEqualTo("hostname", hostname).get().get()
@@ -210,6 +225,8 @@ public class ComputadoraRepository {
         if (usb.getCategoria() != null) m.put("categoria", usb.getCategoria());
         if (usb.getClase() != null) m.put("clase", usb.getClase());
         if (usb.getConexion() != null) m.put("conexion", usb.getConexion());
+        if (usb.getVid() != null) m.put("vid", usb.getVid());
+        if (usb.getPid() != null) m.put("pid", usb.getPid());
         return m;
     }
 
@@ -252,7 +269,10 @@ public class ComputadoraRepository {
 
         return c;
     }
-    public void cambiarEstado(String uuid, Estado nuevoEstado, String motivo) throws ExecutionException, InterruptedException {
+    @CacheEvict(value = "computadoras", allEntries = true)
+    public void cambiarEstado(String uuid, Estado nuevoEstado, String motivo,
+                              String ubicacionStock, String responsableInventario)
+            throws ExecutionException, InterruptedException {
         DocumentReference docRef = firestore.collection(collectionName).document(uuid);
 
         firestore.runTransaction(transaction -> {
@@ -269,7 +289,6 @@ public class ComputadoraRepository {
                 historial = new ArrayList<>(historial);
             }
 
-            // Cerrar el estado vigente (fechaHoraFin == null)
             Timestamp ahora = Timestamp.now();
             for (int i = 0; i < historial.size(); i++) {
                 Map<String, Object> entrada = historial.get(i);
@@ -280,7 +299,6 @@ public class ComputadoraRepository {
                 }
             }
 
-            // Nueva entrada de estado
             Map<String, Object> estadoMap = new HashMap<>();
             estadoMap.put("nombre", nuevoEstado.getNombre());
             estadoMap.put("descripcion", nuevoEstado.getDescripcion());
@@ -290,18 +308,29 @@ public class ComputadoraRepository {
             nuevaEntrada.put("motivo", motivo);
             nuevaEntrada.put("fechaHoraInicio", ahora);
             nuevaEntrada.put("fechaHoraFin", null);
+            if (ubicacionStock != null) {
+                nuevaEntrada.put("ubicacion_stock", ubicacionStock);
+            }
+            if (responsableInventario != null && !responsableInventario.isEmpty()) {
+                nuevaEntrada.put("responsable_inventario", responsableInventario);
+            }
 
             historial.add(nuevaEntrada);
 
-            // Escribir historial + actualizar estadoActual top-level
-            transaction.update(docRef,
-                    "historialEstados", historial,
-                    "estadoActual", estadoMap);
+            Map<String, Object> updates = new HashMap<>();
+            updates.put("historialEstados", historial);
+            updates.put("estadoActual", estadoMap);
+            if (responsableInventario != null) {
+                updates.put("responsable_inventario",
+                        responsableInventario.isEmpty() ? null : responsableInventario);
+            }
+            transaction.update(docRef, updates);
 
             return null;
         }).get();
     }
 
+    @CacheEvict(value = "computadoras", allEntries = true)
     public void actualizarResponsableInventario(String uuid, String nuevoRI) throws ExecutionException, InterruptedException {
         DocumentReference docRef = firestore.collection(collectionName).document(uuid);
         docRef.update("responsable_inventario", nuevoRI).get();

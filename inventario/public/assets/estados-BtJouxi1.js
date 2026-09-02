@@ -1,0 +1,1 @@
+var e=[`ASIGNADA`,`SIN_ASIGNAR`,`EN_MANTENIMIENTO`,`BAJA`,`ACTIVA`,`INACTIVA`],t={ASIGNADA:`Asignada`,SIN_ASIGNAR:`Sin Asignar`,EN_MANTENIMIENTO:`En mantenimiento`,BAJA:`Baja`,ACTIVA:`Activa`,INACTIVA:`Inactiva`};export{t as n,e as t};

@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useMemo } from 'react';
+import { useNavigate, Outlet } from 'react-router-dom';
 import { fetchServidores, crearServidor, actualizarServidor } from '../api/servidorApi';
 import ImportModal from '../components/ImportModal';
 import { servidoresSchema } from '../lib/importSchemas/servidoresSchema';
 import InfraestructuraGrid from '../components/InfraestructuraGrid';
 import InfraestructuraModal from '../components/InfraestructuraModal';
+import TableFilters from '../components/TableFilters';
 import {
   StudioPageShell,
   StudioLoading,
@@ -12,6 +13,7 @@ import {
   StudioPrimaryButton,
   StudioSecondaryButton,
   StudioDataTable,
+  StudioFilterBar,
   studioTableClass,
   studioTheadClass,
   studioThClass,
@@ -33,6 +35,19 @@ const emptyForm = {
 function ServidorList() {
   const navigate = useNavigate();
   const [lista, setLista] = useState([]);
+  const [buscar, setBuscar] = useState('');
+
+  const itemsFiltrados = useMemo(() => {
+    if (!buscar.trim()) return lista;
+    const b = buscar.toLowerCase();
+    return lista.filter(item => 
+      (item.nombre || '').toLowerCase().includes(b) ||
+      (item.hostname || '').toLowerCase().includes(b) ||
+      (item.ip || '').toLowerCase().includes(b) ||
+      (item.sistemaOperativo || '').toLowerCase().includes(b) ||
+      (item.ubicacion || '').toLowerCase().includes(b)
+    );
+  }, [lista, buscar]);
 
 
   
@@ -186,24 +201,45 @@ function ServidorList() {
     else alert('Importación completada con éxito.');
   }
 
-  if (cargando) return <StudioLoading />;
-  if (error) return <StudioError message={error} />;
+  if (cargando) {
+    return (
+      <>
+        <StudioLoading />
+        <Outlet />
+      </>
+    );
+  }
+  if (error) {
+    return (
+      <>
+        <StudioError message={error} />
+        <Outlet />
+      </>
+    );
+  }
 
   return (
+    <>
     <StudioPageShell
       title={`Infraestructura: Servidores (${lista.length})`}
       subtitle="Servidores físicos y virtuales del inventario."
       actions={
         <>
-          <StudioSecondaryButton onClick={() => setModalImportAbierto(true)}>
+          <StudioSecondaryButton requiresWrite onClick={() => setModalImportAbierto(true)}>
             Importar Excel/CSV
           </StudioSecondaryButton>
-          <StudioPrimaryButton onClick={abrirModal}>Nuevo servidor</StudioPrimaryButton>
+          <StudioPrimaryButton requiresWrite onClick={abrirModal}>Nuevo servidor</StudioPrimaryButton>
         </>
       }
     >
+      <StudioFilterBar>
+        <TableFilters>
+          <TableFilters.Search value={buscar} onChange={setBuscar} placeholder="Buscar..." />
+        </TableFilters>
+      </StudioFilterBar>
+
       <div className="pt-2">
-        <InfraestructuraGrid items={lista} type="servidor" onEditItem={handleOpenEditModal} onDeleteItem={handleDeleteItem}
+        <InfraestructuraGrid items={itemsFiltrados} type="servidor" onEditItem={handleOpenEditModal} onDeleteItem={handleDeleteItem}
             onItemClick={(s) => navigate(`/servidores/${encodeURIComponent(s.id)}`)} />
       </div>
 
@@ -286,6 +322,8 @@ function ServidorList() {
       />
 
     </StudioPageShell>
+    <Outlet />
+    </>
   );
 }
 

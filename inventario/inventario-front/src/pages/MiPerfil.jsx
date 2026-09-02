@@ -22,7 +22,6 @@ export default function MiPerfil() {
 
   // General profile inputs
   const [nameInput, setNameInput] = useState('');
-  const [phoneInput, setPhoneInput] = useState('');
   const [deptInput, setDeptInput] = useState('');
   const [roleInput, setRoleInput] = useState('');
 
@@ -60,14 +59,12 @@ export default function MiPerfil() {
           if (snap.exists()) {
             const data = snap.data();
             setNameInput(data.nombre || '');
-            setPhoneInput(data.telefono || '');
             setDeptInput(data.departamento || '');
             setRoleInput(data.cargo || '');
             setAvatarColor(data.avatarColor || 'from-indigo-600 to-blue-700');
           } else {
             // Fallback to localStorage if no Firestore doc yet
             setNameInput(localStorage.getItem('bacarsa_profile_name') || '');
-            setPhoneInput(localStorage.getItem('bacarsa_profile_phone') || '');
             setDeptInput(localStorage.getItem('bacarsa_profile_dept') || '');
             setRoleInput(localStorage.getItem('bacarsa_profile_role') || '');
             setAvatarColor(localStorage.getItem('bacarsa_profile_photo_color') || 'from-indigo-600 to-blue-700');
@@ -94,7 +91,6 @@ export default function MiPerfil() {
 
     // Always cache in localStorage
     localStorage.setItem('bacarsa_profile_name', nameInput);
-    localStorage.setItem('bacarsa_profile_phone', phoneInput);
     localStorage.setItem('bacarsa_profile_dept', deptInput);
     localStorage.setItem('bacarsa_profile_role', roleInput);
     localStorage.setItem('bacarsa_profile_photo_color', avatarColor);
@@ -106,7 +102,6 @@ export default function MiPerfil() {
         const ref = doc(db, COLLECTIONS.USUARIOS, user.uid);
         await setDoc(ref, {
           nombre: nameInput,
-          telefono: phoneInput,
           departamento: deptInput,
           cargo: roleInput,
           avatarColor,
@@ -252,7 +247,7 @@ export default function MiPerfil() {
 
       {/* Tabs list */}
       <div className="border-b border-slate-200">
-        <div className="flex space-x-8 text-base font-bold font-sans">
+        <div className="flex flex-col sm:flex-row sm:space-x-8 space-y-2 sm:space-y-0 text-base font-bold font-sans">
           <button
             onClick={() => setActiveTab('general')}
             className={`pb-3 relative transition-colors ${activeTab === 'general' ? 'text-blue-600 font-black' : 'text-slate-500 hover:text-slate-900'}`}
@@ -320,17 +315,6 @@ export default function MiPerfil() {
                   onChange={(e) => setDeptInput(e.target.value)}
                   className="w-full p-3 border border-slate-200 bg-slate-50 hover:bg-slate-50/70 focus:bg-white rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-600 font-bold text-slate-800 text-sm"
                   placeholder="Ej. Sede Central - Planta de Operaciones"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="block text-slate-600 font-bold">Número de Teléfono Director</label>
-                <input
-                  type="text"
-                  value={phoneInput}
-                  onChange={(e) => setPhoneInput(e.target.value)}
-                  className="w-full p-3 border border-slate-200 bg-slate-50 hover:bg-slate-50/70 focus:bg-white rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-600 font-bold font-mono text-slate-800 text-sm"
-                  placeholder="Ej. +54 351 XXX-XXXX"
                 />
               </div>
             </div>

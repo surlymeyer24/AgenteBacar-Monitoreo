@@ -54,7 +54,8 @@ public class SwitchRedService {
         sw.setTipo(blankToNull(dto.getTipo()));
         sw.setVlans(dto.getVlans() != null ? dto.getVlans() : List.of());
         sw.setUbicacion(ubicacion);
-        sw.setFechaAlta(dto.getFechaAlta() != null ? dto.getFechaAlta() : LocalDate.now());
+        LocalDate fa = dto.getFechaAlta() != null ? dto.getFechaAlta() : LocalDate.now();
+        sw.setFechaAlta(fa.toString());
 
         String id = switchRedRepository.create(sw);
         return SwitchRedMapper.toDTO(switchRedRepository.findById(id));
@@ -96,6 +97,21 @@ public class SwitchRedService {
         return s.trim();
     }
 
+    /** Firestore {@code update} no acepta null; los campos editables del form van como string (vacío si se limpia). */
+    private static String blankToEmpty(String s) {
+        if (s == null || s.isBlank()) {
+            return "";
+        }
+        return s.trim();
+    }
+
+    /** Solo incluye el campo si el cliente lo envió (evita pisar datos Omada no editados en el modal). */
+    private static void putSiPresente(java.util.Map<String, Object> campos, String key, String value) {
+        if (value != null && !value.isBlank()) {
+            campos.put(key, value.trim());
+        }
+    }
+
     public SwitchRedDTO update(String id, SwitchRedCreateDTO dto) throws ExecutionException, InterruptedException {
         SwitchRed swExistente = switchRedRepository.findById(id);
         if (swExistente == null) {
@@ -103,7 +119,7 @@ public class SwitchRedService {
         }
 
         validarCrear(dto);
-        
+
         UbicacionRed ubicacion;
         try {
             ubicacion = UbicacionRed.valueOf(dto.getUbicacion().trim());
@@ -113,26 +129,38 @@ public class SwitchRedService {
 
         java.util.Map<String, Object> campos = new java.util.HashMap<>();
         campos.put("nombre", dto.getNombre().trim());
-        campos.put("marca", blankToNull(dto.getMarca()));
-        campos.put("modelo", blankToNull(dto.getModelo()));
-        campos.put("ip", blankToNull(dto.getIp()));
-        campos.put("numero_serie", blankToNull(dto.getNumeroSerie()));
-        campos.put("sitio", blankToNull(dto.getSitio()));
-        campos.put("ip_publica", blankToNull(dto.getIpPublica()));
-        campos.put("estado", blankToNull(dto.getEstadoOmada())); 
-        campos.put("version", blankToNull(dto.getVersion()));
-        campos.put("mac_uplink", blankToNull(dto.getMacUplink()));
-        campos.put("salto", dto.getSalto());
+        campos.put("marca", blankToEmpty(dto.getMarca()));
+        campos.put("modelo", blankToEmpty(dto.getModelo()));
+        campos.put("ip", blankToEmpty(dto.getIp()));
+        campos.put("numero_serie", blankToEmpty(dto.getNumeroSerie()));
         campos.put("cantidad_puertos", dto.getCantidadPuertos());
-        campos.put("tipo", blankToNull(dto.getTipo()));
+        campos.put("tipo", blankToEmpty(dto.getTipo()));
         campos.put("vlans", dto.getVlans() != null ? dto.getVlans() : List.of());
         campos.put("ubicacion", ubicacion.name());
-        
-        LocalDate fecha = dto.getFechaAlta() != null ? dto.getFechaAlta() : LocalDate.now();
-        campos.put("fecha_alta", fecha.toString()); 
+
+        if (dto.getFechaAlta() != null) {
+            campos.put("fecha_alta", dto.getFechaAlta().toString());
+        }
+
+        putSiPresente(campos, "sitio", dto.getSitio());
+        putSiPresente(campos, "ip_publica", dto.getIpPublica());
+        putSiPresente(campos, "estado", dto.getEstadoOmada());
+        putSiPresente(campos, "version", dto.getVersion());
+        putSiPresente(campos, "mac_uplink", dto.getMacUplink());
+        if (dto.getSalto() != null) {
+            campos.put("salto", dto.getSalto());
+        }
 
         switchRedRepository.update(id, campos);
 
         return obtenerPorId(id);
+    }
+
+    public boolean eliminar(String id) throws ExecutionException, InterruptedException {
+        if (switchRedRepository.findById(id) == null) {
+            return false;
+        }
+        switchRedRepository.deleteById(id);
+        return true;
     }
 }

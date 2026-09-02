@@ -14,6 +14,8 @@ public class NvrCreateDTO {
     private String direccionIp;
     private Integer puerto;        // opcional; puerto de gestión HTTP/ONVIF de la NVR
     private String descripcion;    // opcional; texto libre
+    private String usuario;
+    private String password;
 
 
 }

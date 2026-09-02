@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 
 import com.bacarsa.inventario.dto.CambioRecienteDTO;
 import com.bacarsa.inventario.dto.DashboardStatsDTO;
+import com.bacarsa.inventario.models.AccessPoint;
 import com.bacarsa.inventario.models.Camara;
 import com.bacarsa.inventario.models.CambioEstado;
 import com.bacarsa.inventario.models.Computadora;
@@ -28,10 +29,13 @@ import com.bacarsa.inventario.models.Router;
 import com.bacarsa.inventario.models.SwitchRed;
 import com.bacarsa.inventario.models.Ubicacion;
 import com.bacarsa.inventario.models.UbicacionRed;
+import com.bacarsa.inventario.repository.AccessPointRepository;
 import com.bacarsa.inventario.repository.CamaraRepository;
 import com.bacarsa.inventario.repository.ComputadoraRepository;
+import com.bacarsa.inventario.repository.InternoIpRepository;
 import com.bacarsa.inventario.repository.RouterRepository;
 import com.bacarsa.inventario.repository.SwitchRedRepository;
+import com.bacarsa.inventario.util.ImpresoraIpHelper;
 import com.google.cloud.Timestamp;
 
 @Service
@@ -48,15 +52,21 @@ public class DashboardService {
     private final CamaraRepository camaraRepository;
     private final RouterRepository routerRepository;
     private final SwitchRedRepository switchRedRepository;
+    private final AccessPointRepository accessPointRepository;
+    private final InternoIpRepository internoIpRepository;
 
     public DashboardService(ComputadoraRepository computadoraRepository,
             CamaraRepository camaraRepository,
             RouterRepository routerRepository,
-            SwitchRedRepository switchRedRepository) {
+            SwitchRedRepository switchRedRepository,
+            AccessPointRepository accessPointRepository,
+            InternoIpRepository internoIpRepository) {
         this.computadoraRepository = computadoraRepository;
         this.camaraRepository = camaraRepository;
         this.routerRepository = routerRepository;
         this.switchRedRepository = switchRedRepository;
+        this.accessPointRepository = accessPointRepository;
+        this.internoIpRepository = internoIpRepository;
     }
 
     public DashboardStatsDTO getStats() throws ExecutionException, InterruptedException {
@@ -64,8 +74,10 @@ public class DashboardService {
         CompletableFuture<List<Camara>> fCam = supplyAsyncRepo(camaraRepository::findAll);
         CompletableFuture<List<Router>> fRou = supplyAsyncRepo(routerRepository::findAll);
         CompletableFuture<List<SwitchRed>> fSw = supplyAsyncRepo(switchRedRepository::findAll);
+        CompletableFuture<List<AccessPoint>> fAp = supplyAsyncRepo(accessPointRepository::findAll);
+        CompletableFuture<Integer> fTel = supplyAsyncRepo(() -> internoIpRepository.findAll().size());
         try {
-            CompletableFuture.allOf(fPc, fCam, fRou, fSw).join();
+            CompletableFuture.allOf(fPc, fCam, fRou, fSw, fAp, fTel).join();
         } catch (CompletionException ex) {
             Throwable c = ex.getCause();
             if (c instanceof InterruptedException ie) {
@@ -82,6 +94,7 @@ public class DashboardService {
         List<Camara> camaras = fCam.join();
         List<Router> routers = fRou.join();
         List<SwitchRed> switches = fSw.join();
+        List<AccessPoint> accessPoints = fAp.join();
 
         DashboardStatsDTO stats = new DashboardStatsDTO();
 
@@ -90,6 +103,23 @@ public class DashboardService {
         stats.setTotalCamaras(camaras.size());
         stats.setTotalRouters(routers.size());
         stats.setTotalSwitches(switches.size());
+        stats.setTotalAccessPoints(accessPoints.size());
+        stats.setTotalTelefonos(fTel.join());
+
+        int notebooks = 0;
+        int sinAsignar = 0;
+        for (Computadora c : computadoras) {
+            if (c.getTipoEquipo() != null && c.getTipoEquipo().getTipo() != null
+                    && c.getTipoEquipo().getTipo().toLowerCase().contains("notebook")) {
+                notebooks++;
+            }
+            if (c.getEstadoActual() != null && "Sin Asignar".equalsIgnoreCase(c.getEstadoActual().getNombre())) {
+                sinAsignar++;
+            }
+        }
+        stats.setTotalNotebooks(notebooks);
+        stats.setTotalDesktops(computadoras.size() - notebooks);
+        stats.setStockPcsSinAsignar(sinAsignar);
 
         // Conexión de computadoras
         int conectadas = 0;
@@ -244,19 +274,18 @@ public class DashboardService {
     }
 
     private static int contarImpresorasUnicas(List<Computadora> computadoras) {
-        Set<String> claves = new HashSet<>();
+        Set<String> ips = new HashSet<>();
         for (Computadora c : computadoras) {
             PerifericosFirestore p = c.getPerifericos();
             if (p == null || p.getImpresoras() == null) continue;
             for (ImpresoraFirestore imp : p.getImpresoras()) {
                 if (!esImpresoraFisicaParaConteo(imp)) continue;
-                String clave = normLower(imp.getNombre()) + "|"
-                        + normLower(imp.getDriver()) + "|"
-                        + normalizarPuerto(imp.getPuerto());
-                claves.add(clave);
+                String ip = ImpresoraIpHelper.extraerIp(imp.getPuerto());
+                if (ip == null) continue;
+                ips.add(ip);
             }
         }
-        return claves.size();
+        return ips.size();
     }
 
     private static final List<String> ORDEN_PERIFERICOS_TIPO = List.of(
@@ -396,16 +425,6 @@ public class DashboardService {
         String nombre = normLower(d.getNombre());
         String cat = normLower(d.getCategoria());
         return nombre.contains("controlador hid") || cat.contains("controlador hid");
-    }
-
-    private static String normalizarPuerto(String puerto) {
-        if (puerto == null) return "";
-        String p = puerto.trim();
-        if (p.toLowerCase().startsWith("ip_")) {
-            p = p.substring(3);
-        }
-        p = p.replaceAll("(^|\\.)0+(\\d)", "$1$2");
-        return p.toLowerCase();
     }
 
     private static String normLower(String s) {

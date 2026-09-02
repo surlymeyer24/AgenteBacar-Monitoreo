@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useMemo } from 'react';
+import { useNavigate, Outlet } from 'react-router-dom';
 import { fetchMaquinas, crearMaquina, actualizarMaquina, cambiarEstadoMaquina } from '../api/maquinaTesoreriaApi';
 import ImportModal from '../components/ImportModal';
 import { maquinasTesoreriaSchema } from '../lib/importSchemas/maquinasTesoreriaSchema';
 import InfraestructuraGrid from '../components/InfraestructuraGrid';
 import InfraestructuraModal from '../components/InfraestructuraModal';
+import TableFilters from '../components/TableFilters';
 import { ESTADOS_OPERATIVOS, ESTADO_OPERATIVO_LABELS } from '../constants/estados';
 import {
   StudioPageShell,
@@ -41,8 +42,17 @@ const emptyForm = {
 function MaquinaTesoreriaList() {
   const navigate = useNavigate();
   const [lista, setLista] = useState([]);
+  const [buscar, setBuscar] = useState('');
 
-
+  const itemsFiltrados = useMemo(() => {
+    if (!buscar.trim()) return lista;
+    const term = buscar.toLowerCase();
+    return lista.filter(item => 
+      item.nombre?.toLowerCase().includes(term) ||
+      item.modelo?.toLowerCase().includes(term) ||
+      item.nroSerie?.toLowerCase().includes(term)
+    );
+  }, [lista, buscar]);
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModal, setIsEditModal] = useState(false);
@@ -215,23 +225,41 @@ function MaquinaTesoreriaList() {
     else alert('Importación completada con éxito.');
   }
 
-  if (cargando) return <StudioLoading />;
-  if (error) return <StudioError message={error} />;
+  if (cargando) {
+    return (
+      <>
+        <StudioLoading />
+        <Outlet />
+      </>
+    );
+  }
+  if (error) {
+    return (
+      <>
+        <StudioError message={error} />
+        <Outlet />
+      </>
+    );
+  }
 
   return (
+    <>
     <StudioPageShell
       title={`Infraestructura: Máquinas de Tesorería (${lista.length})`}
       subtitle="Equipos de validación, conteo y envasado registrados en el inventario corporativo."
       actions={
         <>
-          <StudioSecondaryButton onClick={() => setModalImportAbierto(true)}>
+          <StudioSecondaryButton requiresWrite onClick={() => setModalImportAbierto(true)}>
             Importar Excel/CSV
           </StudioSecondaryButton>
-          <StudioPrimaryButton onClick={abrirModal}>Nueva máquina</StudioPrimaryButton>
+          <StudioPrimaryButton requiresWrite onClick={abrirModal}>Nueva máquina</StudioPrimaryButton>
         </>
       }
     >
       <StudioFilterBar>
+        <TableFilters>
+          <TableFilters.Search value={buscar} onChange={setBuscar} placeholder="Buscar..." />
+        </TableFilters>
         <div className="flex items-center gap-2 text-xs font-semibold text-slate-600">
           <label htmlFor="filtro-tipo">Tipo:</label>
           <select
@@ -249,7 +277,7 @@ function MaquinaTesoreriaList() {
       </StudioFilterBar>
 
       <div className="pt-2">
-        <InfraestructuraGrid items={lista} type="maquina-tesoreria" onEditItem={handleOpenEditModal} onDeleteItem={handleDeleteItem}
+        <InfraestructuraGrid items={itemsFiltrados} type="maquina-tesoreria" onEditItem={handleOpenEditModal} onDeleteItem={handleDeleteItem}
             onItemClick={(m) => navigate(`/maquinas-tesoreria/${encodeURIComponent(m.id)}`)} />
       </div>
 
@@ -364,6 +392,8 @@ function MaquinaTesoreriaList() {
       />
 
     </StudioPageShell>
+    <Outlet />
+    </>
   );
 }
 

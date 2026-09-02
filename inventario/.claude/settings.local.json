@@ -27,7 +27,18 @@
       "Bash(gh repo *)",
       "Bash(npx claude-mem *)",
       "mcp__Claude_in_Chrome__navigate",
-      "mcp__Claude_in_Chrome__computer"
+      "mcp__Claude_in_Chrome__computer",
+      "Bash(find \"C:\\\\Users\\\\Usr\\\\Documents\\\\Desarrollo\\\\MiniAgente-Inventario\\\\inventario-front\\\\src\" -type f \\\\\\( -name \"*.jsx\" -o -name \"*.js\" \\\\\\) | grep -i \"dashboard\\\\|computadora\" | head -10)",
+      "Bash(ls -la \"C:\\\\Users\\\\Usr\\\\Documents\\\\Desarrollo\\\\MiniAgente-Inventario\\\\\" 2>&1 | head -20)",
+      "mcp__visualize__read_me",
+      "mcp__visualize__show_widget",
+      "Bash(xargs ls -1)",
+      "Bash(./mvnw.cmd compile *)",
+      "Bash(npx vite *)",
+      "Skill(artifact-design)",
+      "Skill(artifact-design:*)",
+      "PowerShell(Stop-Process -Id 19276 -Force)",
+      "PowerShell(New-Item -ItemType Directory -Force \"C:\\\\Users\\\\Usr\\\\Documents\\\\Desarrollo\\\\MiniAgente-Inventario\\\\inventario\\\\inventario-front\\\\node_modules\\\\.vite-temp\")"
     ]
   }
 }

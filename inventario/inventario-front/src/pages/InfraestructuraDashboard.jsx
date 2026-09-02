@@ -1,12 +1,7 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Video, Camera, Router, EthernetPort, Banknote, Server, Smartphone, ArrowRight, Search } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Video, Camera, Router, EthernetPort, Banknote, Server, Smartphone, ArrowRight, Search, Wifi } from 'lucide-react';
 import { motion } from 'motion/react';
-import { fetchDashboardStats } from '../api/dashboardApi';
-import { fetchCamaras } from '../api/camaraApi';
-import { fetchNvrs } from '../api/nvrApi';
-import { fetchMaquinas } from '../api/maquinaTesoreriaApi';
-import { fetchServidores } from '../api/servidorApi';
-import { fetchInternos } from '../api/internoIpApi';
+import { useDashboardStats, useCamaras, useNvrs, useMaquinas, useServidores, useInternos } from '../hooks/useQueries';
 import { useNavigate } from 'react-router-dom';
 import {
   StudioPageShell,
@@ -14,6 +9,7 @@ import {
   StudioError,
   StudioMetricCard,
 } from '../components/studio/StudioUi';
+import { contarMaquinasPorTipo } from '../utils/reporteInventario';
 
 function camarasPorNvrDesdeLista(camaras, nvrs) {
   const list = Array.isArray(camaras) ? camaras : [];
@@ -52,7 +48,7 @@ function TarjetaBarras({ titulo, porClave }) {
     return (
       <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-6 space-y-2">
         <h2 className="text-base font-semibold text-slate-900">{titulo}</h2>
-        <p className="text-xs text-slate-500 m-0">Sin datos para mostrar.</p>
+        <p className="text-sm text-slate-500 m-0">Sin datos para mostrar.</p>
       </div>
     );
   }
@@ -61,7 +57,7 @@ function TarjetaBarras({ titulo, porClave }) {
     <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-6 space-y-4">
       <div className="border-b border-slate-100 pb-3">
         <h2 className="text-base font-semibold text-slate-900">{titulo}</h2>
-        <p className="text-xs text-slate-500 mt-0.5">Desglose distributivo del inventario.</p>
+        <p className="text-sm text-slate-500 mt-0.5">Desglose distributivo del inventario.</p>
       </div>
       <div className="space-y-4">
         {conDatos.map(([label, raw], index) => {
@@ -70,7 +66,7 @@ function TarjetaBarras({ titulo, porClave }) {
           const colorClass = BAR_COLORS[index % BAR_COLORS.length];
           return (
             <div key={label} className="space-y-1">
-              <div className="flex items-center justify-between text-xs">
+              <div className="flex items-center justify-between text-sm">
                 <span className="font-medium text-slate-700">{label}</span>
                 <span className="font-semibold text-slate-900 font-mono">{n}</span>
               </div>
@@ -92,44 +88,26 @@ function TarjetaBarras({ titulo, porClave }) {
 }
 
 function InfraestructuraDashboard() {
-  const [stats, setStats] = useState(null);
-  const [listaNvrs, setListaNvrs] = useState([]);
-  const [camaras, setCamaras] = useState([]);
-  const [internos, setInternos] = useState([]);
-  const [totalMaquinas, setTotalMaquinas] = useState(0);
-  const [totalServidores, setTotalServidores] = useState(0);
-  const [cargando, setCargando] = useState(true);
-  const [error, setError] = useState(null);
   const [filtroTelefono, setFiltroTelefono] = useState('');
 
-  const cargar = useCallback(() => {
-    setCargando(true);
-    setError(null);
-    Promise.all([
-      fetchDashboardStats().catch(() => null),
-      fetchNvrs().catch(() => []),
-      fetchCamaras().catch(() => []),
-      fetchMaquinas().catch(() => []),
-      fetchServidores().catch(() => []),
-      fetchInternos().catch(() => []),
-    ])
-      .then(([s, nvrs, cams, maqs, srvs, ints]) => {
-        setStats(s ?? null);
-        setListaNvrs(Array.isArray(nvrs) ? nvrs : []);
-        setCamaras(Array.isArray(cams) ? cams : []);
-        setTotalMaquinas(Array.isArray(maqs) ? maqs.length : 0);
-        setTotalServidores(Array.isArray(srvs) ? srvs.length : 0);
-        setInternos(Array.isArray(ints) ? ints : []);
-      })
-      .catch(() => setError('No se pudo cargar el resumen de infraestructura.'))
-      .finally(() => setCargando(false));
-  }, []);
+  const { data: stats, isLoading: statsLoading } = useDashboardStats();
+  const { data: listaNvrs = [], isLoading: nvrsLoading } = useNvrs();
+  const { data: camaras = [], isLoading: camarasLoading } = useCamaras();
+  const { data: maquinas = [] } = useMaquinas();
+  const { data: servidores = [] } = useServidores();
+  const { data: internos = [] } = useInternos();
 
-  useEffect(() => { cargar(); }, [cargar]);
+  const cargando = statsLoading || nvrsLoading || camarasLoading;
+  const totalServidores = servidores.length;
 
   const camarasPorNvr = useMemo(
     () => camarasPorNvrDesdeLista(camaras, listaNvrs),
     [camaras, listaNvrs],
+  );
+
+  const maquinasPorTipo = useMemo(
+    () => contarMaquinasPorTipo(maquinas),
+    [maquinas],
   );
 
   if (cargando) return <StudioLoading message="Cargando infraestructura…" />;
@@ -140,7 +118,9 @@ function InfraestructuraDashboard() {
   const totalTelefonos = internos.length;
   const totalRouters = Number(s.totalRouters ?? 0);
   const totalSwitches = Number(s.totalSwitches ?? 0);
-  const totalActivos = totalNvrs + totalCamaras + totalRouters + totalSwitches + totalMaquinas + totalServidores + totalTelefonos;
+  const totalAccessPoints = Number(s.totalAccessPoints ?? 0);
+  const totalMaquinas = maquinas.length;
+  const totalActivos = totalNvrs + totalCamaras + totalRouters + totalSwitches + totalAccessPoints + totalMaquinas + totalServidores + totalTelefonos;
   const subt =
     totalActivos === 0
       ? 'Sin equipos registrados'
@@ -157,7 +137,7 @@ function InfraestructuraDashboard() {
         </div>
       ) : null}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StudioMetricCard
           title="NVR"
           value={totalNvrs}
@@ -189,6 +169,14 @@ function InfraestructuraDashboard() {
           icon={EthernetPort}
           iconClass="bg-emerald-50 text-emerald-600"
           to="/switches"
+        />
+        <StudioMetricCard
+          title="Access Points"
+          value={totalAccessPoints}
+          subtitle="unid."
+          icon={Wifi}
+          iconClass="bg-cyan-50 text-cyan-600"
+          to="/access-points"
         />
         <StudioMetricCard
           title="Máq. tesorería"
@@ -223,7 +211,7 @@ function InfraestructuraDashboard() {
               <Smartphone className="w-4 h-4 text-blue-600" />
               <span>Directorio de Teléfonos IP</span>
             </h2>
-            <p className="text-xs text-slate-500">Acceso a todos los internos del corporativo.</p>
+            <p className="text-sm text-slate-500">Acceso a todos los internos del corporativo.</p>
           </div>
           <div className="flex items-center gap-3 w-full sm:w-auto">
             <div className="relative flex-1 sm:w-48">
@@ -233,14 +221,14 @@ function InfraestructuraDashboard() {
               <input
                 type="text"
                 placeholder="Buscar por nombre..."
-                className="block w-full pl-8 pr-3 py-1.5 border border-slate-200 rounded-lg text-xs focus:ring-blue-500 focus:border-blue-500 transition-colors bg-slate-50"
+                className="block w-full pl-8 pr-3 py-1.5 border border-slate-200 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 transition-colors bg-slate-50"
                 value={filtroTelefono}
                 onChange={(e) => setFiltroTelefono(e.target.value)}
               />
             </div>
             <button 
               onClick={() => window.location.href = '/telefonos'}
-              className="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 group whitespace-nowrap shrink-0"
+              className="text-sm font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 group whitespace-nowrap shrink-0"
             >
               <span className="hidden sm:inline">Directorio Completo</span>
               <span className="sm:hidden">Todos</span>
@@ -258,18 +246,18 @@ function InfraestructuraDashboard() {
             >
               <div className="flex flex-col">
                 <div className="flex items-center gap-2">
-                  <span className="font-bold text-sm text-slate-900 group-hover:text-blue-700 transition-colors">{tel.asignadoA || 'Sin Asignar'}</span>
+                  <span className="font-bold text-base text-slate-900 group-hover:text-blue-700 transition-colors">{tel.asignadoA || 'Sin Asignar'}</span>
                   <span className={`w-1.5 h-1.5 rounded-full ${tel.estadoActual === 'ACTIVO' ? 'bg-emerald-500' : 'bg-rose-500'}`} title={tel.estadoActual}></span>
                 </div>
-                <span className="text-xs text-slate-500">{tel.direccionIp}</span>
+                <span className="text-sm text-slate-500">{tel.direccionIp}</span>
               </div>
               <div className="text-right">
-                <span className="font-mono text-xs font-extrabold text-blue-600 bg-blue-50 px-2 py-1 rounded border border-blue-100">Int: {tel.numeroInterno}</span>
+                <span className="font-mono text-sm font-extrabold text-blue-600 bg-blue-50 px-2 py-1 rounded border border-blue-100">Int: {tel.numeroInterno}</span>
               </div>
             </div>
           ))}
           {internos.filter(tel => (tel.asignadoA || 'Sin Asignar').toLowerCase().includes(filtroTelefono.toLowerCase())).length === 0 && (
-            <div className="w-full text-center text-slate-400 text-xs py-4">
+            <div className="w-full text-center text-slate-400 text-sm py-4">
               {internos.length === 0 ? 'No hay teléfonos registrados.' : 'No se encontraron resultados.'}
             </div>
           )}
@@ -282,6 +270,7 @@ function InfraestructuraDashboard() {
       </div>
 
       <TarjetaBarras titulo="Switches por ubicación" porClave={s.porUbicacionSwitches ?? {}} />
+      <TarjetaBarras titulo="Máquinas de tesorería por tipo" porClave={maquinasPorTipo} />
     </StudioPageShell>
   );
 }

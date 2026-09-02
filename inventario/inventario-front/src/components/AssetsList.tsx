@@ -6,6 +6,7 @@ import {
   Cpu, HardDrive, Network, Layers, ShieldCheck, Check, Calendar, HelpCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import FriendlyDatePicker from './FriendlyDatePicker';
 
 interface AssetsListProps {
   assets: Asset[];
@@ -743,12 +744,11 @@ export default function AssetsList({ assets, users, onAddAsset, onUpdateAsset, o
                   {/* Purchase date field */}
                   <div className="space-y-1">
                     <label className="text-xs font-semibold text-slate-700">Fecha de Adquisición *</label>
-                    <input 
+                    <FriendlyDatePicker
                       id="form-purchasedate-input"
-                      type="date"
                       value={formPurchaseDate}
-                      onChange={(e) => setFormPurchaseDate(e.target.value)}
-                      className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs focus:ring-1 focus:ring-blue-600 focus:outline-none focus:border-blue-600 text-slate-800 font-medium"
+                      onChange={setFormPurchaseDate}
+                      required
                     />
                   </div>
 

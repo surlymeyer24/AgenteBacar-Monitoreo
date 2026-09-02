@@ -7,6 +7,8 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Repository;
 
 import com.bacarsa.inventario.models.Estado;
@@ -31,6 +33,7 @@ public class RouterRepository {
         this.collectionName = collectionName;
     }
 
+    @Cacheable("routers")
     public List<Router> findAll() throws ExecutionException, InterruptedException {
         ApiFuture<QuerySnapshot> future = firestore.collection(collectionName).get();
         List<QueryDocumentSnapshot> documents = future.get().getDocuments();
@@ -41,6 +44,7 @@ public class RouterRepository {
         return result;
     }
 
+    @Cacheable(value = "routers", key = "#id")
     public Router findById(String id) throws ExecutionException, InterruptedException {
         DocumentSnapshot doc = firestore.collection(collectionName).document(id).get().get();
         if (!doc.exists()) {
@@ -49,12 +53,20 @@ public class RouterRepository {
         return snapshotToRouter(doc);
     }
 
+    @CacheEvict(value = "routers", allEntries = true)
     public String create(Router router) throws ExecutionException, InterruptedException {
         DocumentReference ref = firestore.collection(collectionName).document();
         ref.set(router).get();
         return ref.getId();
     }
 
+    @CacheEvict(value = "routers", allEntries = true)
+    public void guardarConId(String id, Router router) throws ExecutionException, InterruptedException {
+        router.setId(id);
+        firestore.collection(collectionName).document(id).set(router).get();
+    }
+
+    @CacheEvict(value = "routers", allEntries = true)
     public void cambiarEstado(String id, Estado nuevoEstado, String motivo) throws ExecutionException, InterruptedException {
         DocumentReference docRef = firestore.collection(collectionName).document(id);
 
@@ -111,8 +123,14 @@ public class RouterRepository {
         return r;
     }
 
+    @CacheEvict(value = "routers", allEntries = true)
     public void update(String id, Map<String, Object> campos) throws ExecutionException, InterruptedException {
-        DocumentReference docRef = firestore.collection("routers").document(id);
+        DocumentReference docRef = firestore.collection(collectionName).document(id);
         docRef.update(campos).get();
+    }
+
+    @CacheEvict(value = "routers", allEntries = true)
+    public void deleteById(String id) throws ExecutionException, InterruptedException {
+        firestore.collection(collectionName).document(id).delete().get();
     }
 }

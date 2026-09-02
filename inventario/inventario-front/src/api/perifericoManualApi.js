@@ -69,6 +69,18 @@ export function updateEstadoPerifericoM(id, estado, motivo) {
   });
 }
 
+export function createComboPerifericoM(body) {
+  return apiFetch(`${BASE_URL}/combo`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }).then(res => {
+    if (res.status === 400) throw new Error('Datos inválidos');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  });
+}
+
 export function deletePerifericoM(id) {
   return apiFetch(`${BASE_URL}/${encodeURIComponent(id)}`, {
     method: 'DELETE',

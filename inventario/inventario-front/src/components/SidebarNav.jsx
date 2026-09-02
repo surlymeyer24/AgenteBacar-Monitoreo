@@ -1,12 +1,36 @@
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { 
-  Laptop, Cpu, Network, Layers, 
-  Terminal, ChevronRight, Layers2, FileText,
-  Users, Video, Server, HardDrive
+import {
+  Home,
+  Laptop,
+  Cpu,
+  Network,
+  Package,
+  Terminal,
+  ChevronRight,
+  BarChart3,
+  UserCog,
+  FileText,
+  Monitor,
+  Printer,
+  Activity,
+  Server,
+  Camera,
+  Keyboard,
+  Mouse,
+  Webcam,
+  Volume2,
+  Mic,
+  Tv2,
+  Smartphone,
+  Router,
+  Banknote,
+  Phone,
+  QrCode,
 } from 'lucide-react';
+import AdminGate from './AdminGate';
 
-export default function SidebarNav({ sidebarCollapsed }) {
+export default function SidebarNav({ sidebarCollapsed, onMobileClose }) {
   const [hardwareExpanded, setHardwareExpanded] = useState(true);
   const [perifericosExpanded, setPerifericosExpanded] = useState(true);
   const [infraestructuraExpanded, setInfraestructuraExpanded] = useState(true);
@@ -15,136 +39,204 @@ export default function SidebarNav({ sidebarCollapsed }) {
 
   return (
     <nav className="nav">
-      {/* Section 1: GENERAL */}
       <div className="nav-section-title">General</div>
-      
-      <NavLink to="/" className={navLinkClass}>
-        <Layers2 className="w-4 h-4 text-indigo-400" />
+
+      <NavLink onClick={onMobileClose} to="/" className={navLinkClass} end>
+        <Home className="w-4 h-4" />
         <span className="nav-link-text">Inicio</span>
       </NavLink>
 
-      {/* Section 2: HARDWARE */}
-      <div className="nav-section-title">Hardware</div>
+      <NavLink onClick={onMobileClose} to="/reportes" className={navLinkClass}>
+        <BarChart3 className="w-4 h-4" />
+        <span className="nav-link-text">Reportes</span>
+      </NavLink>
+
+      <NavLink onClick={onMobileClose} to="/etiquetas-qr" className={navLinkClass}>
+        <QrCode className="w-4 h-4" />
+        <span className="nav-link-text">Etiquetas QR</span>
+      </NavLink>
 
       <div className="nav-group">
-        <button 
+        <button
+          type="button"
           onClick={() => setHardwareExpanded(!hardwareExpanded)}
           className="nav-group-header w-full text-left"
         >
-          <div className="flex items-center gap-2">
-            <Laptop className="w-4 h-4 text-blue-400" />
+          <div className="nav-group-header-inner">
+            <Laptop className="w-4 h-4" />
             <span className="nav-link-text">Hardware</span>
           </div>
           {!sidebarCollapsed && (
-            <ChevronRight className={`w-3 h-3 nav-group-chevron transition-transform duration-200 ${hardwareExpanded ? 'rotate-90' : ''}`} />
+            <ChevronRight
+              className={`w-3 h-3 nav-group-chevron transition-transform duration-200 ${hardwareExpanded ? 'rotate-90' : ''}`}
+            />
           )}
         </button>
         {hardwareExpanded && (
           <div className="nav-group-children">
-            <NavLink to="/computadoras" className={navLinkClass} end>
-              <span className="nav-link-text pl-2">Computadoras</span>
+            <NavLink onClick={onMobileClose} to="/computadoras" className={navLinkClass} end>
+              <Monitor className="w-3.5 h-3.5" />
+              <span className="nav-link-text">Computadoras</span>
             </NavLink>
-            <NavLink to="/perifericos/impresoras" className={navLinkClass}>
-              <span className="nav-link-text pl-2">Impresoras</span>
+            <NavLink onClick={onMobileClose} to="/perifericos/impresoras" className={navLinkClass}>
+              <Printer className="w-3.5 h-3.5" />
+              <span className="nav-link-text">Impresoras</span>
             </NavLink>
-            <NavLink to="/perifericos/monitores" className={navLinkClass}>
-              <span className="nav-link-text pl-2">Monitores</span>
+            <NavLink onClick={onMobileClose} to="/perifericos/monitores" className={navLinkClass}>
+              <Monitor className="w-3.5 h-3.5" />
+              <span className="nav-link-text">Monitores</span>
             </NavLink>
           </div>
         )}
       </div>
 
       <div className="nav-group">
-        <button 
-          onClick={() => setPerifericosExpanded(!perifericosExpanded)}
-          className="nav-group-header w-full text-left"
-        >
-          <div className="flex items-center gap-2">
-            <Cpu className="w-4 h-4 text-amber-500" />
-            <span className="nav-link-text">Periféricos</span>
-          </div>
+        <div className="nav-group-header-row">
+          <NavLink
+            onClick={onMobileClose}
+            to="/perifericos/dashboard"
+            className={({ isActive }) =>
+              `nav-link nav-group-header-link ${isActive ? 'active' : ''}`
+            }
+          >
+            <div className="nav-group-header-inner">
+              <Cpu className="w-4 h-4" />
+              <span className="nav-link-text">Periféricos</span>
+            </div>
+          </NavLink>
           {!sidebarCollapsed && (
-            <ChevronRight className={`w-3 h-3 nav-group-chevron transition-transform duration-200 ${perifericosExpanded ? 'rotate-90' : ''}`} />
+            <button
+              type="button"
+              className="nav-group-chevron-btn"
+              aria-label={perifericosExpanded ? 'Colapsar periféricos' : 'Expandir periféricos'}
+              onClick={() => setPerifericosExpanded(!perifericosExpanded)}
+            >
+              <ChevronRight
+                className={`w-3 h-3 nav-group-chevron-svg transition-transform duration-200 ${perifericosExpanded ? 'rotate-90' : ''}`}
+              />
+            </button>
           )}
-        </button>
+        </div>
         {perifericosExpanded && (
           <div className="nav-group-children">
-            <NavLink to="/perifericos/teclados" className={navLinkClass}>
-              <span className="nav-link-text pl-2">Teclados</span>
+            <NavLink onClick={onMobileClose} to="/perifericos/teclados" className={navLinkClass}>
+              <Keyboard className="w-3.5 h-3.5" />
+              <span className="nav-link-text">Teclados</span>
             </NavLink>
-            <NavLink to="/perifericos/mouse" className={navLinkClass}>
-              <span className="nav-link-text pl-2">Mouse</span>
+            <NavLink onClick={onMobileClose} to="/perifericos/mouse" className={navLinkClass}>
+              <Mouse className="w-3.5 h-3.5" />
+              <span className="nav-link-text">Mouse</span>
             </NavLink>
-            <NavLink to="/perifericos/webcams" className={navLinkClass}>
-              <span className="nav-link-text pl-2">Webcams</span>
+            <NavLink onClick={onMobileClose} to="/perifericos/webcams" className={navLinkClass}>
+              <Webcam className="w-3.5 h-3.5" />
+              <span className="nav-link-text">Webcams</span>
             </NavLink>
-            <NavLink to="/perifericos/parlantes" className={navLinkClass}>
-              <span className="nav-link-text pl-2">Parlantes</span>
+            <NavLink onClick={onMobileClose} to="/perifericos/parlantes" className={navLinkClass}>
+              <Volume2 className="w-3.5 h-3.5" />
+              <span className="nav-link-text">Parlantes</span>
             </NavLink>
-            <NavLink to="/perifericos/microfonos" className={navLinkClass}>
-              <span className="nav-link-text pl-2">Micrófonos</span>
+            <NavLink onClick={onMobileClose} to="/perifericos/microfonos" className={navLinkClass}>
+              <Mic className="w-3.5 h-3.5" />
+              <span className="nav-link-text">Micrófonos</span>
+            </NavLink>
+            <NavLink onClick={onMobileClose} to="/perifericos/televisores" className={navLinkClass}>
+              <Tv2 className="w-3.5 h-3.5" />
+              <span className="nav-link-text">Televisores</span>
+            </NavLink>
+            <NavLink onClick={onMobileClose} to="/perifericos/celulares" className={navLinkClass}>
+              <Smartphone className="w-3.5 h-3.5" />
+              <span className="nav-link-text">Celulares</span>
             </NavLink>
           </div>
         )}
       </div>
 
-      <NavLink to="/perifericos/stock" className={navLinkClass}>
-        <Layers className="w-4 h-4 text-cyan-400" />
-        <span className="nav-link-text">Stock</span>
+      <div className="nav-section-title">Depósito</div>
+
+      <NavLink onClick={onMobileClose} to="/perifericos/stock" className={navLinkClass}>
+        <Package className="w-4 h-4" />
+        <span className="nav-link-text">Stock de Depósito</span>
       </NavLink>
 
-      {/* Section 3: INFRAESTRUCTURA */}
-      <div className="nav-section-title">Infraestructura</div>
-
       <div className="nav-group">
-        <button 
-          onClick={() => setInfraestructuraExpanded(!infraestructuraExpanded)}
-          className="nav-group-header w-full text-left"
-        >
-          <div className="flex items-center gap-2">
-            <Network className="w-4 h-4 text-emerald-400" />
-            <span className="nav-link-text">Infraestructura</span>
-          </div>
+        <div className="nav-group-header-row">
+          <NavLink
+            onClick={onMobileClose}
+            to="/infraestructura"
+            className={({ isActive }) =>
+              `nav-link nav-group-header-link ${isActive ? 'active' : ''}`
+            }
+            end
+          >
+            <div className="nav-group-header-inner">
+              <Network className="w-4 h-4" />
+              <span className="nav-link-text">Infraestructura</span>
+            </div>
+          </NavLink>
           {!sidebarCollapsed && (
-            <ChevronRight className={`w-3 h-3 nav-group-chevron transition-transform duration-200 ${infraestructuraExpanded ? 'rotate-90' : ''}`} />
+            <button
+              type="button"
+              className="nav-group-chevron-btn"
+              aria-label={infraestructuraExpanded ? 'Colapsar infraestructura' : 'Expandir infraestructura'}
+              onClick={() => setInfraestructuraExpanded(!infraestructuraExpanded)}
+            >
+              <ChevronRight
+                className={`w-3 h-3 nav-group-chevron-svg transition-transform duration-200 ${infraestructuraExpanded ? 'rotate-90' : ''}`}
+              />
+            </button>
           )}
-        </button>
+        </div>
         {infraestructuraExpanded && (
           <div className="nav-group-children">
-            <NavLink to="/nvrs" className={navLinkClass}>
-              <span className="nav-link-text pl-2">NVR</span>
+            <NavLink onClick={onMobileClose} to="/infraestructura" className={navLinkClass} end>
+              <Activity className="w-3.5 h-3.5" />
+              <span className="nav-link-text">Resumen Infra</span>
             </NavLink>
-            <NavLink to="/camaras" className={navLinkClass}>
-              <span className="nav-link-text pl-2">Cámaras</span>
+            <NavLink onClick={onMobileClose} to="/nvrs" className={navLinkClass}>
+              <Server className="w-3.5 h-3.5" />
+              <span className="nav-link-text">NVR</span>
             </NavLink>
-            <NavLink to="/servidores" className={navLinkClass}>
-              <span className="nav-link-text pl-2">Servidores</span>
+            <NavLink onClick={onMobileClose} to="/camaras" className={navLinkClass}>
+              <Camera className="w-3.5 h-3.5" />
+              <span className="nav-link-text">Cámaras IP</span>
             </NavLink>
-            <NavLink to="/routers-switches" className={navLinkClass}>
-              <span className="nav-link-text pl-2">Routers & Switches</span>
+            <NavLink onClick={onMobileClose} to="/servidores" className={navLinkClass}>
+              <Server className="w-3.5 h-3.5" />
+              <span className="nav-link-text">Servidores</span>
             </NavLink>
-            <NavLink to="/maquinas-tesoreria" className={navLinkClass}>
-              <span className="nav-link-text pl-2">Máq. Tesorería</span>
+            <NavLink onClick={onMobileClose} to="/routers-switches" className={navLinkClass}>
+              <Router className="w-3.5 h-3.5" />
+              <span className="nav-link-text">Routers & Switches</span>
             </NavLink>
-            <NavLink to="/telefonos" className={navLinkClass}>
-              <span className="nav-link-text pl-2">Teléfonos IP</span>
+            <NavLink onClick={onMobileClose} to="/maquinas-tesoreria" className={navLinkClass}>
+              <Banknote className="w-3.5 h-3.5" />
+              <span className="nav-link-text">Máq. Tesorería</span>
+            </NavLink>
+            <NavLink onClick={onMobileClose} to="/telefonos" className={navLinkClass}>
+              <Phone className="w-3.5 h-3.5" />
+              <span className="nav-link-text">Teléfonos IP</span>
             </NavLink>
           </div>
         )}
       </div>
 
-      {/* Section 4: ADMINISTRACIÓN */}
       <div className="nav-section-title">Administración</div>
 
-      <NavLink to="/perfil" className={navLinkClass}>
-        <FileText className="w-4 h-4 text-purple-400" />
+      <NavLink onClick={onMobileClose} to="/perfil" className={navLinkClass}>
+        <FileText className="w-4 h-4" />
         <span className="nav-link-text">Mi Perfil</span>
       </NavLink>
 
-      <NavLink to="/system" className={navLinkClass}>
-        <Terminal className="w-4 h-4 text-slate-400" />
-        <span className="nav-link-text">Sistema</span>
-      </NavLink>
+      <AdminGate>
+        <NavLink onClick={onMobileClose} to="/admin/usuarios" className={navLinkClass}>
+          <UserCog className="w-4 h-4" />
+          <span className="nav-link-text">Usuarios</span>
+        </NavLink>
+        <NavLink onClick={onMobileClose} to="/system" className={navLinkClass}>
+          <Terminal className="w-4 h-4" />
+          <span className="nav-link-text">Sistema</span>
+        </NavLink>
+      </AdminGate>
     </nav>
   );
 }

@@ -14,6 +14,8 @@ public class UsbPerifericoConOrigenDTO {
     private String categoria;
     private String clase;
     private String conexion;
+    private String vid;
+    private String pid;
     private String pcUuid;
     private String pcHostname;
 }

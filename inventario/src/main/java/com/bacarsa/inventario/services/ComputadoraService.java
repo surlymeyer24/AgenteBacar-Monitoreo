@@ -1,13 +1,14 @@
 package com.bacarsa.inventario.services;
 
+import java.util.Comparator;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
-import java.util.UUID;
-
+import com.bacarsa.inventario.dto.CambiarEstadoDTO;
 import com.bacarsa.inventario.dto.ComputadoraCreateDTO;
 import com.bacarsa.inventario.dto.ComputadoraDTO;
 import com.bacarsa.inventario.mapper.ComputadoraMapper;
@@ -32,6 +33,17 @@ public class ComputadoraService {
 
     public List<ComputadoraDTO> getAllComputadoras() throws ExecutionException, InterruptedException {
         return computadoraRepository.findAll().stream()
+                .map(ComputadoraMapper::toListDTO)
+                .collect(Collectors.toList());
+    }
+
+    public List<ComputadoraDTO> getRecientes(int limit) throws ExecutionException, InterruptedException {
+        return computadoraRepository.findAll().stream()
+                .sorted(Comparator.comparing(
+                        (Computadora c) -> c.getUltimaSincronizacion() != null
+                                ? c.getUltimaSincronizacion().toDate().getTime() : 0L)
+                        .reversed())
+                .limit(limit)
                 .map(ComputadoraMapper::toListDTO)
                 .collect(Collectors.toList());
     }
@@ -85,7 +97,10 @@ public class ComputadoraService {
         String motivoAlta = (dto.getMotivo() != null && !dto.getMotivo().isBlank())
                 ? dto.getMotivo().trim()
                 : "Alta de equipo";
-        cambiarEstado(pc.getUuid(), "DERIVAR_ASIGNACION", motivoAlta);
+        CambiarEstadoDTO estadoDto = new CambiarEstadoDTO();
+        estadoDto.setEstado("DERIVAR_ASIGNACION");
+        estadoDto.setMotivo(motivoAlta);
+        cambiarEstado(pc.getUuid(), estadoDto);
 
         return getByUuid(pc.getUuid());
     }
@@ -144,13 +159,13 @@ public class ComputadoraService {
         return getByUuid(uuid);
     }
 
-    public ComputadoraDTO cambiarEstado(String uuid, String estadoRaw, String motivo)
+    public ComputadoraDTO cambiarEstado(String uuid, CambiarEstadoDTO dto)
             throws ExecutionException, InterruptedException {
         var pc = computadoraRepository.findByUuid(uuid);
         if (pc == null) {
             return null;
         }
-        String trimmed = estadoRaw == null ? "" : estadoRaw.trim();
+        String trimmed = dto.getEstado() == null ? "" : dto.getEstado().trim();
         EstadoOperativo estadoOperativo;
         if ("DERIVAR_ASIGNACION".equalsIgnoreCase(trimmed)) {
             estadoOperativo = EstadoOperativo.inferirAsignacionDesdeTexto(pc.getResponsableInventario());
@@ -158,13 +173,28 @@ public class ComputadoraService {
             try {
                 estadoOperativo = EstadoOperativo.valueOf(trimmed);
             } catch (IllegalArgumentException ex) {
-                throw new IllegalArgumentException("Estado inválido: " + estadoRaw, ex);
+                throw new IllegalArgumentException("Estado inválido: " + dto.getEstado(), ex);
             }
         }
+
+        String ubicacionStock = null;
+        String responsableInventario = null;
+        boolean limpiarResponsable = false;
+
+        if (estadoOperativo == EstadoOperativo.SIN_ASIGNAR) {
+            ubicacionStock = blankToNull(dto.getUbicacionStock());
+            limpiarResponsable = true;
+        }
+        if (estadoOperativo == EstadoOperativo.ASIGNADA && dto.getResponsableInventario() != null) {
+            responsableInventario = blankToNull(dto.getResponsableInventario());
+        }
+
         Estado estado = new Estado();
         estado.setNombre(estadoOperativo.getNombre());
         estado.setDescripcion(estadoOperativo.getDescripcion());
-        computadoraRepository.cambiarEstado(uuid, estado, motivo);
+        String riParaRepo = limpiarResponsable ? "" : responsableInventario;
+        computadoraRepository.cambiarEstado(uuid, estado, dto.getMotivo(),
+                ubicacionStock, riParaRepo);
         return getByUuid(uuid);
     }
 
@@ -179,7 +209,10 @@ public class ComputadoraService {
                 }
                 String nuevoRI = blankToNull(nuevoRIRaw);
                 computadoraRepository.actualizarResponsableInventario(uuid, nuevoRI);
-                return cambiarEstado(uuid, "DERIVAR_ASIGNACION", "Cambio de responsable de inventario a: " + nuevoRI);
+                CambiarEstadoDTO dto = new CambiarEstadoDTO();
+                dto.setEstado("DERIVAR_ASIGNACION");
+                dto.setMotivo("Cambio de responsable de inventario a: " + nuevoRI);
+                return cambiarEstado(uuid, dto);
             }
 
     /**

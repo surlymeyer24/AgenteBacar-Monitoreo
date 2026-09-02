@@ -25,6 +25,8 @@ public class CambioEstadoMapper {
         dto.setFechaHoraInicio(formatFechaHora(cambioEstado.getFechaHoraInicio()));
         dto.setFechaHoraFin(formatFechaHora(cambioEstado.getFechaHoraFin()));
         dto.setActivo(cambioEstado.esEstadoActual());
+        dto.setUbicacionStock(cambioEstado.getUbicacionStock());
+        dto.setResponsableInventario(cambioEstado.getResponsableInventario());
         return dto;
     }
 

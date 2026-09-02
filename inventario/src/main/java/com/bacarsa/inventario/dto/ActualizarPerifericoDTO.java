@@ -20,4 +20,6 @@ public class ActualizarPerifericoDTO {
     private String ubicacion;
     private String notas;
     private LocalDate fechaAlta;
+    private String comboId;
+    private String comboNombre;
 }

@@ -112,6 +112,8 @@ public class PerifericosAgenteListadoService {
         row.setCategoria(u.getCategoria());
         row.setClase(u.getClase());
         row.setConexion(u.getConexion());
+        row.setVid(u.getVid());
+        row.setPid(u.getPid());
         row.setPcUuid(pcUuid);
         row.setPcHostname(pcHostname);
         return row;

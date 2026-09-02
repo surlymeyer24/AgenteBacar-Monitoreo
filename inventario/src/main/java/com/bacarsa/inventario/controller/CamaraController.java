@@ -34,6 +34,13 @@ public class CamaraController {
         this.camaraService = camaraService;
     }
 
+    @GetMapping("/recientes")
+    public ResponseEntity<List<CamaraDTO>> listarRecientes(
+            @RequestParam(name = "limit", defaultValue = "8") int limit)
+            throws ExecutionException, InterruptedException {
+        return ResponseEntity.ok(camaraService.getRecientes(Math.min(limit, 50)));
+    }
+
     @GetMapping
     public ResponseEntity<List<CamaraDTO>> listar(
             @RequestParam(name = "ubicacion", required = false) String ubicacion,

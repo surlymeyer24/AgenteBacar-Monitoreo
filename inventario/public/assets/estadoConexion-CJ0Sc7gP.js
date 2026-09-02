@@ -1,0 +1,1 @@
+import{r as e}from"./syncActividad-BOvxLIFv.js";function t(t){if(e(t)===`activo`)return`Activo`;if(t?.estadoAgente)return t.estadoAgente;let n=t?.estadoConexion??t?.estado_conexion;return n==null||String(n).trim()===``?`Desconectado`:String(n).trim().toUpperCase()===`ONLINE`?`Activo`:`Desconectado`}export{t};

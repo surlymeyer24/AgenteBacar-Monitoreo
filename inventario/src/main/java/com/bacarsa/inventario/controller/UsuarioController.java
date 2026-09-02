@@ -12,12 +12,16 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.bacarsa.inventario.dto.UsuarioCreateDTO;
 import com.bacarsa.inventario.dto.UsuarioDTO;
+import com.bacarsa.inventario.dto.UsuarioAuthLookupDTO;
+import com.bacarsa.inventario.dto.UsuarioUpdateDTO;
 import com.bacarsa.inventario.services.UsuarioService;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
 @RestController
@@ -35,6 +39,22 @@ public class UsuarioController {
         return ResponseEntity.ok(usuarioService.listarTodos());
     }
 
+    @GetMapping("/me")
+    public ResponseEntity<UsuarioDTO> yo(HttpServletRequest request)
+            throws ExecutionException, InterruptedException {
+        String uid = (String) request.getAttribute("uid");
+        if (uid == null || uid.isBlank()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        return ResponseEntity.ok(usuarioService.obtenerPorId(uid));
+    }
+
+    @GetMapping("/lookup-auth")
+    public ResponseEntity<UsuarioAuthLookupDTO> buscarEnAuth(@RequestParam String email)
+            throws ExecutionException, InterruptedException {
+        return ResponseEntity.ok(usuarioService.buscarEnFirebaseAuth(email));
+    }
+
     @GetMapping("/{uid}")
     public ResponseEntity<UsuarioDTO> obtenerPorId(@PathVariable String uid)
             throws ExecutionException, InterruptedException {
@@ -49,7 +69,7 @@ public class UsuarioController {
 
     @PutMapping("/{uid}")
     public ResponseEntity<UsuarioDTO> actualizar(@PathVariable String uid,
-            @Valid @RequestBody UsuarioCreateDTO body)
+            @Valid @RequestBody UsuarioUpdateDTO body)
             throws ExecutionException, InterruptedException {
         return ResponseEntity.ok(usuarioService.actualizar(uid, body));
     }

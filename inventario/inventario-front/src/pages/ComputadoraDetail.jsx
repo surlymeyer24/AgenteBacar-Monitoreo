@@ -8,13 +8,15 @@ import {
   deleteComputadora,
 } from '../api/computadoraApi';
 import { useOptionalComputadorasList } from '../context/ComputadorasListContext';
-import AgregarPerifericoForms from '../components/AgregarPerifericoForms';
 import { UBICACIONES_COMPUTADORA } from '../constants/ubicaciones';
 import { ESTADOS_OPERATIVOS, ESTADO_OPERATIVO_LABELS } from '../constants/estados';
 import { textoConexionAgente } from '../utils/estadoConexion';
-import { filtrarUsbParaInventario, filtrarAudioParaInventario, esTeclado, esMouse, esWebcamClaseCamera } from '../utils/perifericos';
+import { filtrarUsbParaInventario, filtrarAudioParaInventario } from '../utils/perifericos';
+import WriteGate from '../components/WriteGate';
+import ComputadoraPerifericosSection from '../components/ComputadoraPerifericosSection';
+import ComputadoraSoftwareSection from '../components/ComputadoraSoftwareSection';
 import {
-  ArrowLeft, Trash2, Info, HardDrive, MemoryStick, Printer, Usb, Monitor, Speaker, Component, Terminal, CheckCircle, Shield, ShieldCheck, RotateCcw, Play, Clock, User, ChevronLeft, Laptop, Search
+  Trash2, Info, HardDrive, Monitor, CheckCircle, Clock, User, ChevronLeft, Laptop, SlidersHorizontal, ShieldCheck
 } from 'lucide-react';
 import { StudioLoading, StudioError } from '../components/studio/StudioUi';
 
@@ -57,40 +59,6 @@ function fmtUbicacion(u) {
   return u.replace(/_/g, ' ').replace(/\w\S*/g, (w) => w.charAt(0).toUpperCase() + w.substring(1).toLowerCase());
 }
 
-function fmtNumOGuion(n, dec = 1) {
-  if (n == null || n === '') return '—';
-  const x = Number(n);
-  return Number.isFinite(x) ? x.toFixed(dec) : '—';
-}
-
-const WIN_VER_KEYS_ORDER = ['edicion', 'display_version', 'build', 'ubr', 'build_lab'];
-
-const WIN_VER_LABELS = {
-  edicion: 'Edición',
-  display_version: 'Versión mostrada',
-  build: 'Build',
-  ubr: 'UBR',
-  build_lab: 'Build lab',
-};
-
-function clavesWindowsVersionDetallada(m) {
-  if (!m || typeof m !== 'object') return [];
-  const keys = new Set(Object.keys(m));
-  const ordered = WIN_VER_KEYS_ORDER.filter(k => keys.has(k));
-  const rest = [...keys].filter(k => !WIN_VER_KEYS_ORDER.includes(k)).sort();
-  return [...ordered, ...rest];
-}
-
-function valorWindowsDetallado(v) {
-  if (v == null || v === '') return '—';
-  if (typeof v === 'object') return JSON.stringify(v);
-  return String(v);
-}
-
-function limpiarNombreMonitor(n) {
-  return (n ?? '—').replace(/\u0000/g, '');
-}
-
 function ramTotalGb(modulos) {
   if (!modulos?.length) return null;
   const sum = modulos.reduce((acc, m) => acc + (Number(m.capacidadGB) || 0), 0);
@@ -120,7 +88,6 @@ function ComputadoraDetail() {
   const [eliminando, setEliminando] = useState(false);
   const [msgEliminar, setMsgEliminar] = useState(null);
   const [copiedAnydesk, setCopiedAnydesk] = useState(false);
-  const [buscarPrograma, setBuscarPrograma] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -207,28 +174,18 @@ function ComputadoraDetail() {
   }
 
   const historial = c.historialEstados ?? [];
-  const programas = c.programas ?? [];
-  const winVer = c.windowsVersionDetallada;
-  const winVerKeys = clavesWindowsVersionDetallada(winVer);
   const totalRam = ramTotalGb(c.modulos);
   const conexionTexto = textoConexionAgente(c);
   const isActivo = conexionTexto?.toLowerCase().includes('activ');
   const esNotebook = (c.tipoEquipo ?? '').toLowerCase().includes('notebook');
 
-  const programasFiltrados = programas.filter(p => {
-    if (!buscarPrograma) return true;
-    const term = buscarPrograma.toLowerCase();
-    const nombre = String(p.nombre ?? p.name ?? '').toLowerCase();
-    const editor = String(p.editor ?? p.fabricante ?? p.publisher ?? '').toLowerCase();
-    return nombre.includes(term) || editor.includes(term);
-  });
-
-  // Periféricos
-  const usbFiltrados = filtrarUsbParaInventario(c.perifericos?.dispositivosUsb ?? []);
-  const teclados = usbFiltrados.filter(u => esTeclado(u));
-  const mouse    = usbFiltrados.filter(u => esMouse(u));
-  const webcams  = usbFiltrados.filter(u => esWebcamClaseCamera(u));
-  const otrosUsb = usbFiltrados.filter(u => !esTeclado(u) && !esMouse(u) && !esWebcamClaseCamera(u));
+  const countMonitores = c.perifericos?.monitores?.length ?? 0;
+  const countImpresoras = c.perifericos?.impresoras?.length ?? 0;
+  const countUsb = filtrarUsbParaInventario(c.perifericos?.dispositivosUsb ?? []).length;
+  const countAudio =
+    filtrarAudioParaInventario(c.perifericos?.audio?.entrada ?? []).length +
+    filtrarAudioParaInventario(c.perifericos?.audio?.salida ?? []).length;
+  const countPerifericos = countMonitores + countImpresoras + countUsb + countAudio;
 
   // ── JSX ──────────────────────────────────────────────────────────
   return (
@@ -277,6 +234,7 @@ function ComputadoraDetail() {
             </button>
           )}
 
+          <WriteGate>
           <button 
             onClick={solicitarEliminar}
             disabled={eliminando}
@@ -285,26 +243,38 @@ function ComputadoraDetail() {
             <Trash2 className="w-4 h-4" />
             {eliminando ? 'Eliminando...' : 'Eliminar esta PC'}
           </button>
+          </WriteGate>
         </div>
       </div>
 
       {/* Sub-tab selection bar */}
-      <div className="flex border-b border-slate-200 bg-white px-8 shrink-0">
+      <div className="flex border-b border-slate-200 bg-white px-8 shrink-0 gap-1 overflow-x-auto">
         <button 
           onClick={() => setSolapa('hardware')}
-          className={`py-4 px-6 text-sm font-bold border-b-2 transition-all mr-2 ${solapa === 'hardware' ? 'border-[#0c66e4] text-[#0c66e4] font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+          className={`py-4 px-4 text-sm font-bold border-b-2 transition-all shrink-0 flex items-center gap-1.5 ${solapa === 'hardware' ? 'border-[#0c66e4] text-[#0c66e4] font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
         >
           Hardware
         </button>
         <button 
-          onClick={() => setSolapa('software')}
-          className={`py-4 px-6 text-sm font-bold border-b-2 transition-all ${solapa === 'software' ? 'border-[#0c66e4] text-[#0c66e4] font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+          onClick={() => setSolapa('perifericos')}
+          className={`py-4 px-4 text-sm font-bold border-b-2 transition-all shrink-0 flex items-center gap-1.5 ${solapa === 'perifericos' ? 'border-[#0c66e4] text-[#0c66e4] font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
         >
+          <SlidersHorizontal className="w-3.5 h-3.5" />
+          Periféricos & Conexiones
+          <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-blue-100 text-blue-700 font-mono font-bold">
+            {countPerifericos}
+          </span>
+        </button>
+        <button 
+          onClick={() => setSolapa('software')}
+          className={`py-4 px-4 text-sm font-bold border-b-2 transition-all shrink-0 flex items-center gap-1.5 ${solapa === 'software' ? 'border-[#0c66e4] text-[#0c66e4] font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+        >
+          <ShieldCheck className="w-3.5 h-3.5" />
           Software
         </button>
         <button 
           onClick={() => setSolapa('asignacion')}
-          className={`py-4 px-6 text-sm font-bold border-b-2 transition-all ${solapa === 'asignacion' ? 'border-[#0c66e4] text-[#0c66e4] font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+          className={`py-4 px-4 text-sm font-bold border-b-2 transition-all shrink-0 ${solapa === 'asignacion' ? 'border-[#0c66e4] text-[#0c66e4] font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
         >
           Inventario / Asignación
         </button>
@@ -369,207 +339,40 @@ function ComputadoraDetail() {
               </div>
             )}
 
-            {/* Periféricos enlazados */}
-            <div className="pt-2">
-              <h3 className="text-base font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-2">
-                <Usb className="w-6 h-6 text-slate-600" />
-                Periféricos
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                
-                {/* Monitores */}
-                <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-3.5">
-                  <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wide flex items-center gap-1.5 border-b border-slate-100 pb-2.5">
-                    <Monitor className="w-4 h-4 text-[#0c66e4]" />
-                    Monitores Conectados
-                  </h4>
-                  <div className="space-y-2">
-                    {c.perifericos?.monitores?.length > 0 ? (
-                      c.perifericos.monitores.map((m, i) => (
-                        <div key={i} className="text-xs bg-slate-50 border border-slate-200 p-3 rounded-lg shadow-sm hover:bg-slate-100/50 transition-colors">
-                          <span className="font-extrabold text-slate-800 block text-[11px]">{limpiarNombreMonitor(m.nombre)}</span>
-                          <span className="text-[10px] text-slate-500 block mt-1">Resolución: {m.resolucion || '—'} <span className="text-slate-300 mx-1">|</span> {fmtNumOGuion(m.pulgadas, 1)}"</span>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="text-xs text-slate-400 italic">No detectados.</div>
-                    )}
-                  </div>
+            <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-blue-50 text-blue-600 shrink-0">
+                  <SlidersHorizontal className="w-5 h-5" />
                 </div>
-
-                {/* Impresoras */}
-                <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-3.5">
-                  <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wide flex items-center gap-1.5 border-b border-slate-100 pb-2.5">
-                    <Printer className="w-4 h-4 text-[#0c66e4]" />
-                    Impresoras Enlazadas
-                  </h4>
-                  <div className="space-y-2">
-                    {c.perifericos?.impresoras?.length > 0 ? (
-                      c.perifericos.impresoras.map((prn, i) => (
-                        <div key={i} className="text-xs bg-slate-50 border border-slate-200 p-3 rounded-lg shadow-sm hover:bg-slate-100/50 transition-colors">
-                          <span className="font-extrabold text-slate-800 block text-[11px]">{prn.nombre || '—'}</span>
-                          <span className="text-[10px] text-slate-500 block mt-1">Driver: {prn.driver || '—'} <span className="text-slate-300 mx-1">|</span> Pto: {prn.puerto || '—'}</span>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="text-xs text-slate-400 italic">No detectadas.</div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Teclados / Mouse */}
-                <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-3.5">
-                  <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wide flex items-center gap-1.5 border-b border-slate-100 pb-2.5">
-                    <MemoryStick className="w-4 h-4 text-[#0c66e4]" />
-                    Entrada (USB)
-                  </h4>
-                  <div className="space-y-2">
-                    {teclados.length > 0 || mouse.length > 0 ? (
-                      <>
-                        {teclados.map((t, i) => (
-                          <div key={'t'+i} className="text-xs bg-slate-50 border border-slate-200 p-3 rounded-lg shadow-sm hover:bg-slate-100/50 transition-colors">
-                            <span className="font-extrabold text-slate-800 block text-[11px]">{t.nombre}</span>
-                            <span className="text-[10px] text-slate-500 block mt-1">Dispositivo: Teclado {t.fabricante ? `<span class="text-slate-300 mx-1">|</span> Fab: ${t.fabricante}` : ''}</span>
-                          </div>
-                        ))}
-                        {mouse.map((m, i) => (
-                          <div key={'m'+i} className="text-xs bg-slate-50 border border-slate-200 p-3 rounded-lg shadow-sm hover:bg-slate-100/50 transition-colors">
-                            <span className="font-extrabold text-slate-800 block text-[11px]">{m.nombre}</span>
-                            <span className="text-[10px] text-slate-500 block mt-1">Dispositivo: Mouse {m.fabricante ? `<span class="text-slate-300 mx-1">|</span> Fab: ${m.fabricante}` : ''}</span>
-                          </div>
-                        ))}
-                      </>
-                    ) : (
-                      <div className="text-xs text-slate-400 italic">No detectados.</div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Multimedia (Audio / Webcams) */}
-                <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-3.5">
-                  <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wide flex items-center gap-1.5 border-b border-slate-100 pb-2.5">
-                    <Speaker className="w-4 h-4 text-[#0c66e4]" />
-                    Multimedia & Otros
-                  </h4>
-                  <div className="space-y-2">
-                    {webcams.length > 0 || otrosUsb.length > 0 ? (
-                      <>
-                        {webcams.map((w, i) => (
-                          <div key={'w'+i} className="text-xs bg-slate-50 border border-slate-200 p-3 rounded-lg shadow-sm hover:bg-slate-100/50 transition-colors">
-                            <span className="font-extrabold text-slate-800 block text-[11px]">{w.nombre}</span>
-                            <span className="text-[10px] text-slate-500 block mt-1">Dispositivo: Webcam {w.fabricante ? `<span class="text-slate-300 mx-1">|</span> Fab: ${w.fabricante}` : ''}</span>
-                          </div>
-                        ))}
-                        {otrosUsb.slice(0, 3).map((o, i) => (
-                          <div key={'o'+i} className="text-xs bg-slate-50 border border-slate-200 p-3 rounded-lg shadow-sm hover:bg-slate-100/50 transition-colors">
-                            <span className="font-extrabold text-slate-800 block text-[11px] truncate" title={o.nombre}>{o.nombre}</span>
-                            <span className="text-[10px] text-slate-500 block mt-1">Dispositivo: Genérico {o.fabricante ? `<span class="text-slate-300 mx-1">|</span> Fab: ${o.fabricante}` : ''}</span>
-                          </div>
-                        ))}
-                      </>
-                    ) : (
-                      <div className="text-xs text-slate-400 italic">No detectados.</div>
-                    )}
-                  </div>
-                </div>
-
-              </div>
-
-              {/* Agregar Periférico Manualmente */}
-              <div className="mt-6 bg-slate-50/50 border border-slate-200 rounded-xl p-5 shadow-sm space-y-3.5">
-                <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wide flex items-center gap-2 border-b border-slate-100 pb-3">
-                  <Usb className="w-4 h-4 text-slate-500" />
-                  Agregar Periférico Manualmente
-                </h4>
-                <div className="pt-2">
-                  <AgregarPerifericoForms uuid={uuid} onActualizado={data => { setC(data); listado?.mergeEnListado?.(data); }} />
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900">Periféricos & dispositivos vinculados</h4>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {countMonitores} monitor(es) • {countImpresoras} impresora(s) • {countUsb + countAudio} periférico(s) USB / audio
+                  </p>
                 </div>
               </div>
+              <button
+                type="button"
+                onClick={() => setSolapa('perifericos')}
+                className="px-3.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs rounded-lg transition-colors shrink-0 self-start sm:self-auto cursor-pointer"
+              >
+                Ver y administrar periféricos →
+              </button>
             </div>
-
-
 
           </div>
         )}
 
-        {/* 2. SOFTWARE TAB CONTENTS (MATCHES SECOND SCREENSHOT) */}
+        {solapa === 'perifericos' && (
+          <ComputadoraPerifericosSection
+            computadora={c}
+            uuid={uuid}
+            onActualizado={data => { setC(data); listado?.mergeEnListado?.(data); }}
+          />
+        )}
+
         {solapa === 'software' && (
-          <div className="space-y-6">
-            
-            {/* Operating System details card */}
-            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-5">
-              <h4 className="text-sm font-extrabold text-slate-800 uppercase tracking-widest flex items-center gap-2 pb-3 border-b border-slate-100">
-                <CheckCircle className="w-5 h-5 text-[#0c66e4]" />
-                Sistema operativo
-              </h4>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-y-5 gap-x-6 text-sm">
-                <div>
-                  <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">Sistema Operativo</span>
-                  <span className="font-semibold text-slate-800 block mt-1">{c.sistemaOperativo || '—'}</span>
-                </div>
-                {winVerKeys.map(k => (
-                  <div key={k} className={k === 'build_lab' ? 'overflow-hidden col-span-2 md:col-span-1' : ''}>
-                    <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">{WIN_VER_LABELS[k] ?? k}</span>
-                    <span className={`font-semibold text-slate-800 block mt-1 ${k === 'build_lab' ? 'select-all font-mono text-xs truncate' : ''}`} title={valorWindowsDetallado(winVer[k])}>
-                      {valorWindowsDetallado(winVer[k])}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Programas Instalados table */}
-            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-5">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <h4 className="text-sm font-extrabold text-slate-800 uppercase tracking-widest flex items-center gap-2">
-                  <Play className="w-4 h-4 text-emerald-500 rotate-90 shrink-0 select-none pb-0.5" />
-                  Programas instalados
-                </h4>
-                <div className="relative max-w-sm w-full">
-                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input 
-                    type="text" 
-                    placeholder="Buscar programa..." 
-                    value={buscarPrograma}
-                    onChange={e => setBuscarPrograma(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs rounded-lg pl-9 pr-3 py-2 font-medium focus:bg-white focus:outline-none focus:border-[#0c66e4]"
-                  />
-                </div>
-              </div>
-              
-              <div className="overflow-x-auto border border-slate-200 rounded-xl bg-white shadow-sm">
-                <table className="w-full text-left border-collapse text-sm">
-                  <thead>
-                    <tr className="bg-slate-50/80 border-b border-slate-200 text-xs font-extrabold text-slate-500 uppercase tracking-wider">
-                      <th className="py-3 px-5 font-bold">NOMBRE</th>
-                      <th className="py-3 px-5 font-bold">VERSIÓN</th>
-                      <th className="py-3 px-5 font-bold">EDITOR</th>
-                      <th className="py-3 px-5 font-bold">FECHA_INSTALACIÓN</th>
-                      <th className="py-3 px-5 font-bold">RUTA</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {programasFiltrados.length > 0 ? programasFiltrados.map((prog, i) => (
-                      <tr key={prog.documentoId ?? i} className="hover:bg-slate-50/50 transition-colors text-xs leading-snug">
-                        <td className="py-3 px-5 font-bold text-slate-900">{prog.nombre ?? prog.name ?? '—'}</td>
-                        <td className="py-3 px-5 font-mono text-slate-700">{prog.version ?? '—'}</td>
-                        <td className="py-3 px-5 text-slate-500 font-semibold">{prog.editor ?? prog.fabricante ?? prog.publisher ?? '—'}</td>
-                        <td className="py-3 px-5 font-mono text-slate-500">{prog.fecha_instalacion ?? prog.fechaInstalacion ?? '—'}</td>
-                        <td className="py-3 px-5 font-mono text-slate-400 truncate max-w-[200px]" title={prog.ruta ?? prog.ruta_instalacion ?? prog.install_location}>{prog.ruta ?? prog.ruta_instalacion ?? prog.install_location ?? '—'}</td>
-                      </tr>
-                    )) : (
-                      <tr>
-                        <td colSpan="5" className="py-6 text-center text-slate-400 italic">
-                          {buscarPrograma ? 'No se encontraron programas con esa bǭsqueda.' : 'No hay programas registrados.'}
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-          </div>
+          <ComputadoraSoftwareSection computadora={c} />
         )}
 
       
@@ -625,6 +428,7 @@ function ComputadoraDetail() {
             </div>
 
             {/* Operational controls */}
+            <WriteGate>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               
               {/* ASIGNADO EN INVENTARIO */}
@@ -728,6 +532,7 @@ function ComputadoraDetail() {
                 </button>
               </div>
             </div>
+            </WriteGate>
 
             {/* HISTORIAL DE ESTADOS (IT) */}
             <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-3.5">

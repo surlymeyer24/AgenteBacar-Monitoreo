@@ -19,6 +19,8 @@ public class UsuarioMapper {
         dto.setEmail(usuario.getEmail());
         dto.setRol(usuario.getRol() == null ? null : usuario.getRol().name());
         dto.setActivo(usuario.isActivo());
+        dto.setTienePerfil(true);
+        dto.setEnAuth(false);
         return dto;
     }
 

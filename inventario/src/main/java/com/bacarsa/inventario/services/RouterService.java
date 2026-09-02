@@ -57,7 +57,8 @@ public class RouterService {
         router.setCantidadPuertosLan(dto.getCantidadPuertosLan());
         router.setGateway(blankToNull(dto.getGateway()));
         router.setUbicacion(ubicacion);
-        router.setFechaAlta(dto.getFechaAlta() != null ? dto.getFechaAlta() : LocalDate.now());
+        LocalDate fa = dto.getFechaAlta() != null ? dto.getFechaAlta() : LocalDate.now();
+        router.setFechaAlta(fa.toString());
 
         String id = routerRepository.create(router);
         return RouterMapper.toDTO(routerRepository.findById(id));
@@ -99,6 +100,21 @@ public class RouterService {
         return s.trim();
     }
 
+    /** Firestore {@code update} no acepta null; los campos editables del form van como string (vacío si se limpia). */
+    private static String blankToEmpty(String s) {
+        if (s == null || s.isBlank()) {
+            return "";
+        }
+        return s.trim();
+    }
+
+    /** Solo incluye el campo si el cliente lo envió (evita pisar datos Omada no editados en el modal). */
+    private static void putSiPresente(Map<String, Object> campos, String key, String value) {
+        if (value != null && !value.isBlank()) {
+            campos.put(key, value.trim());
+        }
+    }
+
     public RouterDTO update(String id, RouterCreateDTO dto) throws ExecutionException, InterruptedException {
         Router routerExistente = routerRepository.findById(id);
         if (routerExistente == null) {
@@ -106,7 +122,7 @@ public class RouterService {
         }
 
         validarCrear(dto);
-        
+
         UbicacionRed ubicacion;
         try {
             ubicacion = UbicacionRed.valueOf(dto.getUbicacion().trim());
@@ -116,28 +132,41 @@ public class RouterService {
 
         Map<String, Object> campos = new HashMap<>();
         campos.put("nombre", dto.getNombre().trim());
-        campos.put("marca", blankToNull(dto.getMarca()));
-        campos.put("modelo", blankToNull(dto.getModelo()));
-        campos.put("ip", blankToNull(dto.getIp()));
-        campos.put("numero_serie", blankToNull(dto.getNumeroSerie()));
-        campos.put("sitio", blankToNull(dto.getSitio()));
-        campos.put("ip_publica", blankToNull(dto.getIpPublica()));
-        campos.put("estado", blankToNull(dto.getEstadoOmada())); 
-        campos.put("version", blankToNull(dto.getVersion()));
-        campos.put("mac_uplink", blankToNull(dto.getMacUplink()));
-        campos.put("salto", dto.getSalto());
-        campos.put("grupo_wlan", blankToNull(dto.getGrupoWlan()));
-        campos.put("firmware", blankToNull(dto.getFirmware()));
+        campos.put("marca", blankToEmpty(dto.getMarca()));
+        campos.put("modelo", blankToEmpty(dto.getModelo()));
+        campos.put("ip", blankToEmpty(dto.getIp()));
+        campos.put("numero_serie", blankToEmpty(dto.getNumeroSerie()));
+        campos.put("firmware", blankToEmpty(dto.getFirmware()));
         campos.put("cantidad_puertos_wan", dto.getCantidadPuertosWan());
         campos.put("cantidad_puertos_lan", dto.getCantidadPuertosLan());
-        campos.put("gateway", blankToNull(dto.getGateway()));
+        campos.put("gateway", blankToEmpty(dto.getGateway()));
         campos.put("ubicacion", ubicacion.name());
-        
-        LocalDate fecha = dto.getFechaAlta() != null ? dto.getFechaAlta() : LocalDate.now();
-        campos.put("fecha_alta", fecha.toString()); 
+
+        if (dto.getFechaAlta() != null) {
+            campos.put("fecha_alta", dto.getFechaAlta().toString());
+        }
+
+        // Campos Omada: conservar si el front no los manda
+        putSiPresente(campos, "sitio", dto.getSitio());
+        putSiPresente(campos, "ip_publica", dto.getIpPublica());
+        putSiPresente(campos, "estado", dto.getEstadoOmada());
+        putSiPresente(campos, "version", dto.getVersion());
+        putSiPresente(campos, "mac_uplink", dto.getMacUplink());
+        putSiPresente(campos, "grupo_wlan", dto.getGrupoWlan());
+        if (dto.getSalto() != null) {
+            campos.put("salto", dto.getSalto());
+        }
 
         routerRepository.update(id, campos);
 
         return obtenerPorId(id);
+    }
+
+    public boolean eliminar(String id) throws ExecutionException, InterruptedException {
+        if (routerRepository.findById(id) == null) {
+            return false;
+        }
+        routerRepository.deleteById(id);
+        return true;
     }
 }

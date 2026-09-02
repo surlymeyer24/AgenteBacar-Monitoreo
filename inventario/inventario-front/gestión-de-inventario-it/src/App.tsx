@@ -51,6 +51,7 @@ export default function App() {
   const [hardwareExpanded, setHardwareExpanded] = useState(true);
   const [perifericosExpanded, setPerifericosExpanded] = useState(true);
   const [infraestructuraExpanded, setInfraestructuraExpanded] = useState(true);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Active View
   // Values: 'dashboard' | 'computadoras' | 'impresoras' | 'monitores' | 'teclados' | 'mouse' | 'webcams' | 'parlantes' | 'microfonos' | 'stock' | 'nvr' | 'camaras' | 'routers' | 'switches' | 'tesoreria_maq' | 'sistema' | 'assignments' | 'users'
@@ -326,6 +327,7 @@ export default function App() {
   // e.g. sidebar tabs.
   const handleSidebarClick = (view: string) => {
     setCurrentView(view);
+    setMobileMenuOpen(false);
   };
 
   // Filter computer assets
@@ -360,10 +362,44 @@ export default function App() {
 
   return (
     <div className="app-root">
+      {/* Mobile Header Bar */}
+      <div className="mobile-header">
+        <button 
+          onClick={() => setMobileMenuOpen(true)}
+          className="mobile-header-btn"
+          title="Abrir menú"
+        >
+          <Menu className="w-5 h-5 text-slate-300" />
+        </button>
+        <div className="flex items-center gap-2">
+          <span className="p-1 rounded-md bg-red-600 inline-flex">
+            <Disc className="w-3.5 h-3.5 text-white animate-spin" style={{ animationDuration: '6s' }} />
+          </span>
+          <span className="font-extrabold tracking-tight text-white font-sans text-sm leading-none">
+            IT-Bacar
+          </span>
+        </div>
+        <button 
+          onClick={() => { setIsAuthenticated(false); setCurrentView('dashboard'); }}
+          className="mobile-header-btn text-rose-400 hover:text-rose-300 transition-colors"
+          title="Cerrar sesión"
+        >
+          <LogOut className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Backdrop overlay for mobile menu drawer */}
+      {mobileMenuOpen && (
+        <div 
+          className="mobile-backdrop" 
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
       <div className="layout">
         
-        {/* SIDEBAR NAVIGATION BLOCK - COLLAPSIBLE */}
-        <div className={`sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
+        {/* SIDEBAR NAVIGATION BLOCK - COLLAPSIBLE & MOBILE DRAWER */}
+        <div className={`sidebar ${sidebarCollapsed ? 'collapsed' : ''} ${mobileMenuOpen ? 'mobile-open' : ''}`}>
           <div className="sidebar-header">
             <span className="logo">
               <span className="logo-icon">
@@ -375,10 +411,17 @@ export default function App() {
             </span>
             <button 
               onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              className="sidebar-toggle"
+              className="sidebar-toggle hidden lg:flex"
               title={sidebarCollapsed ? "Expandir" : "Encoger"}
             >
               {sidebarCollapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}
+            </button>
+            <button 
+              onClick={() => setMobileMenuOpen(false)}
+              className="sidebar-close lg:hidden flex"
+              title="Cerrar menú"
+            >
+              <X className="w-4.5 h-4.5 text-slate-400" />
             </button>
           </div>
 

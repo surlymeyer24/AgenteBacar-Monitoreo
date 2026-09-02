@@ -1,21 +1,28 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Outlet } from 'react-router-dom';
-import { fetchComputadoras } from '../api/computadoraApi';
+import { useQueryClient } from '@tanstack/react-query';
+import { useComputadoras } from '../hooks/useQueries';
 import { ComputadorasListContext } from '../context/ComputadorasListContext';
 
 export default function ComputadorasListLayout() {
-  const [todas, setTodas] = useState([]);
-  const [cargando, setCargando] = useState(true);
-  const [error, setError] = useState(null);
+  const queryClient = useQueryClient();
+  const { data: todas = [], isLoading: cargando, error: queryError } = useComputadoras();
+  const error = queryError ? 'No se pudo conectar con el servidor' : null;
 
-  const recargar = useCallback(() => {
-    setCargando(true);
-    setError(null);
-    return fetchComputadoras()
-      .then(setTodas)
-      .catch(() => setError('No se pudo conectar con el servidor'))
-      .finally(() => setCargando(false));
-  }, []);
+  const setTodas = useCallback(
+    updater => {
+      queryClient.setQueryData(['computadoras', {}], prev => {
+        if (typeof updater === 'function') return updater(prev ?? []);
+        return updater;
+      });
+    },
+    [queryClient],
+  );
+
+  const recargar = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: ['computadoras'] }),
+    [queryClient],
+  );
 
   const mergeEnListado = useCallback(dto => {
     if (!dto?.uuid) return;
@@ -26,16 +33,12 @@ export default function ComputadorasListLayout() {
       next[i] = { ...next[i], ...dto };
       return next;
     });
-  }, []);
+  }, [setTodas]);
 
   const removeEnListado = useCallback(uuid => {
     if (!uuid) return;
     setTodas(prev => prev.filter(p => p.uuid !== uuid));
-  }, []);
-
-  useEffect(() => {
-    recargar();
-  }, [recargar]);
+  }, [setTodas]);
 
   const value = useMemo(
     () => ({
@@ -47,7 +50,7 @@ export default function ComputadorasListLayout() {
       mergeEnListado,
       removeEnListado,
     }),
-    [todas, cargando, error, recargar, mergeEnListado, removeEnListado],
+    [todas, setTodas, cargando, error, recargar, mergeEnListado, removeEnListado],
   );
 
   return (

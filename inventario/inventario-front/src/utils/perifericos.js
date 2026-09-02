@@ -98,6 +98,12 @@ export function filtrarUsbParaInventario(dispositivos) {
   return filtrarUsbSinDuplicadoWebcamCam(dispositivos).filter(d => !debeOcultarUsbParaInventario(d));
 }
 
+/** En la ficha QR solo se muestran teclado y mouse (los monitores van en otra lista). */
+export function esPerifericoParaFichaQr(item) {
+  const blob = `${item?.tipo ?? ''} ${item?.nombre ?? ''} ${item?.detalle ?? ''}`.toLowerCase();
+  return blob.includes('teclado') || blob.includes('keyboard') || blob.includes('mouse');
+}
+
 function debeOcultarAudioParaInventario(a) {
   const nombre = norm(a?.nombre);
   // Salidas de audio por HDMI/DisplayPort (GPU o placa madre) — no son parlantes físicos

@@ -3,7 +3,7 @@
 
 @theme {
   --font-sans: 'Inter', system-ui, sans-serif;
-  --font-family-mono: 'JetBrains Mono', monospace;
+  --font-mono: 'JetBrains Mono', monospace;
 }
 
 :root {
@@ -361,7 +361,7 @@ button.login-submit:hover {
 .sidebar-auth-email {
   margin: 0 0 0.5rem;
   font-size: 0.72rem;
-  font-family: var(--font-family-mono);
+  font-family: var(--font-mono);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -772,4 +772,175 @@ button.nav-group-header {
   color: var(--color-sidebar-bar);
   border-bottom-color: var(--color-sidebar-bar);
   font-weight: 600;
+}
+
+/* ==========================================================================
+   MOBILE RESPONSIVENESS AND DRAWERS STYLE REGISTRY
+   ========================================================================== */
+
+/* Mobile Header - Only visible under 1024px */
+.mobile-header {
+  display: none;
+  height: 56px;
+  background: #090a12;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0 1.25rem;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  z-index: 40;
+}
+
+.mobile-header-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.mobile-header-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.mobile-header-btn:active {
+  transform: scale(0.95);
+}
+
+/* Semi-transparent backdrop blur for mobile menu */
+.mobile-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(3, 4, 8, 0.65);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  z-index: 45;
+  animation: fadeIn 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Close button on sidebar (only shows on mobile drawer) */
+.sidebar-close {
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.45);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sidebar-close:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Responsive adjustment for screens smaller than 1024px width */
+@media (max-width: 1023px) {
+  .mobile-header {
+    display: flex;
+  }
+  
+  .layout {
+    gap: 0;
+  }
+  
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    height: 100vh;
+    z-index: 50;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 15px 0 35px rgba(0, 0, 0, 0.8);
+    width: 270px !important;
+  }
+  
+  .sidebar.mobile-open {
+    transform: translateX(0);
+  }
+  
+  .sidebar.collapsed {
+    transform: translateX(-100%); /* Ensure it stays completely hidden if toggle collapsed state changes */
+  }
+
+  .main {
+    padding: 1rem 0.75rem;
+  }
+
+  .main-scroll {
+    padding-right: 0;
+  }
+
+  /* Optimize layout heights for mobile widgets */
+  .grid {
+    gap: 1rem !important;
+  }
+
+  /* Responsive Login Page Panel adjustments */
+  .login-page {
+    height: auto;
+    min-height: 100vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+  }
+
+  .login-container {
+    flex-direction: column;
+    gap: 2rem;
+    padding: 1.5rem 1rem;
+    width: 100%;
+    align-items: center;
+  }
+
+  .login-left {
+    padding: 3rem 1rem 1rem;
+    text-align: center;
+    align-items: center;
+    flex: none;
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+
+  .login-left-desc {
+    max-width: 100%;
+  }
+
+  .login-right {
+    width: 100%;
+    min-width: 0;
+    max-width: 480px;
+    padding: 1rem 0;
+    margin: 0 auto;
+    display: flex;
+    justify-content: center;
+  }
+
+  .login-bracket-wrap {
+    padding: 10px;
+  }
+
+  .login-card-header {
+    font-size: 2.5rem;
+    top: 10px;
+    padding: 0.3rem 1rem;
+  }
 }

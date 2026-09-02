@@ -90,20 +90,21 @@ function ImportModal({ isOpen, onClose, onImport, schema, entityName, isImportin
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
-            className="bg-white border border-slate-200 rounded-xl max-w-5xl w-full overflow-hidden shadow-2xl flex flex-col"
+            className="bg-white border border-slate-200 rounded-xl max-w-5xl w-full overflow-hidden shadow-2xl flex flex-col border-t-[3px] border-t-accent"
             onClick={e => e.stopPropagation()}
           >
             {/* Header */}
             <div className="px-6 py-4 border-b border-slate-150 bg-slate-50 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 bg-emerald-50 text-emerald-700 rounded-lg">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className="w-1.5 h-8 rounded-full bg-accent shrink-0" aria-hidden />
+                <div className="p-2 bg-emerald-50 text-emerald-700 rounded-lg shrink-0">
                   <Upload className="w-5 h-5 text-emerald-600" />
                 </div>
-                <div>
-                  <h2 className="text-sm font-black text-slate-900 leading-tight">
+                <div className="min-w-0">
+                  <h2 className="text-sm font-black text-slate-900 leading-tight uppercase tracking-wide">
                     Importación Masiva: {entityName}
                   </h2>
-                  <p className="text-[10px] text-slate-400 font-medium mt-0.5">Sube tu archivo de datos. Podrás revisar y editar la tabla antes de guardar.</p>
+                  <p className="text-xs text-slate-400 font-medium mt-0.5">Sube tu archivo de datos. Podrás revisar y editar la tabla antes de guardar.</p>
                 </div>
               </div>
               <button 
@@ -142,7 +143,7 @@ function ImportModal({ isOpen, onClose, onImport, schema, entityName, isImportin
                     </div>
                     <div>
                       <p className="text-sm font-black text-slate-800">Arrastra tu planilla aquí o haz clic para seleccionar</p>
-                      <p className="text-[11px] text-slate-400 font-medium font-sans mt-1">Soporta formatos estándar de planilla de cálculo (.xlsx, .xls, .csv, .json)</p>
+                      <p className="text-xs text-slate-400 font-medium font-sans mt-1">Soporta formatos estándar de planilla de cálculo (.xlsx, .xls, .csv, .json)</p>
                     </div>
                     <input 
                       type="file" 
@@ -156,13 +157,16 @@ function ImportModal({ isOpen, onClose, onImport, schema, entityName, isImportin
                     <Info className="w-4.5 h-4.5 text-slate-400 shrink-0 mt-0.5" />
                     <div>
                       <span className="font-bold text-slate-900 block text-xs">Instrucciones del importador inteligente</span>
-                      <p className="text-[11px] text-slate-500 font-medium font-sans mt-0.5 leading-relaxed">
+                      <p className="text-xs text-slate-500 font-medium font-sans mt-0.5 leading-relaxed">
                         El sistema mapeará automáticamente las columnas basadas en cabeceras conocidas. Una vez cargado el archivo, podrás visualizar todas las filas y hacer ediciones rápidas.
                       </p>
                       <div className="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg">
-                        <span className="font-bold text-blue-900 block text-[10px] uppercase tracking-wider mb-1">Columnas detectadas automáticamente:</span>
-                        <p className="text-[11px] text-blue-800 font-mono">
+                        <span className="font-bold text-blue-900 block text-xs uppercase tracking-wider mb-1">Nombres de columnas esperados en tu Excel:</span>
+                        <p className="text-xs text-blue-800 font-mono">
                           {Object.values(schema).map(arr => arr[0] || '').join(', ')}
+                        </p>
+                        <p className="text-xs text-blue-700/80 mt-1">
+                          (El sistema también intentará reconocer variaciones comunes de estos nombres automáticamente).
                         </p>
                       </div>
                     </div>
@@ -178,7 +182,7 @@ function ImportModal({ isOpen, onClose, onImport, schema, entityName, isImportin
                       </div>
                       <div>
                         <p className="font-extrabold text-slate-900 text-xs">Lectura de archivo correcta</p>
-                        <p className="text-[10px] text-slate-500 font-bold font-mono uppercase leading-tight mt-0.5">
+                        <p className="text-xs text-slate-500 font-bold font-mono uppercase leading-tight mt-0.5">
                           {file?.name} - {previewData.length} filas detectadas
                         </p>
                       </div>
@@ -186,7 +190,7 @@ function ImportModal({ isOpen, onClose, onImport, schema, entityName, isImportin
                     <button
                       type="button"
                       onClick={clearFile}
-                      className="text-[11px] text-rose-600 hover:text-rose-800 hover:underline font-bold"
+                      className="text-xs text-rose-600 hover:text-rose-800 hover:underline font-bold"
                       disabled={isImporting}
                     >
                       Limpiar y cargar otro archivo
@@ -194,20 +198,20 @@ function ImportModal({ isOpen, onClose, onImport, schema, entityName, isImportin
                   </div>
 
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between text-[11px] text-slate-500 font-bold">
+                    <div className="flex items-center justify-between text-xs text-slate-500 font-bold">
                       <div className="flex items-center gap-3">
                         <span>PREVIEW - HAZ CLIC EN LAS CELDAS PARA MODIFICAR:</span>
                         {existingData && existingData.length > 0 && (
                           <div className="flex items-center gap-2">
-                            <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded text-[10px] border border-emerald-200">Nuevos: {previewData.filter(r => !checkIfExists(r)).length}</span>
-                            <span className="px-2 py-0.5 bg-orange-100 text-orange-700 rounded text-[10px] border border-orange-200">Duplicados: {previewData.filter(r => checkIfExists(r)).length}</span>
+                            <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded text-xs border border-emerald-200">Nuevos: {previewData.filter(r => !checkIfExists(r)).length}</span>
+                            <span className="px-2 py-0.5 bg-orange-100 text-orange-700 rounded text-xs border border-orange-200">Duplicados: {previewData.filter(r => checkIfExists(r)).length}</span>
                           </div>
                         )}
                       </div>
                       <button
                         type="button"
                         onClick={addRow}
-                        className="px-2 py-1.5 text-[10px] bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 rounded transition-all font-extrabold flex items-center gap-1 font-sans"
+                        className="px-2 py-1.5 text-xs bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 rounded transition-all font-extrabold flex items-center gap-1 font-sans"
                         disabled={isImporting}
                       >
                         <Plus className="w-3.5 h-3.5 text-slate-600" />
@@ -218,7 +222,7 @@ function ImportModal({ isOpen, onClose, onImport, schema, entityName, isImportin
                     <div className="border border-slate-200 rounded-xl overflow-hidden max-h-[50vh] overflow-y-auto shadow-sm bg-white">
                       <table className="w-full text-left border-collapse font-sans">
                         <thead className="sticky top-0 z-10 bg-slate-100 shadow-sm border-b border-slate-200">
-                          <tr className="text-[10px] font-black text-slate-600 uppercase tracking-widest leading-none">
+                          <tr className="text-xs font-black text-slate-600 uppercase tracking-widest leading-none">
                             <th className="py-3 px-3 w-12 text-center">Nº</th>
                             <th className="py-3 px-3 w-20 text-center">Estado</th>
                             {columns.map(col => (
@@ -229,7 +233,7 @@ function ImportModal({ isOpen, onClose, onImport, schema, entityName, isImportin
                             <th className="py-3 px-3 text-center w-16">Acción</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100 text-[11px]">
+                        <tbody className="divide-y divide-slate-100 text-xs">
                           {previewData.map((row, idx) => {
                             const yaExiste = checkIfExists(row);
                             return (
@@ -239,11 +243,11 @@ function ImportModal({ isOpen, onClose, onImport, schema, entityName, isImportin
                               </td>
                               <td className="py-2.5 px-2 align-middle text-center">
                                 {yaExiste ? (
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-orange-100 text-orange-700 border border-orange-200" title="Posible duplicado (Coincide IP, Nro Serie, MAC o Nombre)">
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-bold bg-orange-100 text-orange-700 border border-orange-200" title="Posible duplicado (Coincide IP, Nro Serie, MAC o Nombre)">
                                     ⚠️ Existe
                                   </span>
                                 ) : (
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">
                                     ✅ Nuevo
                                   </span>
                                 )}

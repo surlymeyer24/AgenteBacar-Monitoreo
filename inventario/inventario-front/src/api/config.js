@@ -1,5 +1,5 @@
 /** Origen del backend Spring (sin barra final). Producción: VITE_API_ORIGIN en build (obligatorio en vite.config.js). */
-const defaultDevOrigin = 'http://localhost:8080';
+const defaultDevOrigin = 'http://localhost:8081';
 
 function trimOrigin(raw) {
   if (raw == null || String(raw).trim() === '') return '';

@@ -56,3 +56,11 @@ export function actualizarRouter(id, data) {
     return res.json();
   });
 }
+
+export function deleteRouter(id) {
+  return apiFetch(`${BASE_URL}/${encodeURIComponent(id)}`, { method: 'DELETE' }).then(res => {
+    if (res.status === 404) return false;
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return true;
+  });
+}

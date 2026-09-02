@@ -34,9 +34,14 @@ public class DashboardStatsDTO {
     private Map<String, Integer> porUbicacionCamaras;
     private int totalRouters;
     private int totalSwitches;
+    private int totalAccessPoints;
     private Map<String, Integer> porEstadoRouters;
     private Map<String, Integer> porEstadoSwitches;
     private Map<String, Integer> porUbicacionRouters;
     private Map<String, Integer> porUbicacionSwitches;
     private List<CambioRecienteDTO> ultimosCambios;
+    private int totalTelefonos;
+    private int totalNotebooks;
+    private int totalDesktops;
+    private int stockPcsSinAsignar;
 }

@@ -8,8 +8,8 @@ import { UBICACIONES_COMPUTADORA, labelUbicacionEnum, coincideUbicacionFiltro } 
 import { textoConexionAgente } from '../utils/estadoConexion';
 import {
   nivelActividadSync,
-  CICLO_SYNC_AGENTE_MINUTOS,
   MINUTOS_LABEL_UMBRAL_ACTIVO,
+  tituloSyncDot,
 } from '../utils/syncActividad';
 import {
   StudioPageShell,
@@ -25,6 +25,9 @@ import {
   estadoBadgeClass,
   osBadgeClass,
 } from '../components/studio/StudioUi';
+import TableFilters from '../components/TableFilters';
+import WriteGate from '../components/WriteGate';
+import { usePermisos } from '../hooks/usePermisos';
 
 const ORDEN_OPTS = [
   { value: 'hostname-asc', label: 'Hostname A-Z' },
@@ -90,19 +93,9 @@ function coincideFiltroActividadSync(c, filtro) {
   return true;
 }
 
-function tituloSyncDot(n) {
-  if (n === 'activo') {
-    return `Sync reciente (ciclo agente ~${CICLO_SYNC_AGENTE_MINUTOS} min; menos de ~${MINUTOS_LABEL_UMBRAL_ACTIVO} min)`;
-  }
-  if (n === 'intermedio') {
-    return `Última sync entre ~${MINUTOS_LABEL_UMBRAL_ACTIVO} minutos y 1 hora`;
-  }
-  if (n === 'sin_actividad') return 'Sin sync hace más de 1 hora';
-  return 'Sin datos de última sincronización';
-}
-
 function ComputadoraList() {
   const { todas, setTodas, cargando, error } = useComputadorasList();
+  const { puedeEscribir } = usePermisos();
   const [viewPerspective, setViewPerspective] = useState('inventario');
   const [buscar, setBuscar] = useState('');
   const [filtroUbicacion, setFiltroUbicacion] = useState('');
@@ -291,7 +284,7 @@ function ComputadoraList() {
         title="Inventario de Computadoras"
         subtitle={`${subt}.`}
         actions={
-          <StudioPrimaryButton to="/computadoras/nueva">Nueva computadora</StudioPrimaryButton>
+          <StudioPrimaryButton to="/computadoras/nueva" requiresWrite>Nueva computadora</StudioPrimaryButton>
         }
       />
 
@@ -339,74 +332,59 @@ function ComputadoraList() {
       {viewPerspective === 'inventario' && (
         <div className="flex flex-col flex-1 min-h-0 space-y-4">
           <StudioFilterBar>
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-          <input
-            id="inv-buscar"
-            type="search"
-            placeholder="Hostname, AnyDesk ID, usuario, UUID…"
-            value={buscar}
-            onChange={e => setBuscar(e.target.value)}
-            autoComplete="off"
-            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600 transition-all text-slate-700"
-          />
-        </div>
-        <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600">
-          <label htmlFor="inv-ubicacion">Ubicación:</label>
-          <select
-            id="inv-ubicacion"
-            value={filtroUbicacion}
-            onChange={e => setFiltroUbicacion(e.target.value)}
-            className="bg-transparent border-none outline-none font-bold text-slate-800 cursor-pointer"
-          >
-            <option value="">{`Todas (${total})`}</option>
-            {UBICACIONES_COMPUTADORA.map(u => (
-              <option key={u} value={u}>{labelUbicacionEnum(u)}</option>
-            ))}
-          </select>
-        </div>
-        <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600">
-          <label htmlFor="inv-tipo-equipo">Tipo:</label>
-          <select
-            id="inv-tipo-equipo"
-            value={filtroTipoEquipo}
-            onChange={e => setFiltroTipoEquipo(e.target.value)}
-            className="bg-transparent border-none outline-none font-bold text-slate-800 cursor-pointer"
-          >
-            <option value="">{`Todos (${antesFiltroTipo.length})`}</option>
-            <option value="notebook">{`Notebook (${conteosTipo.notebook})`}</option>
-            <option value="pc">{`PC (${conteosTipo.pc})`}</option>
-          </select>
-        </div>
-        <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600">
-          <label htmlFor="inv-actividad-sync">Sync:</label>
-          <select
-            id="inv-actividad-sync"
-            value={filtroConexion}
-            onChange={e => setFiltroConexion(e.target.value)}
-            className="bg-transparent border-none outline-none font-bold text-slate-800 cursor-pointer"
-          >
-            <option value="">{`Todos (${antesFiltroConexion.length})`}</option>
-            <option value="activo">{`Reciente (< ~${MINUTOS_LABEL_UMBRAL_ACTIVO} min)`}</option>
-            <option value="intermedio">Entre ~12 min y 1 h</option>
-            <option value="sin_actividad">Sin actividad (+1 h)</option>
-          </select>
-        </div>
-        <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600">
-          <label htmlFor="inv-orden">Ordenar:</label>
-          <select
-            id="inv-orden"
-            value={orden}
-            onChange={e => setOrden(e.target.value)}
-            className="bg-transparent border-none outline-none font-bold text-slate-800 cursor-pointer"
-          >
-            {ORDEN_OPTS.map(o => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
-        </div>
-      </StudioFilterBar>
+            <TableFilters>
+              <TableFilters.Search
+                id="inv-buscar"
+                value={buscar}
+                onChange={setBuscar}
+                placeholder="Hostname, AnyDesk ID, usuario, UUID…"
+              />
+              <TableFilters.Select
+                id="inv-ubicacion"
+                label="Ubicación"
+                value={filtroUbicacion}
+                onChange={setFiltroUbicacion}
+              >
+                <option value="">{`Todas (${total})`}</option>
+                {UBICACIONES_COMPUTADORA.map(u => (
+                  <option key={u} value={u}>{labelUbicacionEnum(u)}</option>
+                ))}
+              </TableFilters.Select>
+              <TableFilters.Select
+                id="inv-tipo-equipo"
+                label="Tipo"
+                value={filtroTipoEquipo}
+                onChange={setFiltroTipoEquipo}
+              >
+                <option value="">{`Todos (${antesFiltroTipo.length})`}</option>
+                <option value="notebook">{`Notebook (${conteosTipo.notebook})`}</option>
+                <option value="pc">{`PC (${conteosTipo.pc})`}</option>
+              </TableFilters.Select>
+              <TableFilters.Select
+                id="inv-actividad-sync"
+                label="Sync"
+                value={filtroConexion}
+                onChange={setFiltroConexion}
+              >
+                <option value="">{`Todos (${antesFiltroConexion.length})`}</option>
+                <option value="activo">{`Reciente (< ~${MINUTOS_LABEL_UMBRAL_ACTIVO} min)`}</option>
+                <option value="intermedio">Entre ~12 min y 1 h</option>
+                <option value="sin_actividad">Sin actividad (+1 h)</option>
+              </TableFilters.Select>
+              <TableFilters.Select
+                id="inv-orden"
+                label="Ordenar"
+                value={orden}
+                onChange={setOrden}
+              >
+                {ORDEN_OPTS.map(o => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </TableFilters.Select>
+            </TableFilters>
+          </StudioFilterBar>
 
+      <WriteGate>
       {seleccion.size > 0 ? (
         <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs flex flex-wrap items-end gap-3">
           <p className="text-xs font-semibold text-slate-600 m-0">
@@ -444,6 +422,7 @@ function ComputadoraList() {
           </button>
         </div>
       ) : null}
+      </WriteGate>
 
       {msgMasivo ? (
         <p
@@ -462,6 +441,7 @@ function ComputadoraList() {
         <table className={`${studioTableClass()} text-sm relative`}>
           <thead className="sticky top-0 z-10">
             <tr className="bg-slate-50 border-b border-slate-200 text-sm font-semibold text-slate-600 uppercase tracking-widest">
+              {puedeEscribir ? (
               <th className={`${studioThClass()} text-center w-10`} scope="col">
                 <input
                   ref={headerCbRef}
@@ -473,6 +453,7 @@ function ComputadoraList() {
                   aria-label="Seleccionar todos los equipos visibles"
                 />
               </th>
+              ) : null}
               <th className={`${studioThClass()} text-center`}>Sync</th>
               <th className={studioThClass()}>Hostname</th>
               <th className={studioThClass()}>AnyDesk ID</th>
@@ -505,6 +486,7 @@ function ComputadoraList() {
                     className={`hover:bg-slate-50/75 cursor-pointer transition-colors group ${sel ? 'bg-blue-50/40' : ''}`}
                     onClick={() => navigate(`/computadoras/${c.uuid}`)}
                   >
+                    {puedeEscribir ? (
                     <td className={`${studioTdClass()} text-center`} onClick={e => e.stopPropagation()}>
                       <input
                         type="checkbox"
@@ -514,6 +496,7 @@ function ComputadoraList() {
                         aria-label={`Seleccionar ${c.hostname || c.uuid}`}
                       />
                     </td>
+                    ) : null}
                     <td className={`${studioTdClass()} text-center`}>
                       <span
                         className={`w-2.5 h-2.5 rounded-full inline-block ${syncDotClass(nivel)} ${nivel === 'activo' ? 'animate-pulse' : ''}`}

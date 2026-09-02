@@ -14,5 +14,7 @@ public class Nvr {
     private String direccionIp;
     private Integer puerto;        // opcional; puerto de gestión HTTP/ONVIF de la NVR
     private String descripcion;    // opcional; texto libre
+    private String usuario;        // credencial de acceso (UI enmascarada)
+    private String password;       // credencial de acceso (UI enmascarada)
 
 }

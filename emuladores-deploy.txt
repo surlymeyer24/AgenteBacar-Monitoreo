@@ -1,0 +1,23 @@
+3 scripts nuevos + 8 comandos npm:
+
+Desarrollo local (sin riesgo):
+
+npm run emu — levanta emuladores con datos persistidos
+npm run emu:seed — re-seedea datos en emuladores
+npm run emu:clean — vacía y re-seedea desde cero
+Pre-deploy (chequeos de seguridad):
+
+npm run preflight — verifica TODO antes de deployar: git, deps, TS, build, env, Firebase CLI
+npm run backup — exporta Firestore antes de tocar producción
+Deploy guiado (con confirmación):
+
+npm run ship — deploy completo con preflight + confirmación "si"
+npm run ship:hosting — solo frontend
+npm run ship:functions — solo Cloud Functions
+npm run ship:rules — solo reglas Firestore/Storage
+npm run ship:dry — simula todo sin deployar nada
+El flujo seguro para deployar es:
+
+npm run preflight — si hay rojo, corregir primero
+npm run ship — te pide escribir "si" antes de tocar producción
+El ship ya corre preflight automáticamente adentro, así que con un solo comando tenés la red de seguridad completa. Si algún chequeo falla, frena y no deploya.

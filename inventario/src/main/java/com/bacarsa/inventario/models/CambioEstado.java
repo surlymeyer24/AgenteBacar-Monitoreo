@@ -17,6 +17,8 @@ public class CambioEstado {
     private Timestamp fechaHoraFin;
     private String motivo;
     private Estado estado;
+    private String ubicacionStock;
+    private String responsableInventario;
 
     public boolean esEstadoActual() {
         return fechaHoraFin == null;

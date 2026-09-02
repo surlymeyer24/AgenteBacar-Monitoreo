@@ -4,6 +4,9 @@
 @theme {
   --font-sans: 'Inter', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
+  /* Rojo de marca Bacarsa — utilidades Tailwind: bg-accent, text-accent, border-accent, … */
+  --color-accent: #BA1814;
+  --color-accent-hover: #9E1411;
 }
 
 :root {
@@ -11,13 +14,14 @@
   --color-primary: #0e0f36;
   --color-primary-hover: #23266b;
 
-  /* Danger */
+  /* Danger (semántico: errores / destructivo — distinto del acento de marca) */
   --color-danger: #9c1313;
   --color-danger-hover: #af2222;
   --color-danger-light: #fde9e8;
 
-  /* Accent */
-  --color-accent: #991d1d;
+  /* Accent de marca */
+  --color-accent: #BA1814;
+  --color-accent-hover: #9E1411;
 
   /* Neutrals */
   --color-text: #202124;
@@ -46,7 +50,7 @@
   --border: var(--color-border);
   --code-bg: #ecedf8;
   --accent: var(--color-accent);
-  --accent-hover: var(--color-danger-hover);
+  --accent-hover: var(--color-accent-hover);
   --accent-bg: var(--color-danger-light);
   --hover-bg: #f0f1f8;
   --shadow: rgba(14, 15, 54, 0.06);
@@ -68,6 +72,8 @@
 
 html {
   height: 100%;
+  /* Base tipográfica global: escala utilidades rem de Tailwind y CSS (~6% vs 16px) */
+  font-size: 17px;
 }
 
 body {
@@ -75,7 +81,7 @@ body {
   height: 100%;
   overflow: hidden;
   font-family: var(--sans);
-  font-size: 15px;
+  font-size: 1rem;
   line-height: 1.6;
   color: var(--text);
   background: var(--bg);
@@ -83,9 +89,21 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Login oscuro: evita que el fondo claro del body rompa el diseño */
+body:has(.login-page) {
+  background: #02040a;
+  overflow: auto;
+  color: #e2e8f0;
+}
+
 #root {
   height: 100%;
   min-height: 100vh;
+}
+
+#root:has(.login-page) {
+  min-height: 100vh;
+  height: auto;
 }
 
 code {

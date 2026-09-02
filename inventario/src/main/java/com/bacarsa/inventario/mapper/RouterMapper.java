@@ -1,11 +1,25 @@
 package com.bacarsa.inventario.mapper;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
+
 import com.bacarsa.inventario.dto.RouterDTO;
 import com.bacarsa.inventario.models.Router;
 
 public class RouterMapper {
 
     private RouterMapper() {}
+
+    private static LocalDate parseFechaAltaIso(String iso) {
+        if (iso == null || iso.isBlank()) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(iso.trim());
+        } catch (DateTimeParseException e) {
+            return null;
+        }
+    }
 
     public static RouterDTO toDTO(Router router) {
         if (router == null) {
@@ -31,7 +45,7 @@ public class RouterMapper {
         dto.setGateway(router.getGateway());
         dto.setUbicacion(router.getUbicacion() == null ? null : router.getUbicacion().name());
         dto.setEstado(router.getEstadoActual() == null ? null : router.getEstadoActual().getNombre());
-        dto.setFechaAlta(router.getFechaAlta());
+        dto.setFechaAlta(parseFechaAltaIso(router.getFechaAlta()));
         dto.setHistorialEstados(CambioEstadoMapper.toDTOList(router.getHistorialEstados()));
         return dto;
     }

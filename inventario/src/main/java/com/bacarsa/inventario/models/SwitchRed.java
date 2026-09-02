@@ -1,6 +1,5 @@
 package com.bacarsa.inventario.models;
 
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -60,9 +59,10 @@ public class SwitchRed {
     private Estado estadoActual;
     private List<CambioEstado> historialEstados;
 
+    /** ISO-8601 fecha calendario ({@code yyyy-MM-dd}); Firestore no serializa bien {@link java.time.LocalDate} en POJOs. */
     @Getter(onMethod_ = @PropertyName("fecha_alta"))
     @Setter(onMethod_ = @PropertyName("fecha_alta"))
-    private LocalDate fechaAlta;
+    private String fechaAlta;
 
     public SwitchRed() {
         this.historialEstados = new ArrayList<>();

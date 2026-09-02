@@ -52,7 +52,7 @@ public class MigracionEstadosService {
                 continue;
             }
             try {
-                computadoraRepository.cambiarEstado(pc.getUuid(), estado, m);
+                computadoraRepository.cambiarEstado(pc.getUuid(), estado, m, null, null);
                 out.setComputadorasActualizadas(out.getComputadorasActualizadas() + 1);
             } catch (Exception e) {
                 agregarFallo(out, "computadora " + pc.getUuid() + ": " + e.getMessage());

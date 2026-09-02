@@ -38,6 +38,13 @@ public class ComputadoraController {
         this.computadoraService = computadoraService;
     }
 
+    @GetMapping("/recientes")
+    public ResponseEntity<List<ComputadoraDTO>> listarRecientes(
+            @RequestParam(name = "limit", defaultValue = "8") int limit)
+            throws ExecutionException, InterruptedException {
+        return ResponseEntity.ok(computadoraService.getRecientes(Math.min(limit, 50)));
+    }
+
     @GetMapping
     public ResponseEntity<List<ComputadoraDTO>> listarTodas(
             @RequestParam(name = "ubicacion", required = false) String ubicacion)
@@ -131,7 +138,7 @@ public class ComputadoraController {
             @PathVariable String uuid,
             @Valid @RequestBody CambiarEstadoDTO body) throws ExecutionException, InterruptedException {
         try {
-            ComputadoraDTO dto = computadoraService.cambiarEstado(uuid, body.getEstado(), body.getMotivo());
+            ComputadoraDTO dto = computadoraService.cambiarEstado(uuid, body);
             if (dto == null) {
                 return ResponseEntity.notFound().build();
             }

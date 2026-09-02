@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { createCamara } from '../api/camaraApi';
 import { fetchNvrs } from '../api/nvrApi';
 import { UBICACIONES_CAMARA_SUGERIDAS } from '../constants/ubicaciones';
+import FriendlyDatePicker from '../components/FriendlyDatePicker';
 
 const empty = {
   dispositivo: '',
@@ -162,8 +163,12 @@ function CamaraNueva() {
             <input name="tipo" value={form.tipo} onChange={onChange} placeholder="Ej. IPC-HFW1120" />
           </label>
           <label>
-            Fecha alta (opcional, yyyy-mm-dd)
-            <input name="fechaAlta" type="date" value={form.fechaAlta} onChange={onChange} />
+            Fecha alta (opcional)
+            <FriendlyDatePicker
+              name="fechaAlta"
+              value={form.fechaAlta}
+              onChange={(next) => setForm((f) => ({ ...f, fechaAlta: next }))}
+            />
           </label>
           {error && <p className="page error">{error}</p>}
           <button type="submit" className="btn btn-primary" disabled={enviando}>

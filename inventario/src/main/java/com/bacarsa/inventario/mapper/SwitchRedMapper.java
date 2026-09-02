@@ -1,11 +1,25 @@
 package com.bacarsa.inventario.mapper;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
+
 import com.bacarsa.inventario.dto.SwitchRedDTO;
 import com.bacarsa.inventario.models.SwitchRed;
 
 public class SwitchRedMapper {
 
     private SwitchRedMapper() {}
+
+    private static LocalDate parseFechaAltaIso(String iso) {
+        if (iso == null || iso.isBlank()) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(iso.trim());
+        } catch (DateTimeParseException e) {
+            return null;
+        }
+    }
 
     public static SwitchRedDTO toDTO(SwitchRed sw) {
         if (sw == null) {
@@ -29,7 +43,7 @@ public class SwitchRedMapper {
         dto.setVlans(sw.getVlans());
         dto.setUbicacion(sw.getUbicacion() == null ? null : sw.getUbicacion().name());
         dto.setEstado(sw.getEstadoActual() == null ? null : sw.getEstadoActual().getNombre());
-        dto.setFechaAlta(sw.getFechaAlta());
+        dto.setFechaAlta(parseFechaAltaIso(sw.getFechaAlta()));
         dto.setHistorialEstados(CambioEstadoMapper.toDTOList(sw.getHistorialEstados()));
         return dto;
     }

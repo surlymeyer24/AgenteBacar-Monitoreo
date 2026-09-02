@@ -3,6 +3,21 @@ import { useNavigate } from 'react-router-dom';
 import { Search, AlertTriangle, Copy } from 'lucide-react';
 import { updateEstado, updateResponsableInventario } from '../api/computadoraApi';
 
+const ESTADO_KEY_TO_LABEL = {
+  ASIGNADA: 'Asignada',
+  SIN_ASIGNAR: 'Sin Asignar',
+  EN_MANTENIMIENTO: 'En mantenimiento',
+  BAJA: 'Baja',
+};
+
+const LABEL_TO_KEY = Object.fromEntries(
+  Object.entries(ESTADO_KEY_TO_LABEL).map(([k, v]) => [v, k])
+);
+
+function labelToKey(label) {
+  return LABEL_TO_KEY[label] || LABEL_TO_KEY['Asignada'];
+}
+
 export default function AsignacionesBoard({ computadoras, onUpdateComputer }) {
   const navigate = useNavigate();
   const [selectedAssignSubTab, setSelectedAssignSubTab] = useState('todas');
@@ -13,6 +28,8 @@ export default function AsignacionesBoard({ computadoras, onUpdateComputer }) {
   const [rowAssignee, setRowAssignee] = useState({});
   const [rowNewStatus, setRowNewStatus] = useState({});
   const [rowMotive, setRowMotive] = useState({});
+  const [rowUbicacionStock, setRowUbicacionStock] = useState({});
+  const [rowAsignarA, setRowAsignarA] = useState({});
   const [copiedAnydesk, setCopiedAnydesk] = useState(null);
 
   // Derive unique locations
@@ -22,7 +39,7 @@ export default function AsignacionesBoard({ computadoras, onUpdateComputer }) {
   const unifiedFilteredComputers = computadoras.filter(c => {
     // 1. Search
     const term = assignSearchTerm.toLowerCase();
-    const searchMatch = !term || 
+    const searchMatch = !term ||
       (c.hostname && c.hostname.toLowerCase().includes(term)) ||
       (c.uuid && c.uuid.toLowerCase().includes(term)) ||
       (c.responsableInventario && c.responsableInventario.toLowerCase().includes(term)) ||
@@ -36,9 +53,9 @@ export default function AsignacionesBoard({ computadoras, onUpdateComputer }) {
     // 3. Subtab state
     const itState = c.estadoIt || c.estadoActual || 'Asignada';
     if (selectedAssignSubTab === 'asignadas' && itState !== 'Asignada') return false;
-    if (selectedAssignSubTab === 'baja' && itState !== 'Retirada') return false;
-    if (selectedAssignSubTab === 'sin_asignar' && itState !== 'Disponible') return false;
-    if (selectedAssignSubTab === 'mantenimiento' && itState !== 'En Reparación') return false;
+    if (selectedAssignSubTab === 'baja' && itState !== 'Baja') return false;
+    if (selectedAssignSubTab === 'sin_asignar' && itState !== 'Sin Asignar') return false;
+    if (selectedAssignSubTab === 'mantenimiento' && itState !== 'En mantenimiento') return false;
 
     return true;
   });
@@ -54,9 +71,9 @@ export default function AsignacionesBoard({ computadoras, onUpdateComputer }) {
   // Counters
   const countTodas = computadoras.length;
   const countAsignadas = computadoras.filter(c => (c.estadoIt || c.estadoActual || 'Asignada') === 'Asignada').length;
-  const countBaja = computadoras.filter(c => (c.estadoIt || c.estadoActual || 'Asignada') === 'Retirada').length;
-  const countSinAsignar = computadoras.filter(c => (c.estadoIt || c.estadoActual || 'Asignada') === 'Disponible').length;
-  const countMantenimiento = computadoras.filter(c => (c.estadoIt || c.estadoActual || 'Asignada') === 'En Reparación').length;
+  const countBaja = computadoras.filter(c => (c.estadoIt || c.estadoActual || 'Asignada') === 'Baja').length;
+  const countSinAsignar = computadoras.filter(c => (c.estadoIt || c.estadoActual || 'Asignada') === 'Sin Asignar').length;
+  const countMantenimiento = computadoras.filter(c => (c.estadoIt || c.estadoActual || 'Asignada') === 'En mantenimiento').length;
 
   const handleCopyAnydesk = (id, e) => {
     e.stopPropagation();
@@ -80,16 +97,45 @@ export default function AsignacionesBoard({ computadoras, onUpdateComputer }) {
   };
 
   const handleApplyStateChange = async (c) => {
-    const nextState = rowNewStatus[c.uuid] || c.estadoIt || c.estadoActual || 'Asignada';
+    const currentItState = c.estadoIt || c.estadoActual || 'Asignada';
+    const selectedKey = rowNewStatus[c.uuid] || labelToKey(currentItState);
     const motiveText = rowMotive[c.uuid] || '';
 
+    const extras = {};
+
+    if (selectedKey === 'SIN_ASIGNAR') {
+      const ubStock = (rowUbicacionStock[c.uuid] || '').trim();
+      if (!ubStock) {
+        alert('La ubicación de stock es obligatoria para pasar a Sin Asignar.');
+        return;
+      }
+      extras.ubicacionStock = ubStock;
+    }
+
+    if (selectedKey === 'ASIGNADA') {
+      const asignar = (rowAsignarA[c.uuid] || '').trim();
+      if (!asignar) {
+        alert('Debe indicar a quién se asigna el equipo.');
+        return;
+      }
+      extras.responsableInventario = asignar;
+    }
+
     try {
-      await updateEstado(c.uuid, nextState, motiveText);
+      const result = await updateEstado(c.uuid, selectedKey, motiveText, extras);
+      const newLabel = ESTADO_KEY_TO_LABEL[selectedKey] || selectedKey;
       if (onUpdateComputer) {
-        onUpdateComputer({ ...c, estadoActual: nextState, estadoIt: nextState });
+        const updated = { ...c, estadoActual: newLabel, estadoIt: newLabel };
+        if (extras.responsableInventario) {
+          updated.responsableInventario = extras.responsableInventario;
+        }
+        onUpdateComputer(updated);
       }
       setRowMotive(prev => ({ ...prev, [c.uuid]: '' }));
-      alert(`Se actualizó el estado a "${nextState}" correctamente.`);
+      setRowUbicacionStock(prev => ({ ...prev, [c.uuid]: '' }));
+      setRowAsignarA(prev => ({ ...prev, [c.uuid]: '' }));
+      setRowNewStatus(prev => ({ ...prev, [c.uuid]: undefined }));
+      alert(`Se actualizó el estado a "${ESTADO_KEY_TO_LABEL[selectedKey]}" correctamente.`);
     } catch (err) {
       alert(`Error al actualizar estado: ${err.message}`);
     }
@@ -125,8 +171,8 @@ export default function AsignacionesBoard({ computadoras, onUpdateComputer }) {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <div className="relative md:col-span-2">
             <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
-            <input 
-              type="text" 
+            <input
+              type="text"
               placeholder="Hostname, responsable, UUID..."
               value={assignSearchTerm}
               onChange={(e) => setAssignSearchTerm(e.target.value)}
@@ -135,7 +181,7 @@ export default function AsignacionesBoard({ computadoras, onUpdateComputer }) {
           </div>
 
           <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 px-3 py-1 rounded-lg text-xs font-bold text-slate-600">
-            <span className="text-[10px] uppercase text-slate-400">Ubicación</span>
+            <span className="text-xs uppercase text-slate-400">Ubicación</span>
             <select
               value={assignFilterLocation}
               onChange={(e) => setAssignFilterLocation(e.target.value)}
@@ -150,7 +196,7 @@ export default function AsignacionesBoard({ computadoras, onUpdateComputer }) {
           </div>
 
           <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 px-3 py-1 rounded-lg text-xs font-bold text-slate-600">
-            <span className="text-[10px] uppercase text-slate-400">Ordenar</span>
+            <span className="text-xs uppercase text-slate-400">Ordenar</span>
             <select
               value={assignSortOrder}
               onChange={(e) => setAssignSortOrder(e.target.value)}
@@ -168,14 +214,14 @@ export default function AsignacionesBoard({ computadoras, onUpdateComputer }) {
         <div className="overflow-auto h-full relative">
           <table className="w-full text-left border-collapse">
             <thead className="sticky top-0 z-10">
-              <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+              <tr className="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider">
                 <th className="py-2.5 px-4">HOSTNAME</th>
                 <th className="py-2.5 px-4">UUID</th>
                 <th className="py-2.5 px-4">USUARIO (AGENTE)</th>
                 <th className="py-2.5 px-4 min-w-[200px]">ASIGNADO (REGISTRO MANUAL)</th>
                 <th className="py-2.5 px-4">UBICACIÓN</th>
                 <th className="py-2.5 px-4">ESTADO</th>
-                <th className="py-2.5 px-4 min-w-[250px]">CAMBIAR ESTADO</th>
+                <th className="py-2.5 px-4 min-w-[280px]">CAMBIAR ESTADO</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-[14px]">
@@ -183,11 +229,11 @@ export default function AsignacionesBoard({ computadoras, onUpdateComputer }) {
                 unifiedFilteredComputers.map((c) => {
                   const currentAssignee = rowAssignee[c.uuid] !== undefined ? rowAssignee[c.uuid] : (c.responsableInventario || c.responsable_inventario || '');
                   const currentItState = c.estadoIt || c.estadoActual || 'Asignada';
-                  const nextStateSelected = rowNewStatus[c.uuid] || currentItState;
+                  const selectedKey = rowNewStatus[c.uuid] || labelToKey(currentItState);
                   const currentMotiveText = rowMotive[c.uuid] || '';
 
                   return (
-                    <tr 
+                    <tr
                       key={c.uuid}
                       className="hover:bg-slate-50 text-slate-800 transition-colors cursor-pointer"
                       onClick={() => navigate(`/computadoras/${c.uuid}`)}
@@ -206,16 +252,16 @@ export default function AsignacionesBoard({ computadoras, onUpdateComputer }) {
 
                       <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
                         <div className="flex gap-1.5 max-w-sm">
-                          <input 
+                          <input
                             type="text"
                             placeholder="Nombre o referencia"
                             value={currentAssignee}
                             onChange={(evt) => setRowAssignee(prev => ({ ...prev, [c.uuid]: evt.target.value }))}
-                            className="px-2.5 py-1 bg-white border border-slate-200 hover:border-slate-300 focus:border-[#0c66e4] focus:bg-white text-[12px] rounded transition-all font-semibold text-slate-700 w-full"
+                            className="px-2.5 py-1 bg-white border border-slate-200 hover:border-slate-300 focus:border-[#0c66e4] focus:bg-white text-sm rounded transition-all font-semibold text-slate-700 w-full"
                           />
                           <button
                             onClick={() => handleSaveCustody(c)}
-                            className="px-3 py-1 bg-[#0c66e4] hover:bg-blue-700 text-white font-bold text-[11px] rounded transition-colors cursor-pointer"
+                            className="px-3 py-1 bg-[#0c66e4] hover:bg-blue-700 text-white font-bold text-xs rounded transition-colors cursor-pointer"
                           >
                             Guardar
                           </button>
@@ -223,7 +269,7 @@ export default function AsignacionesBoard({ computadoras, onUpdateComputer }) {
                       </td>
 
                       <td className="py-3 px-4">
-                        <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded uppercase border border-slate-200">
+                        <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded uppercase border border-slate-200">
                           {c.ubicacion || 'CAPITAL_HUMANO'}
                         </span>
                       </td>
@@ -231,9 +277,9 @@ export default function AsignacionesBoard({ computadoras, onUpdateComputer }) {
                       <td className="py-3 px-4">
                         {currentItState === 'Asignada' ? (
                           <span className="px-2 py-0.5 rounded-full text-xs font-extrabold bg-indigo-50 border border-indigo-200 text-indigo-700">Asignada</span>
-                        ) : currentItState === 'Disponible' ? (
+                        ) : currentItState === 'Sin Asignar' ? (
                           <span className="px-2 py-0.5 rounded-full text-xs font-extrabold bg-emerald-50 border border-emerald-200 text-emerald-700">Disponible</span>
-                        ) : currentItState === 'En Reparación' ? (
+                        ) : currentItState === 'En mantenimiento' ? (
                           <span className="px-2 py-0.5 rounded-full text-xs font-extrabold bg-amber-50 border border-amber-200 text-amber-700">Reparación</span>
                         ) : (
                           <span className="px-2 py-0.5 rounded-full text-xs font-extrabold bg-rose-50 border border-rose-200 text-rose-700">De baja</span>
@@ -244,18 +290,39 @@ export default function AsignacionesBoard({ computadoras, onUpdateComputer }) {
                         <div className="flex flex-col gap-1 max-w-lg bg-slate-50/70 p-1.5 rounded border border-slate-200">
                           <div className="flex gap-1.5 mb-1">
                             <select
-                              value={nextStateSelected}
+                              value={selectedKey}
                               onChange={(evt) => setRowNewStatus(prev => ({ ...prev, [c.uuid]: evt.target.value }))}
                               className="bg-white border border-slate-200 px-1.5 py-0.5 rounded text-xs text-slate-700 font-bold cursor-pointer"
                             >
-                              <option value="Asignada">Asignada</option>
-                              <option value="Disponible">Disponible (Sin asignar)</option>
-                              <option value="En Reparación">En Reparación</option>
-                              <option value="Retirada">Retirada (Dar de baja)</option>
+                              <option value="ASIGNADA">Asignada</option>
+                              <option value="SIN_ASIGNAR">Disponible (Sin asignar)</option>
+                              <option value="EN_MANTENIMIENTO">En Reparación</option>
+                              <option value="BAJA">Retirada (Dar de baja)</option>
                             </select>
                           </div>
+
+                          {selectedKey === 'SIN_ASIGNAR' && (
+                            <input
+                              type="text"
+                              placeholder="Ubicación de stock (ej: Depósito IT, Rack 3)"
+                              value={rowUbicacionStock[c.uuid] || ''}
+                              onChange={(evt) => setRowUbicacionStock(prev => ({ ...prev, [c.uuid]: evt.target.value }))}
+                              className="px-2 py-0.5 bg-white border border-emerald-300 focus:border-emerald-500 text-xs rounded transition-all font-medium text-slate-800 w-full"
+                            />
+                          )}
+
+                          {selectedKey === 'ASIGNADA' && (
+                            <input
+                              type="text"
+                              placeholder="Asignar a (nombre del responsable)"
+                              value={rowAsignarA[c.uuid] || ''}
+                              onChange={(evt) => setRowAsignarA(prev => ({ ...prev, [c.uuid]: evt.target.value }))}
+                              className="px-2 py-0.5 bg-white border border-indigo-300 focus:border-indigo-500 text-xs rounded transition-all font-medium text-slate-800 w-full"
+                            />
+                          )}
+
                           <div className="flex gap-1.5">
-                            <input 
+                            <input
                               type="text"
                               placeholder="Motivo (opcional)"
                               value={currentMotiveText}

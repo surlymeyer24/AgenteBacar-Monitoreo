@@ -14,5 +14,7 @@ public class DispositivoUsbAgenteDTO {
     private String categoria;
     private String clase;
     private String conexion;
+    private String vid;
+    private String pid;
 
 }

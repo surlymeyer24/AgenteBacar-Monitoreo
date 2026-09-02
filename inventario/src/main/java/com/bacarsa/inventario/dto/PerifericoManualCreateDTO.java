@@ -23,4 +23,6 @@ public class PerifericoManualCreateDTO {
     private String notas;
     private LocalDate fechaAlta;
     private String motivo;
+    private String comboId;
+    private String comboNombre;
 }

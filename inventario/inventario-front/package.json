@@ -11,9 +11,13 @@
     "deploy:hosting": "npm run build && cd ../inventario && firebase deploy --only hosting:inventario"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.101.4",
     "firebase": "^11.10.0",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
     "lucide-react": "^0.468.0",
     "motion": "^12.40.0",
+    "qrcode": "^1.5.4",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-router-dom": "^7.14.0",
@@ -31,6 +35,7 @@
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.4.0",
     "tailwindcss": "^4.3.0",
-    "vite": "^8.0.4"
+    "vite": "^8.0.4",
+    "vite-plugin-pwa": "^1.3.0"
   }
 }

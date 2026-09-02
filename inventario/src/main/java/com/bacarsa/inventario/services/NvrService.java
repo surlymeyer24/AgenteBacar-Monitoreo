@@ -67,6 +67,8 @@ public class NvrService {
         nvr.setDireccionIp(dto.getDireccionIp());
         nvr.setPuerto(dto.getPuerto());
         nvr.setDescripcion(dto.getDescripcion());
+        nvr.setUsuario(blankToNull(dto.getUsuario()));
+        nvr.setPassword(blankToNull(dto.getPassword()));
         nvrRepository.guardarConId(id, nvr);
         return obtenerPorId(id);
     }
@@ -92,6 +94,8 @@ public class NvrService {
         campos.put("direccionIp", blankToNull(dto.getDireccionIp()));
         campos.put("puerto", dto.getPuerto());
         campos.put("descripcion", blankToNull(dto.getDescripcion()));
+        campos.put("usuario", blankToNull(dto.getUsuario()));
+        campos.put("password", blankToNull(dto.getPassword()));
 
         nvrRepository.update(id, campos);
 

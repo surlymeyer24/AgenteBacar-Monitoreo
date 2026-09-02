@@ -184,7 +184,7 @@ export default function ComputadorasList({ computers, onUpdateComputer, onRefres
 
         {/* Counter indicator of telemetry search results */}
         {(searchTerm || selectedLocation !== 'All' || selectedOS !== 'All' || selectedStatus !== 'All') && (
-          <div className="flex items-center justify-between text-[11px] text-slate-500 pt-2 border-t border-slate-100">
+          <div className="flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-100">
             <span className="font-semibold text-blue-600">Resultados del Agente Bacar: {filteredComputers.length} equipos</span>
             <button 
               onClick={() => {
@@ -265,7 +265,7 @@ export default function ComputadorasList({ computers, onUpdateComputer, onRefres
                         <Laptop className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                         <div className="leading-tight">
                           <span>{c.hostname}</span>
-                          <span className="text-[10px] text-slate-400 font-normal block font-mono">
+                          <span className="text-xs text-slate-400 font-normal block font-mono">
                             {c.uuid.substring(c.uuid.lastIndexOf('-') + 1)}
                           </span>
                         </div>
@@ -282,7 +282,7 @@ export default function ComputadorasList({ computers, onUpdateComputer, onRefres
                         <span>{c.anydesk_id.replace(/\B(?=(\d{3})+(?!\d))/g, " ")}</span>
                         <Copy className="w-3 h-3 text-slate-400" />
                         {copiedId === c.anydesk_id && (
-                          <span className="text-[9px] bg-blue-600 text-white px-1 rounded animate-fade-in">Listo</span>
+                          <span className="text-xs bg-blue-600 text-white px-1 rounded animate-fade-in">Listo</span>
                         )}
                       </button>
                     </td>
@@ -290,7 +290,7 @@ export default function ComputadorasList({ computers, onUpdateComputer, onRefres
                     {/* Operating System Column */}
                     <td className="py-3.5 px-4 font-medium text-slate-600">
                       <div className="flex items-center gap-1">
-                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${isWin11 ? 'bg-blue-50 text-blue-700' : 'bg-indigo-50 text-indigo-700'}`}>
+                        <span className={`px-1.5 py-0.5 rounded text-xs font-bold ${isWin11 ? 'bg-blue-50 text-blue-700' : 'bg-indigo-50 text-indigo-700'}`}>
                           {c.sistema_operativo}
                         </span>
                       </div>
@@ -298,7 +298,7 @@ export default function ComputadorasList({ computers, onUpdateComputer, onRefres
 
                     {/* Ubicación Column */}
                     <td className="py-3.5 px-4">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">
                         {c.ubicacion || 'Bodega'}
                       </span>
                     </td>
@@ -313,9 +313,9 @@ export default function ComputadorasList({ computers, onUpdateComputer, onRefres
                     {/* RAM Usage Column */}
                     <td className="py-3.5 px-4">
                       <div className="space-y-0.5 leading-none">
-                        <div className="flex items-center justify-between text-[10px] font-semibold text-slate-600 font-mono">
+                        <div className="flex items-center justify-between text-xs font-semibold text-slate-600 font-mono">
                           <span>{c.ram_uso_porcentaje}%</span>
-                          <span className="text-[9px] text-slate-400 font-normal">{(c.ram_total_gb * (c.ram_uso_porcentaje / 100)).toFixed(1)}GB</span>
+                          <span className="text-xs text-slate-400 font-normal">{(c.ram_total_gb * (c.ram_uso_porcentaje / 100)).toFixed(1)}GB</span>
                         </div>
                         <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
                           <div 
@@ -328,10 +328,10 @@ export default function ComputadorasList({ computers, onUpdateComputer, onRefres
 
                     {/* Disk Column */}
                     <td className="py-3.5 px-4">
-                      <div className="space-y-0.5 font-mono text-[10px]">
+                      <div className="space-y-0.5 font-mono text-xs">
                         <div className="flex justify-between leading-none mb-0.5">
                           <span className="font-bold text-slate-700">{diskUsedPct}%</span>
-                          <span className="text-[9px] text-slate-400">{diskC ? Math.round(diskC.libre_gb) : 0} GB libre</span>
+                          <span className="text-xs text-slate-400">{diskC ? Math.round(diskC.libre_gb) : 0} GB libre</span>
                         </div>
                         <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
                           <div 
@@ -347,7 +347,7 @@ export default function ComputadorasList({ computers, onUpdateComputer, onRefres
                       <div className="flex items-center justify-center">
                         {totalAlerts > 0 ? (
                           <span 
-                            className="p-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 flex items-center justify-center gap-1 font-bold text-[9px]"
+                            className="p-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 flex items-center justify-center gap-1 font-bold text-xs"
                             title={`${totalAlerts} Alertas detectadas`}
                           >
                             <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
@@ -384,7 +384,7 @@ export default function ComputadorasList({ computers, onUpdateComputer, onRefres
                   <span className={`w-3.5 h-3.5 rounded-full inline-block ${selectedComp.estado_conexion === 'ONLINE' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.73)]' : 'bg-slate-400'}`} />
                   <div>
                     <h3 className="font-extrabold text-base text-white tracking-wide">{selectedComp.hostname}</h3>
-                    <p className="text-[10px] text-slate-400 font-mono">UUID: {selectedComp.uuid}</p>
+                    <p className="text-xs text-slate-400 font-mono">UUID: {selectedComp.uuid}</p>
                   </div>
                 </div>
 
@@ -409,7 +409,7 @@ export default function ComputadorasList({ computers, onUpdateComputer, onRefres
                   {/* CPU Use widget */}
                   <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex items-center justify-between">
                     <div className="space-y-1">
-                      <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Uso CPU</span>
+                      <span className="text-xs text-slate-500 font-bold uppercase tracking-wider block">Uso CPU</span>
                       <span className="text-xl font-extrabold text-slate-900 font-mono">{selectedComp.cpu_uso_porcentaje}%</span>
                       <div className="w-20 h-1 bg-slate-200 rounded-full overflow-hidden">
                         <div 
@@ -424,9 +424,9 @@ export default function ComputadorasList({ computers, onUpdateComputer, onRefres
                   {/* RAM Total/Available widget */}
                   <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex items-center justify-between">
                     <div className="space-y-1">
-                      <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Uso RAM</span>
+                      <span className="text-xs text-slate-500 font-bold uppercase tracking-wider block">Uso RAM</span>
                       <span className="text-xl font-extrabold text-slate-900 font-mono">{selectedComp.ram_uso_porcentaje}%</span>
-                      <p className="text-[10px] text-slate-400 font-mono">
+                      <p className="text-xs text-slate-400 font-mono">
                         {(selectedComp.ram_total_gb * (selectedComp.ram_uso_porcentaje / 100)).toFixed(1)} / {selectedComp.ram_total_gb.toFixed(1)} GB
                       </p>
                     </div>
@@ -436,9 +436,9 @@ export default function ComputadorasList({ computers, onUpdateComputer, onRefres
                   {/* Network details widget */}
                   <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex items-center justify-between">
                     <div className="space-y-1">
-                      <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Dirección IP</span>
+                      <span className="text-xs text-slate-500 font-bold uppercase tracking-wider block">Dirección IP</span>
                       <span className="text-xs font-bold text-slate-800 font-mono block truncate">{selectedComp.ip_publica}</span>
-                      <span className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded font-bold font-mono">Puertos: TCP 81</span>
+                      <span className="text-xs bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded font-bold font-mono">Puertos: TCP 81</span>
                     </div>
                     <Server className="w-8 h-8 text-slate-400" />
                   </div>
@@ -446,11 +446,11 @@ export default function ComputadorasList({ computers, onUpdateComputer, onRefres
                   {/* Sync date widget */}
                   <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex items-center justify-between">
                     <div className="space-y-1">
-                      <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Sincronización</span>
-                      <span className="text-[11px] font-bold text-slate-800 font-mono block leading-tight">
+                      <span className="text-xs text-slate-500 font-bold uppercase tracking-wider block">Sincronización</span>
+                      <span className="text-xs font-bold text-slate-800 font-mono block leading-tight">
                         {new Date(selectedComp.ultima_sincronizacion).toISOString().replace('T', ' ').substring(0, 19)}
                       </span>
-                      <span className="text-[9px] text-slate-400 font-bold block">PROTOCOLO BACAR_JSON V2.1</span>
+                      <span className="text-xs text-slate-400 font-bold block">PROTOCOLO BACAR_JSON V2.1</span>
                     </div>
                     <Clock className="w-8 h-8 text-slate-400" />
                   </div>
@@ -479,7 +479,7 @@ export default function ComputadorasList({ computers, onUpdateComputer, onRefres
                             <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
                               <div className={`h-full rounded-full ${usageColor}`} style={{ width: `${d.porcentaje_usado}%` }} />
                             </div>
-                            <span className="text-[9px] text-slate-400 font-semibold block uppercase font-mono">
+                            <span className="text-xs text-slate-400 font-semibold block uppercase font-mono">
                               Estado de Partición: OPTIMO. {Math.round(d.libre_gb)} GB de almacenamiento restante.
                             </span>
                           </div>
@@ -499,11 +499,11 @@ export default function ComputadorasList({ computers, onUpdateComputer, onRefres
                       <div key={idx} className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
                         <div className="flex items-center justify-between text-xs">
                           <span className="font-bold text-slate-800">{av.nombre}</span>
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold ${av.habilitado ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
+                          <span className={`px-2 py-0.5 rounded text-xs font-extrabold ${av.habilitado ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
                             {av.habilitado ? 'PROTECCION ACTIVA' : 'SISTEMA INACTIVO'}
                           </span>
                         </div>
-                        <div className="text-[10px] space-y-0.5 font-mono text-slate-600">
+                        <div className="text-xs space-y-0.5 font-mono text-slate-600">
                           <p>Última act. firmas: <span className="font-bold">{av.ultima_act_firmas}</span></p>
                           {av.firmas_desactualizadas ? (
                             <p className="text-red-600 font-bold flex items-center gap-1 mt-1">
@@ -519,11 +519,11 @@ export default function ComputadorasList({ computers, onUpdateComputer, onRefres
                     <div className="p-3 bg-blue-50/20 border border-blue-200 rounded-xl flex items-center justify-between text-xs">
                       <div>
                         <span className="font-bold text-slate-800 block">Soporte Windows Update</span>
-                        <span className="text-[10px] text-slate-500 font-mono block">Paquetes pendientes por descargar de servidores WSUS.</span>
+                        <span className="text-xs text-slate-500 font-mono block">Paquetes pendientes por descargar de servidores WSUS.</span>
                       </div>
                       <div className="text-right">
                         <span className="text-lg font-bold text-blue-600 block leading-none">{selectedComp.windows_updates?.total_pendientes || 0}</span>
-                        <span className="text-[9px] text-slate-400 font-bold block uppercase">Paquetes</span>
+                        <span className="text-xs text-slate-400 font-bold block uppercase">Paquetes</span>
                       </div>
                     </div>
                   </div>
@@ -545,11 +545,11 @@ export default function ComputadorasList({ computers, onUpdateComputer, onRefres
                         selectedComp.perifericos.monitores.map((m, i) => (
                           <div key={i} className="leading-tight border-l-2 border-cyan-500 pl-2">
                             <p className="font-semibold text-slate-900 truncate">{m.nombre}</p>
-                            <p className="text-[10px] text-slate-500 font-mono">Res: {m.resolucion} | {m.pulgadas || 22}"</p>
+                            <p className="text-xs text-slate-500 font-mono">Res: {m.resolucion} | {m.pulgadas || 22}"</p>
                           </div>
                         ))
                       ) : (
-                        <p className="text-amber-600 italic text-[10px]">Sin monitores virtuales reportados</p>
+                        <p className="text-amber-600 italic text-xs">Sin monitores virtuales reportados</p>
                       )}
                     </div>
 
@@ -562,13 +562,13 @@ export default function ComputadorasList({ computers, onUpdateComputer, onRefres
                         selectedComp.perifericos.impresoras.slice(0, 3).map((pr, i) => (
                           <div key={i} className="leading-tight border-l-2 border-green-500 pl-2">
                             <p className="font-semibold text-slate-900 truncate">{pr.nombre}</p>
-                            <p className="text-[10px] text-slate-500 font-mono text-ellipsis overflow-hidden">
+                            <p className="text-xs text-slate-500 font-mono text-ellipsis overflow-hidden">
                               Puerto: {pr.puerto} {pr.predeterminada ? '(Predet.)' : ''}
                             </p>
                           </div>
                         ))
                       ) : (
-                        <p className="text-slate-400 italic text-[10px]">Sin drivers de impresión</p>
+                        <p className="text-slate-400 italic text-xs">Sin drivers de impresión</p>
                       )}
                     </div>
 
@@ -581,11 +581,11 @@ export default function ComputadorasList({ computers, onUpdateComputer, onRefres
                         selectedComp.perifericos.dispositivos_usb.slice(0, 3).map((usb, i) => (
                           <div key={i} className="leading-tight border-l-2 border-purple-500 pl-2">
                             <p className="font-semibold text-slate-900 truncate">{usb.nombre}</p>
-                            <p className="text-[10px] text-slate-500 font-mono">Fabricante: {usb.fabricante || 'Desconocido'}</p>
+                            <p className="text-xs text-slate-500 font-mono">Fabricante: {usb.fabricante || 'Desconocido'}</p>
                           </div>
                         ))
                       ) : (
-                        <p className="text-slate-400 italic text-[10px]">Sin periféricos USB activos</p>
+                        <p className="text-slate-400 italic text-xs">Sin periféricos USB activos</p>
                       )}
                     </div>
                   </div>
@@ -593,18 +593,18 @@ export default function ComputadorasList({ computers, onUpdateComputer, onRefres
 
                 {/* Section D: Event logs / Log del sistema */}
                 <div className="border border-slate-200 rounded-xl p-4 space-y-2.5 bg-slate-950 text-slate-300">
-                  <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-slate-800 pb-2">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-slate-800 pb-2">
                     <Terminal className="w-4 h-4 text-red-500" />
                     Visor de Eventos Administrativo (Bacar EventLogger)
                   </h4>
                   
-                  <div className="font-mono text-[10px] leading-relaxed max-h-40 overflow-y-auto space-y-3 pr-1">
+                  <div className="font-mono text-xs leading-relaxed max-h-40 overflow-y-auto space-y-3 pr-1">
                     {selectedComp.errores_recientes && selectedComp.errores_recientes.length > 0 ? (
                       selectedComp.errores_recientes.map((error, idx) => (
                         <div key={idx} className="border-l-2 border-red-500 pl-3">
                           <div className="flex justify-between font-bold text-red-400">
                             <span>[{error.fuente}] - {error.tipo}</span>
-                            <span className="text-slate-400 text-[9px]">{error.fecha}</span>
+                            <span className="text-slate-400 text-xs">{error.fecha}</span>
                           </div>
                           <p className="text-[#F1F5F9] whitespace-pre-line mt-1 bg-slate-900/50 p-2 rounded border border-slate-900">{error.mensaje}</p>
                         </div>

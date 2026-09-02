@@ -7,6 +7,7 @@ import {
 } from './mockData';
 import { signInAnonymously } from 'firebase/auth';
 import { getFirebaseAuth } from './lib/firebase';
+import { enviarComandoAMaquinas } from './hooks/useComandoHW';
 import Dashboard from './components/Dashboard';
 import AssetsList from './components/AssetsList';
 import Assignments from './components/Assignments';
@@ -51,6 +52,7 @@ export default function App() {
   // Agent System inspect drawer state
   const [selectedAgent, setSelectedAgent] = useState<AgentComputer | null>(null);
   const [agentCommandResult, setAgentCommandResult] = useState<string | null>(null);
+  const [syncingUuids, setSyncingUuids] = useState<Set<string>>(new Set());
 
   // Filter helpers inside System Agentes
   const [systemSearch, setSystemSearch] = useState('');
@@ -225,16 +227,27 @@ export default function App() {
   };
 
   // Trigger agent tasks / commands
-  const handleTriggerAgentCommand = (host: string, command: string) => {
+  const handleTriggerAgentCommand = async (uuid: string, host: string, command: string) => {
     const date = new Date().toISOString().replace('T', ' ').substring(0, 19);
     setTriggeredCommands({
       ...triggeredCommands,
       [host]: { command, date }
     });
-    setAgentCommandResult(`Comando "${command}" enviado satisfactoriamente al host "${host}". El Agente responderá en su próximo intervalo de comunicación.`);
+    const res = await enviarComandoAMaquinas([uuid], command);
+    if (res.ok) {
+      setAgentCommandResult(`Comando "${command}" enviado satisfactoriamente al host "${host}".`);
+    } else {
+      setAgentCommandResult(`Error al enviar "${command}" a "${host}": ${res.message}`);
+    }
     setTimeout(() => {
       setAgentCommandResult(null);
     }, 5000);
+  };
+
+  const handleSyncAgent = async (uuid: string, host: string) => {
+    setSyncingUuids(prev => new Set(prev).add(uuid));
+    await handleTriggerAgentCommand(uuid, host, 'ACTUALIZAR_DATOS');
+    setSyncingUuids(prev => { const next = new Set(prev); next.delete(uuid); return next; });
   };
 
   // Stock management increase/decrease
@@ -263,63 +276,156 @@ export default function App() {
 
   if (!isAuthenticated) {
     return (
-      <div className="login-page">
-        <div className="login-container">
-          <div className="login-left">
-            <span className="login-left-eyebrow">Sistema de Gestión Interna IT</span>
-            <h1 className="login-left-title">
-              Bacar<span className="login-dot">.</span>it
+      <div className="login-page min-h-screen w-full flex flex-col items-center justify-center bg-[#02040a] p-6 md:p-12 relative overflow-hidden select-none">
+        {/* Modern grid background pattern */}
+        <div className="absolute inset-0 opacity-[0.4] bg-[linear-gradient(to_right,#1f2937_1px,transparent_1px),linear-gradient(to_bottom,#1f2937_1px,transparent_1px)] bg-[size:24px_24px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_60%,transparent_100%)] pointer-events-none" />
+        
+        {/* Soft glowing ambient spotlight */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-red-600/5 rounded-full blur-[120px] pointer-events-none" />
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-indigo-600/5 rounded-full blur-[100px] pointer-events-none" />
+
+        <div className="relative z-10 w-full max-w-5xl flex flex-col md:flex-row md:items-center md:justify-center gap-10 md:gap-16 lg:gap-20">
+
+          {/* Branding: Bienvenido + Gestión de Activos IT */}
+          <div className="text-center md:text-left space-y-4 md:max-w-md shrink-0">
+            <p className="text-[11px] font-bold tracking-[0.14em] uppercase text-red-500 font-mono">
+              Inventario Bacarsa
+            </p>
+            <p className="text-red-500 font-black text-3xl md:text-4xl tracking-tight leading-none">
+              Bienvenido
+            </p>
+            <h1 className="text-white font-extrabold text-3xl md:text-5xl tracking-tight leading-[1.05]">
+              Gestión de<br className="hidden md:block" /> Activos<span className="text-red-500 font-mono">.</span> IT
             </h1>
-            <p className="login-left-desc">
-              Consola de supervisión de infraestructura, inventarios físicos, licencias en la nube y sincronización de agentes Bacar en terminales corporativas.
+            <p className="text-slate-500 text-sm leading-relaxed max-w-sm mx-auto md:mx-0">
+              Sistema centralizado de inventario informático. Registrá y monitoreá equipos, periféricos y activos de la empresa.
             </p>
           </div>
-          <div className="login-right">
-            <div className="login-bracket-wrap">
-              <div className="login-corner login-corner--tl" />
-              <div className="login-corner login-corner--tr" />
-              <div className="login-corner login-corner--bl" />
-              <div className="login-corner login-corner--br" />
-              <div className="login-floating-card">
-                <h2 className="login-card-title">Acceso de Administrador</h2>
-                <p className="login-card-subtitle">Ingresa tus credenciales IT autorizadas</p>
-                {loginError && (
-                  <p className="p-2 border border-red-200 bg-red-50 text-red-700 text-xs rounded-lg mb-3 font-semibold">
-                    {loginError}
-                  </p>
-                )}
-                <form onSubmit={handleLoginSubmit} className="login-form">
-                  <div className="login-field">
-                    <label className="login-label">Usuario o Correo *</label>
+
+          {/* Access card */}
+          <div className="w-full max-w-md space-y-6 mx-auto md:mx-0">
+            
+            {/* Logo & Identity */}
+            <div className="text-center space-y-3">
+              <div className="inline-flex items-center justify-center p-2.5 bg-slate-900 border border-slate-800 rounded-2xl shadow-sm">
+                <Disc className="w-5 h-5 text-red-500 animate-spin" style={{ animationDuration: '12s' }} />
+              </div>
+              <div className="space-y-1">
+                <h2 className="text-2xl font-black tracking-wider text-white">
+                  BACAR<span className="text-red-500 font-mono">.</span>it
+                </h2>
+                <p className="text-[11px] text-slate-500 font-medium tracking-wide uppercase font-mono">
+                  Consola de Control Patrimonial
+                </p>
+              </div>
+            </div>
+
+            {/* Clean minimal card */}
+            <div className="bg-slate-900/40 backdrop-blur-md border border-slate-800/80 rounded-2xl p-6 md:p-8 space-y-6 shadow-xl">
+              
+              {loginError && (
+                <div className="p-3 border border-red-500/10 bg-red-950/20 text-red-400 text-[11px] rounded-lg flex items-center gap-2 font-medium font-sans">
+                  <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
+                  <span>{loginError}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleLoginSubmit} className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest font-mono block">Correo Electrónico</label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-600">
+                      <Mail className="w-3.5 h-3.5" />
+                    </div>
                     <input 
                       type="email" 
                       required
-                      placeholder="ej. desarrollo.it@bacarsa.com.ar"
+                      placeholder="usuario@bacarsa.com.ar"
                       value={loginEmail}
                       onChange={(e) => setLoginEmail(e.target.value)}
-                      className="inventory-input text-center"
+                      className="w-full bg-slate-950 border border-slate-900 focus:border-red-500 focus:ring-1 focus:ring-red-500/20 text-white rounded-xl pl-9 pr-4 py-2.5 text-xs outline-none transition-all placeholder:text-slate-700 font-mono"
                     />
                   </div>
-                  <div className="login-field">
-                    <label className="login-label">Contraseña de Control *</label>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest font-mono block">Contraseña</label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-600">
+                      <Lock className="w-3.5 h-3.5" />
+                    </div>
                     <input 
                       type="password" 
                       required
                       placeholder="••••••••"
                       value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
-                      className="inventory-input text-center"
+                      className="w-full bg-slate-950 border border-slate-900 focus:border-red-500 focus:ring-1 focus:ring-red-500/20 text-white rounded-xl pl-9 pr-4 py-2.5 text-xs outline-none transition-all placeholder:text-slate-700 font-mono"
                     />
                   </div>
-                  <button type="submit" className="login-submit">
-                    Cifrar e Iniciar
+                </div>
+
+                <div className="flex items-center justify-between pt-1">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input 
+                      type="checkbox" 
+                      defaultChecked 
+                      className="rounded border-slate-900 bg-slate-950 text-red-600 focus:ring-0 focus:ring-offset-0 w-3 h-3" 
+                    />
+                    <span className="text-[10px] text-slate-500">Sesión persistente</span>
+                  </label>
+                  <a href="#recuperar" className="text-[10px] text-slate-600 hover:text-slate-400 transition-colors">
+                    ¿Recuperar clave?
+                  </a>
+                </div>
+
+                <button 
+                  type="submit" 
+                  className="w-full bg-red-600 hover:bg-red-500 text-white font-bold text-[11px] uppercase tracking-widest py-2.5 rounded-xl shadow-md transition-all cursor-pointer flex items-center justify-center gap-2 mt-4"
+                >
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>Ingresar a Consola</span>
+                </button>
+              </form>
+
+              {/* Subtle pre-fills */}
+              <div className="border-t border-slate-900 pt-5 space-y-2.5">
+                <span className="text-[9px] font-bold text-slate-600 uppercase tracking-widest font-mono block text-center">
+                  Accesos rápidos de simulación
+                </span>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLoginEmail('desarrollo.it@bacarsa.com.ar');
+                      setLoginPassword('admin123');
+                    }}
+                    className="p-2 bg-slate-950 hover:bg-slate-900 border border-slate-900 rounded-lg text-[10px] text-center text-slate-400 hover:text-white transition-all cursor-pointer truncate"
+                  >
+                    <span className="font-bold block text-slate-300">Daniel O.</span>
+                    <span className="text-[8px] text-slate-600 font-mono">Sistemas</span>
                   </button>
-                </form>
-                <p className="text-[10px] text-slate-400 mt-6 tracking-wide">
-                  Conexión segura SSL integrada de fábrica.
-                </p>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLoginEmail('supervisora.admin@bacarsa.com.ar');
+                      setLoginPassword('admin123');
+                    }}
+                    className="p-2 bg-slate-950 hover:bg-slate-900 border border-slate-900 rounded-lg text-[10px] text-center text-slate-400 hover:text-white transition-all cursor-pointer truncate"
+                  >
+                    <span className="font-bold block text-slate-300">Marcela S.</span>
+                    <span className="text-[8px] text-slate-600 font-mono">Administración</span>
+                  </button>
+                </div>
               </div>
+
             </div>
+
+            <p className="text-center text-[10px] text-slate-600 font-mono tracking-wide">
+              Control de Acceso Seguro • Bacar IT 2026
+            </p>
+
           </div>
         </div>
       </div>
@@ -1025,14 +1131,22 @@ export default function App() {
 
                         {/* Trigger quick actions */}
                         <div className="pt-1 flex justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
-                          <button 
-                            onClick={() => handleTriggerAgentCommand(comp.hostname, 'ACTUALIZAR_AGENTE')}
+                          <button
+                            onClick={() => handleSyncAgent(comp.uuid, comp.hostname)}
+                            disabled={syncingUuids.has(comp.uuid)}
+                            className="p-1 px-2 text-[10px] bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded font-bold disabled:opacity-50 flex items-center gap-1"
+                          >
+                            <RefreshCw className={`w-3 h-3 ${syncingUuids.has(comp.uuid) ? 'animate-spin' : ''}`} />
+                            {syncingUuids.has(comp.uuid) ? 'Sincronizando...' : 'Sincronizar'}
+                          </button>
+                          <button
+                            onClick={() => handleTriggerAgentCommand(comp.uuid, comp.hostname, 'ACTUALIZAR_AGENTE')}
                             className="p-1 px-2 text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-700 rounded font-bold"
                           >
                             Actualizar Agente
                           </button>
-                          <button 
-                            onClick={() => handleTriggerAgentCommand(comp.hostname, 'RESETEAR_ID')}
+                          <button
+                            onClick={() => handleTriggerAgentCommand(comp.uuid, comp.hostname, 'RESETEAR_ID')}
                             className="p-1 px-2 text-[10px] bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded font-bold"
                           >
                             Resetear Id
@@ -1189,15 +1303,23 @@ export default function App() {
             <div className="p-6 border-t border-slate-100 bg-slate-50 space-y-3">
               <p className="font-bold text-slate-800 uppercase tracking-wider text-[9px]">Lanzar Instrucciones de Agente (Firestore Realtime)</p>
               
-              <div className="grid grid-cols-2 gap-2">
-                <button 
-                  onClick={() => handleTriggerAgentCommand(selectedAgent.hostname, 'RESETEAR_ID')}
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  onClick={() => handleSyncAgent(selectedAgent.uuid, selectedAgent.hostname)}
+                  disabled={syncingUuids.has(selectedAgent.uuid)}
+                  className="py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs disabled:opacity-50 flex items-center justify-center gap-1"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${syncingUuids.has(selectedAgent.uuid) ? 'animate-spin' : ''}`} />
+                  Sincronizar
+                </button>
+                <button
+                  onClick={() => handleTriggerAgentCommand(selectedAgent.uuid, selectedAgent.hostname, 'RESETEAR_ID')}
                   className="py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs"
                 >
                   Regenerar Agente ID
                 </button>
-                <button 
-                  onClick={() => handleTriggerAgentCommand(selectedAgent.hostname, 'ACTUALIZAR_AGENTE')}
+                <button
+                  onClick={() => handleTriggerAgentCommand(selectedAgent.uuid, selectedAgent.hostname, 'ACTUALIZAR_AGENTE')}
                   className="py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-lg text-xs"
                 >
                   Actualizar Ejecutable

@@ -31,6 +31,13 @@ public class CamaraService {
                 .collect(Collectors.toList());
     }
 
+    public List<CamaraDTO> getRecientes(int limit) throws ExecutionException, InterruptedException {
+        return camaraRepository.findAll().stream()
+                .limit(limit)
+                .map(CamaraMapper::toDTO)
+                .collect(Collectors.toList());
+    }
+
     public List<CamaraDTO> listarCamaras(String ubicacionRaw, String nvrIdRaw) throws ExecutionException, InterruptedException {
         boolean tieneUbicacion = ubicacionRaw != null && !ubicacionRaw.isBlank();
         boolean tieneNvrId = nvrIdRaw != null && !nvrIdRaw.isBlank();
@@ -90,6 +97,8 @@ public class CamaraService {
         camara.setPuerto(dto.getPuerto());
         camara.setTipo(blankToNull(dto.getTipo()));
         camara.setNvrId(blankToNull(dto.getNvrId()));
+        camara.setUsuario(blankToNull(dto.getUsuario()));
+        camara.setPassword(blankToNull(dto.getPassword()));
         LocalDate fa = dto.getFechaAlta() != null ? dto.getFechaAlta() : LocalDate.now();
         camara.setFechaAlta(fa.toString());
 
@@ -158,6 +167,8 @@ public class CamaraService {
         campos.put("puerto", dto.getPuerto());
         campos.put("tipo", blankToNull(dto.getTipo()));
         campos.put("nvrId", blankToNull(dto.getNvrId()));
+        campos.put("usuario", blankToNull(dto.getUsuario()));
+        campos.put("password", blankToNull(dto.getPassword()));
         
         LocalDate fecha = dto.getFechaAlta() != null ? dto.getFechaAlta() : LocalDate.now();
         campos.put("fechaAlta", fecha.toString()); 

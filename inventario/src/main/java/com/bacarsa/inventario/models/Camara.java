@@ -32,6 +32,9 @@ public class Camara {
     private Estado estadoActual;
     private List<CambioEstado> historialEstados;
     private String nvrId; // ID de la NVR a la que está asociada esta cámara (si aplica)
+    /** Credencial ONVIF / admin (UI enmascarada). */
+    private String usuario;
+    private String password;
 
     public Camara() {
         this.historialEstados = new ArrayList<>();

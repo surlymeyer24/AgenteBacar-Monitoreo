@@ -11,6 +11,8 @@ public class NvrMapper {
                 nvr.getDireccionIp(),
                 nvr.getPuerto(),
                 nvr.getDescripcion(),
+                nvr.getUsuario(),
+                nvr.getPassword(),
                 null,
                 null
         );

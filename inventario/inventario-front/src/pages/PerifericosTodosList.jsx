@@ -1,14 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Search } from 'lucide-react';
-import { fetchComputadoras, fetchComputadora } from '../api/computadoraApi';
-import {
-  esTeclado,
-  esMouse,
-  esWebcamClaseCamera,
-  esBluetooth,
-  filtrarUsbParaInventario,
-  filtrarAudioParaInventario,
-} from '../utils/perifericos';
+import { fetchPerifericosAgenteListados } from '../api/perifericosAgenteApi';
+import { fetchMonitoresReportadosAgente } from '../api/monitorApi';
+import { fetchImpresorasAgrupadas } from '../api/impresoraApi';
 import {
   StudioPageShell,
   StudioLoading,
@@ -42,51 +36,18 @@ function detalleMonitor(m) {
   return parts.length ? parts.join(' · ') : '—';
 }
 
-function detalleUsb(d) {
-  const parts = [];
-  if (d.conexion) parts.push(`Conexión: ${d.conexion}`);
-  if (d.categoria) parts.push(`Categoría: ${d.categoria}`);
-  return parts.length ? parts.join(' · ') : '—';
-}
-
-function fabClaseUsb(d) {
-  const bits = [d.fabricante, d.clase].filter(Boolean);
-  return bits.length ? bits.join(' · ') : '—';
-}
-
-function tipoUsb(d) {
-  if (esTeclado(d)) return 'Teclado';
-  if (esMouse(d)) return 'Mouse';
-  if (esWebcamClaseCamera(d)) return 'Webcam';
-  if (esBluetooth(d)) return 'Bluetooth';
-  return 'USB (otro)';
-}
-
-const TIPO_BADGE = {
-  Impresora: 'bg-emerald-100 text-emerald-800',
-  Monitor: 'bg-blue-100 text-blue-800',
-  Teclado: 'bg-orange-100 text-orange-800',
-  Mouse: 'bg-indigo-100 text-indigo-800',
-  Webcam: 'bg-rose-100 text-rose-800',
-  Bluetooth: 'bg-cyan-100 text-cyan-800',
-  Micrófono: 'bg-teal-100 text-teal-800',
-  Parlante: 'bg-purple-100 text-purple-800',
-  'USB (otro)': 'bg-slate-100 text-slate-600',
-};
-
-function chipTipo(tipo) {
-  return TIPO_BADGE[tipo] ?? 'bg-slate-100 text-slate-600';
-}
-
 function push(out, uuid, tipo, hostname, nombre, fabClase, detalle) {
   out.push({
-    key: `${uuid}-${tipo}-${nombre ?? ''}-${out.length}`,
+    key: `${uuid ?? ''}-${tipo}-${nombre ?? ''}-${out.length}`,
     tipo,
-    hostname,
+    hostname: hostname ?? '—',
     uuid,
+    pcUuid: uuid,
+    pcHostname: hostname,
     nombre: nombre ?? '—',
     fabClase: fabClase ?? '—',
     detalle: detalle ?? '—',
+    fabricante: fabClase && fabClase !== '—' ? fabClase : undefined,
   });
 }
 
@@ -96,6 +57,13 @@ function coincideBusquedaPeriferico(f, queryRaw) {
   const host = (f.hostname ?? '').toLowerCase();
   const nom = (f.nombre ?? '').toLowerCase();
   return host.includes(q) || nom.includes(q);
+}
+
+function mapUsbTipo(tipoLista) {
+  if (tipoLista === 'teclados') return 'Teclado';
+  if (tipoLista === 'mouse') return 'Mouse';
+  if (tipoLista === 'webcams') return 'Webcam';
+  return 'USB (otro)';
 }
 
 function PerifericosTodosList() {
@@ -109,41 +77,78 @@ function PerifericosTodosList() {
     let cancel = false;
     setCargando(true);
     setError(null);
-    fetchComputadoras()
-      .then(list =>
-        Promise.all(
-          (list ?? []).map(pc =>
-            fetchComputadora(pc.uuid)
-              .then(det => ({ pc, det }))
-              .catch(() => ({ pc, det: null }))
-          )
-        )
-      )
-      .then(pares => {
+    // 3 endpoints agregados (sin N+1 por PC)
+    Promise.all([
+      fetchPerifericosAgenteListados().catch(() => ({ teclados: [], mouse: [], webcams: [], parlantes: [], microfonos: [] })),
+      fetchMonitoresReportadosAgente().catch(() => []),
+      fetchImpresorasAgrupadas().catch(() => []),
+    ])
+      .then(([listados, monitores, impresoras]) => {
         if (cancel) return;
         const out = [];
-        pares.forEach(({ pc, det }) => {
-          const hostname = det?.hostname ?? pc?.hostname ?? '—';
-          const uuid = pc?.uuid;
-          const p = det?.perifericos;
-          if (!p) return;
 
-          (p.impresoras ?? []).forEach(x => {
-            push(out, uuid, 'Impresora', hostname, x.nombre, '—', detalleImpresora(x));
-          });
-          (p.monitores ?? []).forEach(x => {
-            push(out, uuid, 'Monitor', hostname, x.nombre, '—', detalleMonitor(x));
-          });
-          filtrarUsbParaInventario(p.dispositivosUsb ?? []).forEach(x => {
-            push(out, uuid, tipoUsb(x), hostname, x.nombre, fabClaseUsb(x), detalleUsb(x));
-          });
-          filtrarAudioParaInventario(p.audio?.entrada ?? []).forEach(x => {
-            push(out, uuid, 'Micrófono', hostname, x.nombre, x.fabricante ?? '—', x.estado ? `Estado: ${x.estado}` : '—');
-          });
-          filtrarAudioParaInventario(p.audio?.salida ?? []).forEach(x => {
-            push(out, uuid, 'Parlante', hostname, x.nombre, x.fabricante ?? '—', x.estado ? `Estado: ${x.estado}` : '—');
+        (impresoras ?? []).forEach(g => {
+          const pcs = Array.isArray(g.pcs) ? g.pcs : [];
+          const detalle = detalleImpresora(g);
+          if (pcs.length === 0) {
+            push(out, null, 'Impresora', '—', g.nombre, '—', detalle);
+          } else {
+            pcs.forEach(pc => {
+              push(out, pc.uuid, 'Impresora', pc.hostname, g.nombre, '—', detalle);
+            });
+          }
+        });
+
+        (monitores ?? []).forEach(m => {
+          push(
+            out,
+            m.pcUuid,
+            'Monitor',
+            m.pcHostname,
+            m.nombre,
+            '—',
+            detalleMonitor(m),
+          );
+        });
+
+        ['teclados', 'mouse', 'webcams'].forEach(key => {
+          const tipo = mapUsbTipo(key);
+          (listados?.[key] ?? []).forEach(x => {
+            const fab = [x.fabricante, x.clase].filter(Boolean).join(' · ') || '—';
+            const detParts = [];
+            if (x.conexion) detParts.push(`Conexión: ${x.conexion}`);
+            if (x.vid || x.pid) {
+              detParts.push([x.vid && `VID_${x.vid}`, x.pid && `PID_${x.pid}`].filter(Boolean).join('/'));
+            }
+            if (x.categoria) detParts.push(`Categoría: ${x.categoria}`);
+            push(out, x.pcUuid, tipo, x.pcHostname, x.nombre, fab, detParts.length ? detParts.join(' · ') : '—');
           });
         });
+
+        (listados?.microfonos ?? []).forEach(x => {
+          push(
+            out,
+            x.pcUuid,
+            'Micrófono',
+            x.pcHostname,
+            x.nombre,
+            x.fabricante ?? '—',
+            x.estado ? `Estado: ${x.estado}` : '—',
+          );
+        });
+
+        (listados?.parlantes ?? []).forEach(x => {
+          push(
+            out,
+            x.pcUuid,
+            'Parlante',
+            x.pcHostname,
+            x.nombre,
+            x.fabricante ?? '—',
+            x.estado ? `Estado: ${x.estado}` : '—',
+          );
+        });
+
         setFilas(out);
       })
       .catch(() => {
@@ -215,11 +220,11 @@ function PerifericosTodosList() {
         </div>
       </StudioFilterBar>
 
-      <PerifericosTable 
-        items={filasFiltradas} 
+      <PerifericosTable
+        items={filasFiltradas}
         renderSpecs={(f) => (
           <>{f.fabClase !== '—' ? `${f.fabClase} ` : ''}<span className="text-slate-300 mx-1">|</span> {f.detalle}</>
-        )} 
+        )}
       />
     </StudioPageShell>
   );

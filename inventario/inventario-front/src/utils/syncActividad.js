@@ -16,18 +16,45 @@ const MS_1_H = 60 * 60 * 1000;
 /** Entero para textos de UI (“menos de ~X min”). */
 export const MINUTOS_LABEL_UMBRAL_ACTIVO = Math.ceil(MS_UMBRAL_SYNC_ACTIVO / 60000);
 
+function syncTimestampToMs(raw) {
+  if (raw == null || raw === '') return null;
+  if (typeof raw === 'number' && Number.isFinite(raw)) {
+    // Epoch en segundos (p. ej. exportaciones antiguas)
+    return raw < 1e12 ? raw * 1000 : raw;
+  }
+  if (typeof raw.toDate === 'function') {
+    const t = raw.toDate().getTime();
+    return Number.isFinite(t) ? t : null;
+  }
+  if (typeof raw === 'object') {
+    if (typeof raw.seconds === 'number') {
+      return raw.seconds * 1000 + Math.floor((raw.nanoseconds ?? 0) / 1e6);
+    }
+    if (typeof raw._seconds === 'number') {
+      return raw._seconds * 1000 + Math.floor((raw._nanoseconds ?? 0) / 1e6);
+    }
+  }
+  const t = new Date(raw).getTime();
+  return Number.isFinite(t) ? t : null;
+}
+
+/** Normaliza timestamps de Firestore/API a ISO string para la UI y cálculos de sync. */
+export function normalizarUltimaSincronizacion(raw) {
+  const ms = syncTimestampToMs(raw);
+  if (ms === null) return null;
+  return new Date(ms).toISOString();
+}
+
 /**
  * Edad en ms desde ultimaSincronización; null si no hay fecha válida.
  */
 export function edadUltimaSyncMs(c) {
   const raw = c?.ultimaSincronizacion ?? c?.ultima_sincronizacion;
-  if (raw == null || raw === '') return null;
-  if (typeof raw === 'number' && Number.isFinite(raw)) {
-    return Date.now() - raw;
-  }
-  const t = new Date(raw).getTime();
-  if (!Number.isFinite(t)) return null;
-  return Date.now() - t;
+  const ms = syncTimestampToMs(raw);
+  if (ms === null) return null;
+  const age = Date.now() - ms;
+  if (age < 0) return null;
+  return age;
 }
 
 /**
@@ -43,4 +70,35 @@ export function nivelActividadSync(c) {
   if (age < MS_UMBRAL_SYNC_ACTIVO) return 'activo';
   if (age > MS_1_H) return 'sin_actividad';
   return 'intermedio';
+}
+
+export function tituloSyncDot(n) {
+  if (n === 'activo') {
+    return `Sync reciente (ciclo agente ~${CICLO_SYNC_AGENTE_MINUTOS} min; menos de ~${MINUTOS_LABEL_UMBRAL_ACTIVO} min)`;
+  }
+  if (n === 'intermedio') {
+    return `Última sync entre ~${MINUTOS_LABEL_UMBRAL_ACTIVO} minutos y 1 hora`;
+  }
+  if (n === 'sin_actividad') return 'Sin sync hace más de 1 hora';
+  return 'Sin datos de última sincronización';
+}
+
+/** Solo sync reciente (verde). Ignora estado_conexion ONLINE desactualizado. */
+export function esSyncActivo(c) {
+  return nivelActividadSync(c) === 'activo';
+}
+
+/** Estilos inline equivalentes a syncDotClass (lista de computadoras). */
+export function syncDotInlineStyle(nivel) {
+  const base = { flexShrink: 0, width: 10, height: 10, borderRadius: '50%' };
+  if (nivel === 'activo') {
+    return { ...base, backgroundColor: '#10b981', boxShadow: '0 0 8px rgba(16, 185, 129, 0.6)' };
+  }
+  if (nivel === 'intermedio') {
+    return { ...base, backgroundColor: '#fbbf24' };
+  }
+  if (nivel === 'sin_datos') {
+    return { ...base, backgroundColor: '#cbd5e1' };
+  }
+  return { ...base, backgroundColor: '#f87171' };
 }

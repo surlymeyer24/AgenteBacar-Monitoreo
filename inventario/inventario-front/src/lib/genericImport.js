@@ -1,5 +1,3 @@
-import * as XLSX from 'xlsx';
-
 /** Excel (sobre todo en macOS) puede exportar CSV solo con \r; split(/\r?\n/) no parte esas líneas. */
 export function normalizeNewlines(text) {
   return String(text ?? '')
@@ -171,7 +169,8 @@ export function parseRowsFromCsv(text, schema) {
   return rows;
 }
 
-export function parseRowsFromXlsx(arrayBuffer, schema) {
+export async function parseRowsFromXlsx(arrayBuffer, schema) {
+  const XLSX = await import('xlsx');
   const wb = XLSX.read(arrayBuffer, { type: 'array' });
   const sheet = wb.Sheets[wb.SheetNames[0]];
   const aoa = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: false });
@@ -240,7 +239,7 @@ export async function parseImportFile(file, schema) {
   }
   if (name.endsWith('.xlsx') || name.endsWith('.xls')) {
     const buf = await file.arrayBuffer();
-    return parseRowsFromXlsx(buf, schema);
+    return await parseRowsFromXlsx(buf, schema);
   }
   throw new Error('Formato no soportado. Usá .json, .csv, .xlsx o .xls');
 }

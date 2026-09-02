@@ -233,14 +233,44 @@ public enum Ambito {
 
 ## 7. Tecnologías
 
+
 | Componente | Tecnología |
 |---|---|
 | Lenguaje principal | Java (POO) |
 | API REST | Spring Boot 3 (`inventario/`) |
-| Frontend | React + Vite (`inventario-front/`) |
+| Frontend | React + Vite (`inventario/inventario-front/`) |
 | Backend de datos | Firebase / Firestore |
+| Caché en memoria | Caffeine + Spring Cache (`@Cacheable` / `@CacheEvict`) |
 | Agente de recolección | Windows Service en C# (CyberWatch / AgenteBacar) |
 | Tipos de fecha | `java.time.LocalDate`, `java.time.LocalDateTime` |
+
+### 7.1 Caché en memoria (Caffeine)
+
+Todos los repositorios de Firestore usan caché en memoria para evitar lecturas repetidas a la base de datos.
+
+**Configuración** (`config/CacheConfig.java`):
+- Proveedor: Caffeine (caché JVM de alto rendimiento)
+- TTL: 3 minutos (expire after write)
+- Máximo: 500 entradas por caché
+
+**Cachés registrados** (uno por colección Firestore):
+
+| Caché | Repositorio | Métodos cacheados |
+|-------|-------------|-------------------|
+| `computadoras` | ComputadoraRepository | findAll, findByUuid, findByUbicacion, findByHostname, listProgramas |
+| `camaras` | CamaraRepository | findAll, findById, findByUbicacion, findByNvrId, conteos |
+| `routers` | RouterRepository | findAll, findById |
+| `switches` | SwitchRedRepository | findAll, findById |
+| `nvrs` | NvrRepository | findAll, findById |
+| `maquinasTesoreria` | MaquinaTesoreriaRepository | findAll, findByTipo, findById |
+| `internos` | InternoIpRepository | findAll, findById |
+| `perifericosManuales` | PerifericoManualRepository | findAll, findById |
+| `servidores` | ServidorRepository | findAll, findById |
+| `usuarios` | UsuarioRepository | findAll, findById, findByEmail |
+
+**Invalidación**: cada método de escritura (create, update, delete, cambiarEstado) usa `@CacheEvict(allEntries = true)` para limpiar el caché completo de la colección afectada.
+
+**Invalidación manual**: `DELETE /api/cache` limpia todos los cachés. Útil cuando el agente C# escribe directamente a Firestore y se necesita ver los cambios sin esperar el TTL.
 
 ---
 
@@ -255,14 +285,14 @@ Objetivo: poder ver todas las PCs que sincronizan con Firestore y abrir el detal
 - **Servicio y controlador**: `ComputadoraService` + `ComputadoraController` con `GET /api/computadoras` y `GET /api/computadoras/{uuid}` (404 si no existe).
 - **DTOs**: `ComputadoraMapper` arma `ComputadoraDTO` (hostname, usuario, ubicación enum como nombre, SO, arquitectura, estado operativo manual si existe, procesador aplanado, discos, RAM).
 
-### Frontend (`inventario-front/`)
+### Frontend (`inventario/inventario-front/`)
 
 - Proyecto **Vite + React** con **React Router**.
 - **`src/api/computadoraApi.js`**: llamadas `fetch` al backend.
-- **Rutas**: `/` lista en tabla (UUID acortado, columnas principales, fila clickeable); `/computadoras/:uuid` detalle con datos generales, procesador, discos y RAM; navegación lateral con marca “Inventario BACARSA”.
+- **Rutas**: `/` lista en tabla (UUID acortado, columnas principales, fila clickeable); `/computadoras/:uuid` detalle con datos generales, procesador, discos y RAM; navegación lateral con marca "Inventario BACARSA".
 - Estilos en `index.css` / `App.css` (tablas, cards, layout).
 
-La guía paso a paso original de esta iteración ya no se mantiene en un archivo apartado; este apartado la reemplaza.
+Detalle de tareas y verificación: [`docs/iteracion-1-pasos.md`](docs/iteracion-1-pasos.md).
 
 ---
 
@@ -292,10 +322,6 @@ Objetivo: exponer en la API REST los **periféricos detectados por el agente** (
 - Null safety con optional chaining (`?.`) y fallback a lista vacía (`?? []`).
 - Si `perifericos` es `null`, las secciones no se muestran.
 
-### Nota importante
-
-Los campos `estado` dentro de impresoras y dispositivos de audio son **reportados por Windows**, no representan el estado operativo gestionado por IT (`estadoActual` / `CambioEstado`).
-
 Detalle de tareas y verificación: [`docs/iteracion-3-pasos.md`](docs/iteracion-3-pasos.md).
 
 ---
@@ -307,12 +333,7 @@ Objetivo: introducir un enum tipado para el **estado operativo** compartido por 
 ### Backend (`inventario/`)
 
 - **Enum `EstadoOperativo`** (`models/`): valores `ACTIVO`, `EN_MANTENIMIENTO`, `FUERA_DE_SERVICIO` con campos `nombre` (label amigable) y `descripcion`. Fuente de verdad para validación. Se mantiene `Estado.java` como POJO para que Firestore siga deserializando documentos existentes.
-- **Fix `Camara.getEstadoActual()`**: ahora replica la lógica de `Computadora.getEstadoActual()` — itera `historialEstados`, devuelve el que tiene `esEstadoActual() == true`, y cae en `estadoActual` si no encuentra.
 - **DTOs** (`dto/`): `CambiarEstadoDTO` (`estado` + `motivo`, ambos `@NotBlank`) para el request; `CambioEstadoDTO` (estado, motivo, fechas ISO-8601, `activo`) para el response.
-- **Mapper** `CambioEstadoMapper`: `toDTO` y `toDTOList` null-safe, formatea `LocalDateTime` como ISO-8601 vía `toString()`.
-- **`ComputadoraDTO` / `CamaraDTO`**: agregan `List<CambioEstadoDTO> historialEstados`. En computadoras solo se carga en el detalle (`toDTO`), no en el listado (`toListDTO`), para mantener el payload liviano.
-- **Repos — transacción Firestore**: `ComputadoraRepository.cambiarEstado()` y `CamaraRepository.cambiarEstado()` hacen un read-modify-write transaccional: leen el documento, cierran el `CambioEstado` vigente seteando `fechaHoraFin`, agregan la nueva entrada con `fechaHoraFin: null`, y reescriben el array completo + el campo top-level `estadoActual` (para que el listado no tenga que parsear el historial). La transacción es necesaria porque Firestore no soporta update condicional dentro de un array.
-- **Services**: `ComputadoraService.cambiarEstado()` y `CamaraService.cambiarEstado()` validan el `estado` recibido contra `EstadoOperativo.valueOf()` (si falla, `IllegalArgumentException` → 400), devuelven `null` si no existe el doc, o el DTO actualizado en éxito.
 - **Endpoints**:
   - `POST /api/computadoras/{uuid}/estado` — body `CambiarEstadoDTO` (`@Valid`).
   - `GET /api/computadoras/{uuid}/historial` → `List<CambioEstadoDTO>`, 404 si no existe.
@@ -365,60 +386,270 @@ Detalle de tareas y verificación: [`docs/iteracion-5-pasos.md`](docs/iteracion-
 
 ## 13. Iteración 6 — Navegación jerárquica por tópicos
 
-Objetivo: reemplazar el sidebar plano por un **árbol de categorías expandibles** inspirado en el panel "Tópicos" de ServiceDesk Plus, con las categorías declaradas en un único archivo de configuración para que sumar un nuevo tipo de activo sea solo agregar una entrada.
+Objetivo: reemplazar el sidebar plano por un **árbol de categorías expandibles**.
 
-### Frontend (`inventario-front/`)
+### Frontend
 
-- **Configuración declarativa** (`src/constants/topicos.js`): único lugar donde viven las categorías del sidebar. Estructura: array de items con `id`, `label`, `icono` (emoji), y opcionalmente `path` (hoja) o `children` (rama con sub-items). Sumar una rama nueva = editar este archivo.
-- **Componente `SidebarNav.jsx`** (nuevo en `src/components/`): reemplaza el `<nav>` plano que antes vivía en `App.jsx`. Renderiza recursivamente el árbol:
-  - Hojas → `<NavLink>` con clase `.nav-link`.
-  - Ramas → header clickeable (`.nav-group-header`) con chevron `▸`/`▾` que colapsa/expande los hijos.
-  - Auto-expande la rama cuyo hijo matchea la ruta actual (`useLocation()`).
-- **Páginas de periféricos derivados del agente** (nuevas en `src/pages/`): `PerifericosImpresorasList` y `PerifericosMonitoresList`. Ambas iteran `fetchComputadoras()` + `fetchComputadora(uuid)` por cada PC (no hay endpoint agregado — inventario chico, en memoria alcanza), aplanan los periféricos de todas las PCs en una sola tabla con columna "PC origen".
-- **Estilos** (`App.css`): `.nav-group-header`, `.nav-group-chevron`, `.nav-group-children` (+ variante `is-collapsed` que aplica `display: none`). Paleta oscura del sidebar (`#0e0f36`) sin cambios.
-- Sin librerías de iconos — se usan emojis unicode (`🏠`, `💻`, `📹`).
-
-### Backend
-
-- **Sin cambios**. Los listados de periféricos consumen `GET /api/computadoras/{uuid}` existente. Si más adelante el volumen hace lento el N+1, se evaluará agregar endpoints agregados tipo `GET /api/perifericos/impresoras`.
-
-### Extensión posterior — grupo "Periféricos"
-
-Después de cerrar el spec original de la iteración, se sumó un **cuarto grupo al sidebar** con 5 listados adicionales derivados del mismo snapshot del agente:
-
-- Grupo `🧩 Periféricos` con hijos: Teclados, Mouse, Webcams, Parlantes, Micrófonos.
-- Rutas `/perifericos/{teclados,mouse,webcams,parlantes,microfonos}`.
-- **Teclados/Mouse/Webcams** salen de `perifericos.dispositivosUsb` con filtros heurísticos sobre los campos `clase` y `nombre` (case-insensitive `includes()`). Cada tabla expone la columna "Clase" para poder calibrar los matchers mirando datos reales del agente.
-- **Parlantes/Micrófonos** salen de `perifericos.audio.salida` y `perifericos.audio.entrada` respectivamente — ya vienen separados por dirección, no requieren filtrado.
-- **Helpers en `src/utils/perifericos.js`**: `siNo`, `esTeclado`, `esMouse`, `esWebcam` — filtros puros compartidos por las 3 páginas USB.
-- Las 5 páginas siguen el mismo patrón N+1 de Impresoras/Monitores (fetch lista + fetch detalle por PC + aplanar).
-
-### Notas
-
-- El estado `expandido` del sidebar es local al componente; si se quiere persistir entre recargas, se agrega `localStorage` en una iteración futura.
-- Los filtros USB (`esTeclado`/`esMouse`/`esWebcam`) son heurísticos y se esperan ajustes incrementales cuando se vea qué valores manda Windows en `clase`/`categoria` en cada máquina. No amerita iteración propia — se calibran como tweak.
+- **`src/constants/topicos.js`**: configuración declarativa del sidebar (ramas + hojas).
+- **`SidebarNav.jsx`**: renderizado recursivo, auto-expande la rama activa, chevron `▸`/`▾`.
+- Páginas de periféricos del agente: `PerifericosImpresorasList`, `PerifericosMonitoresList`, `PerifericosTecladosList`, `PerifericosMouseList`, `PerifericosWebcamsList`, `PerifericosParlantesList`, `PerifericosMicrofonosList`.
+- Helpers en `src/utils/perifericos.js`: `esTeclado`, `esMouse`, `esWebcam`.
 
 Detalle de tareas y verificación: [`docs/iteracion-6-pasos.md`](docs/iteracion-6-pasos.md).
 
 ---
 
-## 14. Pendientes de diseño
+## 14. Iteración 7 — Búsqueda global
 
-### 14.1 Identificadores de entidades
+Objetivo: barra de búsqueda en el header con dropdown de resultados en vivo sobre computadoras y cámaras.
 
-`Computadora` usa `uuid` como ID de documento (viene del agente). **`Camara`** usa `id` de Firestore (`@DocumentId`) en la iteración 2. Para el resto (`Estado`, `CambioEstado`, componentes HW anidados) sigue pendiente definir `String id` o estrategia de persistencia antes de exponerlos por API.
+### Backend
 
-### 14.2 Identificación operativa de cámaras
+- **`BusquedaController.java`**: `GET /api/buscar?q=...` → `List<ResultadoBusquedaDTO>`.
+- **`BusquedaService.java`**: normalización de texto (sin acentos, lowercase), match por `contains` en campos clave, máx 10 resultados por tipo.
 
-Revisar y definir **cómo identificar las cámaras** en el día a día del inventario más allá del `id` autogenerado del documento: por ejemplo código interno de activo, número de serie del fabricante, etiqueta física, o nombre único negocio—lo que permita búsqueda, cruce con instalación física y auditoría sin depender solo del ID de Firestore.
+### Frontend
+
+- **`SearchBar.jsx`**: input con debounce 250 ms, dropdown con badges de tipo (PC / Cámara), navegación con teclado (flechas + Enter), cierre con Escape o click fuera.
+- Integrado en topbar sticky sobre el área principal.
+
+Detalle de tareas y verificación: [`docs/iteracion-7-pasos.md`](docs/iteracion-7-pasos.md).
 
 ---
 
-## 15. Comandos de deploy
+## 15. Iteración 8 — Routers y Switches
+
+Objetivo: agregar Router y Switch como nuevos tipos de activo con CRUD completo, integrados en búsqueda y dashboard.
+
+### Backend
+
+- **Modelos**: `Router.java`, `SwitchRed.java` (nombre Java evita palabra reservada), `UbicacionRed` enum.
+- **CRUD completo**: `RouterController` (`/api/routers`), `SwitchRedController` (`/api/switches`) — listar, detalle, crear, cambiar estado.
+- **`BusquedaService`** extendido: match en nombre, marca, modelo, IP de routers y switches.
+- **`DashboardService`** extendido: totales y distribución de routers/switches en `DashboardStatsDTO`.
+
+### Frontend
+
+- **`routerApi.js`**, **`switchApi.js`**.
+- **`RouterList.jsx`**, **`RouterDetail.jsx`**, **`SwitchList.jsx`**, **`SwitchDetail.jsx`**.
+- Rama **Redes** en `topicos.js` con hijos Routers y Switches.
+
+Detalle de tareas y verificación: [`docs/iteracion-8-pasos.md`](docs/iteracion-8-pasos.md).
+
+---
+
+## 16. Iteración 9 — Usuarios con Firebase Auth
+
+Objetivo: gestión de usuarios con roles, persistiendo datos extra en Firestore y verificando el ID token de Firebase en cada request al backend.
+
+### Backend
+
+- **`Rol.java`** (enum): `ADMIN`, `OPERADOR`, `VISUALIZADOR`.
+- **`Usuario.java`**: `id` = uid de Firebase Auth, `nombre`, `email`, `rol`, `activo`.
+- **`UsuarioRepository.java`**: colección `usuarios`, CRUD por uid.
+- **`UsuarioService.java`** + **`UsuarioController.java`**: `GET/POST/PUT/DELETE /api/usuarios`.
+- **`FirebaseTokenFilter.java`** (`security/`): `OncePerRequestFilter` que verifica el Bearer token en `/api/**`; OPTIONS (preflight CORS) pasa sin verificar; 401 si token ausente o inválido.
+
+### Frontend
+
+- Pantalla **`Login.jsx`** con autenticación Firebase.
+- Contexto de autenticación (`src/context/`) que mantiene el usuario activo y adjunta el token a cada request via **`src/api/http.js`**.
+
+Detalle de tareas y verificación: [`docs/iteracion-9-pasos.md`](docs/iteracion-9-pasos.md).
+
+---
+
+## 17. Iteración 10 — Soporte multi-NVR en cámaras
+
+Objetivo: crear la entidad **Nvr** como maestro y vincular cada cámara a su NVR.
+
+### Backend
+
+- **`Nvr.java`**: `id` (`@DocumentId`), `nombre`, `direccionIp`, `puerto`, `descripcion`. Colección Firestore: `nvrs`.
+- **`NvrRepository.java`**, **`NvrService.java`**, **`NvrController.java`**: `GET /api/nvrs`, `GET /api/nvrs/{id}`, `POST /api/nvrs`, `GET /api/nvrs/{id}/camaras`.
+- **`Camara.java`**: campo `nvrId` agregado.
+- **`CamaraController`**: `GET /api/camaras?nvrId=...` y `POST /api/camaras/{id}/nvr`.
+
+### Frontend
+
+- **`nvrApi.js`**, **`NvrList.jsx`**, **`NvrDetail.jsx`**, **`NvrNueva.jsx`**, **`CamaraNueva.jsx`**, **`CamaraList.jsx`**.
+- El listado de cámaras (`/camaras`) permite dar de alta y editar cámaras directamente desde la ventana emergente (modal), incluyendo la selección opcional de la NVR y la persistencia en base de datos.
+- El listado de NVRs (`/nvrs`) y el detalle de NVR (`/nvrs/:id`) también permiten dar de alta cámaras (con pre-selección automática si aplica) mediante la misma ventana emergente (modal).
+- El registro de nueva cámara en su propia página (`/camaras/nueva`) también permite asignar una NVR de manera opcional (soporta parámetro `?from=camaras` para retorno de navegación).
+- Detalle de cámara muestra y permite cambiar NVR mediante selector.
+
+Detalle de tareas y verificación: [`docs/iteracion-10-pasos.md`](docs/iteracion-10-pasos.md).
+
+---
+
+## 18. Iteración 11 — Responsable de inventario (asignación manual)
+
+Objetivo: separar el usuario del agente (`usuarioActual`) del responsable de inventario definido por IT (`responsableInventario`).
+
+### Backend
+
+- **`Computadora.java`**: campo `responsableInventario` (`@PropertyName("responsable_inventario")`).
+- **`ComputadoraRepository.updateResponsableInventario(uuid, valor)`**: update parcial del campo sin reemplazar el documento.
+- **`ComputadoraService.asignarResponsableInventario()`**: persiste el campo y re-deriva el estado operativo vía `DERIVAR_ASIGNACION` (usa `responsableInventario`, no `usuarioActual`).
+- **Endpoint**: `POST /api/computadoras/{uuid}/responsable-inventario` → body `ResponsableInventarioDTO`.
+
+### Frontend
+
+- **`ComputadoraAsignaciones.jsx`**: vista "Asig" con tabla de PCs, edición de responsable y cambio de estado.
+- **`ComputadoraSubnav.jsx`**: sub-navegación Inventario / Asig sobre el área de computadoras.
+- Ruta `/computadoras/asignaciones` en `App.jsx`.
+
+Detalle de tareas y verificación: [`docs/iteracion-11-pasos.md`](docs/iteracion-11-pasos.md).
+
+---
+
+## 19. Iteración 12 — Filtro de monitores de notebooks
+
+Objetivo: excluir de `GET /api/monitores` los monitores integrados de notebooks (detectados por `tipoEquipo.tieneBateria == true`).
+
+### Backend
+
+- **`MonitorService.java`**: filtro previo al loop — omite computadoras donde `tipoEquipo.tieneBateria` es `true`.
+- Sin cambios en frontend; el dashboard ya consume el endpoint filtrado.
+
+---
+
+## 20. Iteración 13 — Campos ampliados y Edición de Routers y Switches
+
+Objetivo: enriquecer los modelos con los campos del Excel de Omada y habilitar la edición completa de Routers y Switches (full-stack).
+
+### Backend
+
+- **`Router.java`** y **`SwitchRed.java`**: nuevos campos `sitio`, `numeroSerie`, `ipPublica`, `version`, `macUplink`, `salto`, `grupoWlan` con `@PropertyName` para snake_case en Firestore.
+- DTOs y mappers actualizados.
+- **`RouterRepository.java`** y **`SwitchRedRepository.java`**: nuevo método de actualización parcial (`update(id, map)`) que preserva historiales de estados.
+- Endpoints `PUT /api/routers/{id}` y `PUT /api/switches/{id}` agregados.
+
+### Frontend
+
+- **`RouterList.jsx`** y **`SwitchList.jsx`**: columnas adicionales en tabla.
+- **Edición**: Se implementó el llamado a los nuevos endpoints desde el modal `InfraestructuraModal` en `RoutersSwitchesList.jsx` y se agregaron botones de "Editar" en `RouterDetail.jsx` y `SwitchDetail.jsx`.
+- Importación desde Excel habilitada con **`routersSchema.js`** y **`switchesSchema.js`** en `src/lib/importSchemas/`.
+- **`genericImport.js`** en `src/lib/`: parser genérico CSV/XLSX con aliases de columnas por entidad.
+- **`ImportModal.jsx`**: modal de previsualización antes de confirmar la importación.
+
+---
+
+## 21. Entidades adicionales implementadas (fuera del plan original de iteraciones)
+
+### MáquinaTesorería
+
+Entidad de inventario manual para las máquinas de la tesorería.
+
+- **Backend**: `MaquinaTesoreria.java`, `MaquinaTesoreriaRepository`, `MaquinaTesoreriaService`, `MaquinaTesoreriaController` (`/api/maquinas-tesoreria`), `MaquinaTesoreriaImportService` (importación desde CSV/Excel).
+- **Frontend**: `maquinaTesoreriaApi.js`, `MaquinaTesoreriaList.jsx`, `MaquinaTesoreriaDetail.jsx`.
+
+### Periférico Manual
+
+Activo de inventario manual para periféricos no detectados por el agente.
+
+- **Backend**: `PerifericoManual.java`, `PerifericoManualRepository`, `PerifericoManualService`, `PerifericoManualController` (`/api/perifericos-manuales`).
+- **Frontend**: `perifericoManualApi.js`, `PerifericoManualList.jsx`, `PerifericoManualDetail.jsx`, `PerifericoManualNuevo.jsx`.
+
+### Endpoints de periféricos del agente (endpoints propios)
+
+- **`ImpresoraController`** → `GET /api/impresoras` (servido por `ImpresoraService`).
+- **`MonitorController`** → `GET /api/monitores` (servido por `MonitorService`).
+- **`PerifericosAgenteController`** → endpoints de listado de periféricos del agente separados del detalle de computadora.
+
+### Admin / Migración
+
+- **`AdminImportController`**: endpoints de importación masiva (cámaras activas, etc.).
+- **`AdminMigracionController`**: endpoints internos para migraciones de datos en Firestore.
+- **`CamarasActivasImportService`**: importación de cámaras desde Excel.
+
+### Dashboard de Infraestructura
+
+- **Frontend**: `InfraestructuraDashboard.jsx` — dashboard secundario para la sección de infraestructura de red (Routers, Switches, NVRs).
+
+---
+
+## 22. Iteración de UX — Sidebar moderno, Routers/Switches consolidado y Colaboradores
+
+Objetivo: refinar la experiencia visual del frontend aplicando el "trasplante de UX" desde el sandbox (`gestión-de-inventario-it`) al proyecto de producción (`inventario-front`).
+
+### Frontend (`inventario-front/`)
+
+#### 🎨 SidebarNav renovado
+
+- **`SidebarNav.jsx`** reemplaza el sidebar basado en el array `TOPICOS` por un componente propio con grupos colapsables (Hardware, Periféricos, Infraestructura) y animación de chevron.
+- Usa `NavLink` de React Router para marcar automáticamente la sección activa.
+- Soporta el prop `sidebarCollapsed`: cuando está reducido, oculta textos y sub-menús.
+- CSS migrado al tema Obsidian oscuro con gradiente en `App.css`.
+- Tipografía del sidebar aumentada de `0.85rem` a `0.95rem` para mejor legibilidad.
+- Ícono del logo: sin fondo (solo el ícono, sin caja roja).
+
+#### 🌐 Vista consolidada Routers & Switches (`/routers-switches`)
+
+- **`RoutersSwitchesList.jsx`**: carga ambos endpoints (`fetchRouters` + `fetchSwitches`) en paralelo con `Promise.all`.
+- Pestañas de filtro: **Todos / Routers / Switches**.
+- Botón "Registrar Equipo" con menú desplegable para elegir el tipo (Router o Switch), cada uno con su modal de formulario específico.
+- `InfraestructuraGrid` extendido para reconocer el campo `tipoComponente` y mostrar el ícono correcto en listas mixtas.
+- Rutas `/routers` y `/switches` como páginas de lista separadas fueron eliminadas; el acceso es siempre por la vista consolidada.
+- Nombres de pestañas simplificados y tamaño de fuente aumentado a `text-sm`.
+
+#### 👥 Módulo de Colaboradores (`/colaboradores`)
+
+- **`usuarioApi.js`**: CRUD completo apuntando a `/api/usuarios`.
+- **`ColaboradoresList.jsx`**:
+  - Grilla de tarjetas con avatar (foto o iniciales con gradiente generado por nombre).
+  - Filtro de búsqueda libre y filtro por departamento.
+  - Modal propio para crear/editar colaboradores.
+  - Panel lateral deslizable con el detalle institucional del usuario.
+- Link **"Colaboradores"** agregado al sidebar bajo la sección Administración.
+
+#### 🔤 Nomenclatura estandarizada — Máquinas de Tesorería
+
+- Formato de nombre: `MTes-TIP-NumSerie` (3 primeras letras del tipo en mayúsculas, ej. `MTes-IMP-00123`).
+
+---
+
+## 23. Iteración 14 y 15 — Servidores e Importación Masiva (Completadas)
+
+### Servidores
+Entidad de inventario manual para servidores físicos/virtuales. Incluye CRUD completo (`/api/servidores`), visualización y gestión en el frontend (`ServidorList`, `ServidorDetail`), y métricas en el `InfraestructuraDashboard`.
+
+### Importación Masiva desde Excel
+Habilitación de carga en bloque mediante archivos `.xlsx` usando esquemas específicos (`importSchemas/`) para Servidores, Cámaras, NVRs, Routers, Switches, Internos IP y Tesorería, utilizando el utilitario genérico de parseo.
+
+---
+
+## 24. Entidad adicional: Teléfonos IP (Internos)
+
+Activo de inventario para el directorio de internos telefónicos IP.
+- **Backend**: Modelo `InternoIp`, repositorio, servicio y controlador (`/api/internos`). Operaciones de lectura y escritura.
+- **Frontend**: API client (`internoIpApi.js`), vista unificada en `TelefonoIpList.jsx`. 
+- **Dashboards**: Sección de "Directorio de Teléfonos IP" agregado al Dashboard principal y al de Infraestructura, con buscador integrado y diseño de scroll vertical compacto.
+
+---
+
+## 25. Pendientes de implementación
+
+*(No hay tareas pendientes en este momento)*
+
+---
+
+## 26. Iteración 16 — Filtros por atributo (Completada)
+
+Objetivo: Unificar la experiencia de búsqueda y filtrado en todas las listas de activos usando un componente reutilizable.
+
+### Frontend
+- **`TableFilters.jsx`**: Nuevo componente Compound (`TableFilters.Search`, `TableFilters.Select`) para renderizar filtros de manera consistente y flexible.
+- Se refactorizaron las siguientes listas para incluir búsqueda en tiempo real (en memoria) sin golpear al backend extra: `ComputadoraList`, `CamaraList`, `NvrList`, `RouterList`, `SwitchList`, `ServidorList`, `MaquinaTesoreriaList`, `PerifericoManualList`.
+- Se usó `useMemo` en cada lista para filtrar las tablas eficientemente del lado del cliente.
+
+---
+
+## 27. Comandos de deploy
 
 ### Frontend — Firebase Hosting
 
-Desde `inventario-front/`:
+Desde `inventario/inventario-front/`:
 
 ```bash
 npm run deploy:hosting
@@ -452,4 +683,41 @@ Desde `inventario/`:
 ```bash
 firebase deploy --only firestore:rules
 ```
+
+---
+
+## 28. Logística de etiquetas QR
+
+El módulo `/etiquetas-qr` permite registrar el avance de cada puesto durante una
+mudanza en tres fases: **Etiquetado**, **Embalado** y **En destino**.
+
+### Persistencia y auditoría
+
+- El progreso se guarda en Firestore, colección `progreso_logistica_qr`, usando
+  el UUID de la computadora como ID del documento.
+- Las marcas se mantienen separadas del documento `computadoras` para que las
+  sincronizaciones del agente no las sobrescriban.
+- Cada documento conserva los porcentajes y el último usuario que modificó el
+  puesto.
+- Cada cambio genera un documento en la subcolección
+  `progreso_logistica_qr/{uuid}/historial`, con fase, acción
+  (`MARCAR`/`DESMARCAR`), elementos afectados, fecha y usuario
+  (`uid`, nombre y email).
+- La escritura usa una transacción de Firestore para evitar que dos operadores
+  pisen cambios concurrentes sobre la misma fase.
+
+### API
+
+- `GET /api/etiquetas-qr/progreso` — índice resumido y cacheado para KPIs y
+  filtros; devuelve solo porcentajes y estado. Las marcas y el historial se
+  reservan para la ficha individual.
+- `GET /api/etiquetas-qr/{uuid}/progreso` — progreso e historial reciente del
+  puesto.
+- `PATCH /api/etiquetas-qr/{uuid}/progreso` — marca o desmarca elementos de una
+  fase. La identidad del actor se obtiene del token Firebase verificado por el
+  backend, no del body enviado por el navegador.
+
+El listado web usa caché de consultas, carga el progreso en segundo plano y
+pagina de a 50 estaciones para evitar bloquear la tabla o renderizar todo el
+inventario de una vez.
 

@@ -1,13 +1,21 @@
 import { useEffect, useState } from 'react';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { initFirebase, isFirebaseConfigured, mensajeFirebaseNoConfig, COLLECTIONS } from '../lib/firebase';
+import { normalizarUltimaSincronizacion } from '../utils/syncActividad';
 
 function docToComputadora(id, data) {
+  const ultimaSyncRaw = data.ultima_sincronizacion ?? data.ultimaSincronizacion ?? null;
+  const ultimaSync = normalizarUltimaSincronizacion(ultimaSyncRaw) ?? ultimaSyncRaw;
   return {
     id,
     hostname: data.hostname ?? null,
     version_agente: data.version_agente ?? null,
     version: data.version ?? null,
+    estado_conexion: data.estado_conexion ?? data.estadoConexion ?? null,
+    estadoConexion: data.estadoConexion ?? data.estado_conexion ?? null,
+    ultima_sincronizacion: ultimaSync,
+    ultimaSincronizacion: ultimaSync,
+    estadoAgente: data.estadoAgente ?? null,
   };
 }
 

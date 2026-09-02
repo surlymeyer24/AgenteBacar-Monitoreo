@@ -1,0 +1,1 @@
+import{n as e,t}from"./http-CjgacAtn.js";var n=`${e}/api/impresoras`;function r(){return t(n).then(async e=>{let t=null;try{t=await e.json()}catch{t=null}if(!e.ok){let n=t&&typeof t==`object`&&(t.message??t.error)?String(t.message??t.error):``;throw Error(n?`${n} (${e.status})`:`HTTP ${e.status}`)}return Array.isArray(t)?t:[]})}export{r as t};

@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.bacarsa.inventario.dto.ActualizarPerifericoDTO;
 import com.bacarsa.inventario.dto.AsignarPerifericoDTO;
 import com.bacarsa.inventario.dto.CambiarEstadoDTO;
+import com.bacarsa.inventario.dto.ComboCreateDTO;
 import com.bacarsa.inventario.dto.PerifericoManualCreateDTO;
 import com.bacarsa.inventario.dto.PerifericoManualDTO;
 import com.bacarsa.inventario.services.PerifericoManualService;
@@ -52,6 +53,17 @@ public class PerifericoManualController {
         try {
             PerifericoManualDTO creado = service.crear(body);
             return ResponseEntity.status(HttpStatus.CREATED).body(creado);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @PostMapping("/combo")
+    public ResponseEntity<List<PerifericoManualDTO>> crearCombo(@Valid @RequestBody ComboCreateDTO body)
+            throws ExecutionException, InterruptedException {
+        try {
+            List<PerifericoManualDTO> creados = service.crearCombo(body);
+            return ResponseEntity.status(HttpStatus.CREATED).body(creados);
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().build();
         }

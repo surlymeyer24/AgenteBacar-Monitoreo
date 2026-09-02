@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, Outlet } from 'react-router-dom';
 import { fetchCamaras, createCamara, asignarNvrCamara, deleteCamara, updateEstadoCamara, updateUbicacionCamara, actualizarCamara } from '../api/camaraApi';
 import ImportModal from '../components/ImportModal';
 import { camarasSchema } from '../lib/importSchemas/camarasSchema';
@@ -24,6 +24,8 @@ import {
   studioThClass,
   studioTdClass,
 } from '../components/studio/StudioUi';
+import TableFilters from '../components/TableFilters';
+import WriteGate from '../components/WriteGate';
 
 function CamaraList() {
   const navigate = useNavigate();
@@ -465,8 +467,22 @@ function CamaraList() {
     }
   }
 
-  if (cargando) return <StudioLoading />;
-  if (error) return <StudioError message={error} />;
+  if (cargando) {
+    return (
+      <>
+        <StudioLoading />
+        <Outlet />
+      </>
+    );
+  }
+  if (error) {
+    return (
+      <>
+        <StudioError message={error} />
+        <Outlet />
+      </>
+    );
+  }
 
   const totalInventario = catalogoCompleto.length;
   async function handleImport(rows) {
@@ -508,63 +524,58 @@ function CamaraList() {
     : `${visibles} de ${totalInventario} cámara${totalInventario === 1 ? '' : 's'}`;
 
   return (
+    <>
     <StudioPageShell
       title={`Infraestructura: NVR y Cámaras de Seguridad (${totalInventario})`}
       subtitle={`${subt}. Dispositivos y grabadoras digitales conectadas al circuito cerrado local.`}
       actions={
         <>
-          <StudioSecondaryButton onClick={() => setModalImportAbierto(true)}>
+          <StudioSecondaryButton requiresWrite onClick={() => setModalImportAbierto(true)}>
             Importar Excel/CSV
           </StudioSecondaryButton>
-          <StudioPrimaryButton onClick={handleOpenAddModal}>
+          <StudioPrimaryButton requiresWrite onClick={handleOpenAddModal}>
             Nueva cámara
           </StudioPrimaryButton>
         </>
       }
     >
       <StudioFilterBar>
-          <div className="inventory-field inventory-field--sm">
-            <label className="inventory-field__label" htmlFor="filtro-ubicacion-cam">Ubicación</label>
-            <select
-              id="filtro-ubicacion-cam"
-              className="inventory-select"
-              value={filtroUbicacion}
-              onChange={e => setFiltroUbicacion(e.target.value)}
-            >
-              <option value="">{`Todas (${totalInventario})`}</option>
-              {opcionesUbicacion.map(u => (
-                <option key={u} value={u}>{labelUbicacionEnum(u)}</option>
-              ))}
-            </select>
-          </div>
-          <div className="inventory-field inventory-field--sm">
-            <label className="inventory-field__label" htmlFor="filtro-nvr-cam">NVR</label>
-            <select
-              id="filtro-nvr-cam"
-              className="inventory-select"
-              value={filtroNvr}
-              onChange={e => setFiltroNvr(e.target.value)}
-            >
-              <option value="">Todas</option>
-              {nvrs.map(n => (
-                <option key={n.id} value={n.id}>{n.nombre ?? n.id}</option>
-              ))}
-            </select>
-          </div>
-          <div className="inventory-field inventory-field--sm">
-            <label className="inventory-field__label" htmlFor="orden-nombre-cam">Orden por nombre</label>
-            <select
-              id="orden-nombre-cam"
-              className="inventory-select"
-              value={ordenNombre}
-              onChange={e => setOrdenNombre(e.target.value)}
-            >
-              <option value="">Sin ordenar</option>
-              <option value="asc">A → Z</option>
-              <option value="desc">Z → A</option>
-            </select>
-          </div>
+        <TableFilters>
+          <TableFilters.Select
+            id="filtro-ubicacion-cam"
+            label="Ubicación"
+            value={filtroUbicacion}
+            onChange={setFiltroUbicacion}
+          >
+            <option value="">{`Todas (${totalInventario})`}</option>
+            {opcionesUbicacion.map(u => (
+              <option key={u} value={u}>{labelUbicacionEnum(u)}</option>
+            ))}
+          </TableFilters.Select>
+          <TableFilters.Select
+            id="filtro-nvr-cam"
+            label="NVR"
+            value={filtroNvr}
+            onChange={setFiltroNvr}
+          >
+            <option value="">Todas</option>
+            {nvrs.map(n => (
+              <option key={n.id} value={n.id}>{n.nombre ?? n.id}</option>
+            ))}
+          </TableFilters.Select>
+          <TableFilters.Select
+            id="orden-nombre-cam"
+            label="Orden por nombre"
+            value={ordenNombre}
+            onChange={setOrdenNombre}
+          >
+            <option value="">Sin ordenar</option>
+            <option value="asc">A → Z</option>
+            <option value="desc">Z → A</option>
+          </TableFilters.Select>
+        </TableFilters>
 
+        <WriteGate>
         {seleccion.size > 0 ? (
           <div className="inventory-bulk-wrapper">
             <div className="inventory-toolbar-row inventory-toolbar-row--bulk">
@@ -639,6 +650,7 @@ function CamaraList() {
             </div>
           </div>
         ) : null}
+        </WriteGate>
 
         {msgBulk ? (
           <p
@@ -696,6 +708,8 @@ function CamaraList() {
         ]}
       />
     </StudioPageShell>
+    <Outlet />
+    </>
   );
 }
 

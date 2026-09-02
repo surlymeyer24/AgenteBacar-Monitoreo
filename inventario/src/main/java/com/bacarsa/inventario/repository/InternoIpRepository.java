@@ -7,6 +7,8 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Repository;
 
 import com.bacarsa.inventario.models.Estado;
@@ -31,6 +33,7 @@ public class InternoIpRepository {
         this.collectionName = collectionName;
     }
 
+    @Cacheable("internos")
     public List<InternoIp> findAll() throws ExecutionException, InterruptedException {
         ApiFuture<QuerySnapshot> future = firestore.collection(collectionName).get();
         List<QueryDocumentSnapshot> documents = future.get().getDocuments();
@@ -41,6 +44,7 @@ public class InternoIpRepository {
         return result;
     }
 
+    @Cacheable(value = "internos", key = "#id")
     public InternoIp findById(String id) throws ExecutionException, InterruptedException {
         DocumentSnapshot doc = firestore.collection(collectionName).document(id).get().get();
         if (!doc.exists()) {
@@ -49,21 +53,25 @@ public class InternoIpRepository {
         return snapshotToInternoIp(doc);
     }
 
+    @CacheEvict(value = "internos", allEntries = true)
     public String create(InternoIp interno) throws ExecutionException, InterruptedException {
         DocumentReference ref = firestore.collection(collectionName).document();
         ref.set(interno).get();
         return ref.getId();
     }
 
+    @CacheEvict(value = "internos", allEntries = true)
     public void update(String id, Map<String, Object> campos) throws ExecutionException, InterruptedException {
         DocumentReference docRef = firestore.collection(collectionName).document(id);
         docRef.update(campos).get();
     }
 
+    @CacheEvict(value = "internos", allEntries = true)
     public void deleteById(String id) throws ExecutionException, InterruptedException {
         firestore.collection(collectionName).document(id).delete().get();
     }
 
+    @CacheEvict(value = "internos", allEntries = true)
     public void cambiarEstado(String id, Estado nuevoEstado, String motivo) throws ExecutionException, InterruptedException {
         DocumentReference docRef = firestore.collection(collectionName).document(id);
         String motivoGuardado = motivo != null ? motivo : "";

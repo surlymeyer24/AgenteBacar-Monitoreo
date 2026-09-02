@@ -7,6 +7,8 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Repository;
 
 import com.bacarsa.inventario.models.Camara;
@@ -31,6 +33,7 @@ public class CamaraRepository {
         this.collectionName = collectionName;
     }
 
+    @Cacheable("camaras")
     public List<Camara> findAll() throws ExecutionException, InterruptedException {
         ApiFuture<QuerySnapshot> future = firestore.collection(collectionName).get();
         List<QueryDocumentSnapshot> documents = future.get().getDocuments();
@@ -41,6 +44,7 @@ public class CamaraRepository {
         return result;
     }
 
+    @Cacheable(value = "camaras", key = "'ubicacion:' + #ubicacion")
     public List<Camara> findByUbicacion(String ubicacion) throws ExecutionException, InterruptedException {
         ApiFuture<QuerySnapshot> future = firestore.collection(collectionName)
                 .whereEqualTo("ubicacion", ubicacion)
@@ -53,6 +57,7 @@ public class CamaraRepository {
         return result;
     }
 
+    @Cacheable(value = "camaras", key = "#id")
     public Camara findById(String id) throws ExecutionException, InterruptedException {
         DocumentSnapshot doc = firestore.collection(collectionName).document(id).get().get();
         if (!doc.exists()) {
@@ -61,6 +66,7 @@ public class CamaraRepository {
         return snapshotToCamara(doc);
     }
 
+    @CacheEvict(value = "camaras", allEntries = true)
     public String create(Camara camara) throws ExecutionException, InterruptedException {
         DocumentReference ref = firestore.collection(collectionName).document();
         ref.set(camara).get();
@@ -68,6 +74,7 @@ public class CamaraRepository {
     }
 
     /** Persiste con ID fijo (p. ej. importación masiva); sobrescribe el documento si ya existe. */
+    @CacheEvict(value = "camaras", allEntries = true)
     public void guardarConId(String id, Camara camara) throws ExecutionException, InterruptedException {
         DocumentReference ref = firestore.collection(collectionName).document(id);
         camara.setId(null);
@@ -83,16 +90,19 @@ public class CamaraRepository {
         return c;
     }
 
+    @CacheEvict(value = "camaras", allEntries = true)
     public void updateUbicacion(String id, String ubicacion) throws ExecutionException, InterruptedException {
         DocumentReference ref = firestore.collection(collectionName).document(id);
         ref.update("ubicacion", ubicacion).get();
     }
 
+    @CacheEvict(value = "camaras", allEntries = true)
     public void update(String id, Map<String, Object> campos) throws ExecutionException, InterruptedException {
         DocumentReference docRef = firestore.collection(collectionName).document(id);
         docRef.update(campos).get();
     }
 
+    @CacheEvict(value = "camaras", allEntries = true)
     public void cambiarEstado(String id, Estado nuevoEstado, String motivo) throws ExecutionException, InterruptedException {
         DocumentReference docRef = firestore.collection(collectionName).document(id);
         String motivoGuardado = motivo != null ? motivo : "";
@@ -166,6 +176,7 @@ public class CamaraRepository {
         return historial;
     }
 
+    @Cacheable(value = "camaras", key = "'nvrId:' + #nvrId")
     public List<Camara> findByNvrId(String nvrId) throws ExecutionException, InterruptedException {
         ApiFuture<QuerySnapshot> future = firestore.collection(collectionName)
                 .whereEqualTo("nvrId", nvrId)
@@ -178,11 +189,13 @@ public class CamaraRepository {
         return result;
     }
 
+    @CacheEvict(value = "camaras", allEntries = true)
     public void updateNvrId(String id, String nvrId) throws ExecutionException, InterruptedException {
         DocumentReference ref = firestore.collection(collectionName).document(id);
         ref.update("nvrId", nvrId).get();
     }
 
+    @CacheEvict(value = "camaras", allEntries = true)
     public void deleteById(String id) throws ExecutionException, InterruptedException {
         firestore.collection(collectionName).document(id).delete().get();
     }
@@ -190,6 +203,7 @@ public class CamaraRepository {
     /**
      * Recorre la colección una vez: id de NVR → cantidad de cámaras con ese {@code nvrId}.
      */
+    @Cacheable(value = "camaras", key = "'conteoNvr'")
     public Map<String, Long> contarCamarasPorNvrId() throws ExecutionException, InterruptedException {
         ApiFuture<QuerySnapshot> future = firestore.collection(collectionName).get();
         Map<String, Long> out = new HashMap<>();
@@ -203,6 +217,7 @@ public class CamaraRepository {
         return out;
     }
 
+    @Cacheable(value = "camaras", key = "'conteoNvr:' + #nvrId")
     public int contarPorNvrId(String nvrId) throws ExecutionException, InterruptedException {
         if (nvrId == null || nvrId.isBlank()) {
             return 0;

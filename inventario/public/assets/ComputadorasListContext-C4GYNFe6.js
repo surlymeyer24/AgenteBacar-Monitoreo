@@ -1,0 +1,1 @@
+import{a as e}from"./rolldown-runtime-COnpUsM8.js";import{p as t}from"./charts-DTPl09Z-.js";var n=e(t(),1),r=(0,n.createContext)(null);function i(){let e=(0,n.useContext)(r);if(!e)throw Error(`useComputadorasList debe usarse dentro de ComputadorasListLayout`);return e}function a(){return(0,n.useContext)(r)}export{i as n,a as r,r as t};

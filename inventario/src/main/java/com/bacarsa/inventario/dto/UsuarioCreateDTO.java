@@ -11,8 +11,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class UsuarioCreateDTO {
 
-    /** uid de Firebase Auth — lo provee el frontend tras registrar al usuario. */
-    @NotBlank
+    /** uid de Firebase Auth. Opcional si se envía email (se resuelve desde Firebase Auth). */
     private String uid;
 
     @NotBlank
@@ -21,7 +20,7 @@ public class UsuarioCreateDTO {
     @NotBlank
     private String email;
 
-    /** Valor del enum Rol como String: ADMIN, OPERADOR, VISUALIZADOR. */
+    /** Valor del enum Rol como String: ADMINISTRADOR, USUARIO, VISUALIZADOR. */
     @NotNull
     private String rol;
 

@@ -26,7 +26,17 @@ function PerifericosTecladosList() {
         items={filas} 
         type="teclado" 
         renderSpecs={(kb) => (
-          <>Fabricante: {kb.fabricante || 'Standard'} <span className="text-slate-300 mx-1">|</span> {kb.conexion || 'USB'}</>
+          <>
+            Fabricante: {kb.fabricante || 'Standard'}
+            <span className="text-slate-300 mx-1">|</span>
+            {kb.conexion || 'USB'}
+            {(kb.vid || kb.pid) && (
+              <>
+                <span className="text-slate-300 mx-1">|</span>
+                {[kb.vid && `VID_${kb.vid}`, kb.pid && `PID_${kb.pid}`].filter(Boolean).join('/')}
+              </>
+            )}
+          </>
         )} 
       />
     </StudioPageShell>

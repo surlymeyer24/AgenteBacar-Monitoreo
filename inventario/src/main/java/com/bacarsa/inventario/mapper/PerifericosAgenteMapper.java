@@ -63,6 +63,8 @@ public class PerifericosAgenteMapper {
         dto.setCategoria(usb.getCategoria());
         dto.setClase(usb.getClase());
         dto.setConexion(usb.getConexion());
+        dto.setVid(usb.getVid());
+        dto.setPid(usb.getPid());
         return dto;
     }
 
@@ -87,6 +89,8 @@ public class PerifericosAgenteMapper {
         dto.setPulgadas(mon.getPulgadas());
         dto.setAnchoCm(mon.getAnchoCm());
         dto.setAltoCm(mon.getAltoCm());
+        dto.setNumeroSerie(mon.getNumeroSerie());
+        dto.setFabricante(mon.getFabricante());
         return dto;
     }
 

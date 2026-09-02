@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { createPerifericoM } from '../api/perifericoManualApi';
+import { TIPOS_STOCK, labelTipoStock } from '../constants/tiposStock';
+import FriendlyDatePicker from '../components/FriendlyDatePicker';
 
-const TIPOS = ['teclado', 'mouse', 'monitor', 'impresora', 'webcam', 'parlante', 'microfono', 'otro'];
 const CONEXIONES = ['usb', 'inalambrico_usb', 'bluetooth', 'hdmi', 'otro'];
 
 const empty = {
@@ -72,8 +73,8 @@ function PerifericoManualNuevo() {
             Tipo *
             <select name="tipo" value={form.tipo} onChange={onChange} required>
               <option value="">Seleccioná un tipo</option>
-              {TIPOS.map(t => (
-                <option key={t} value={t} style={{ textTransform: 'capitalize' }}>{t}</option>
+              {TIPOS_STOCK.map(t => (
+                <option key={t} value={t}>{labelTipoStock(t)}</option>
               ))}
             </select>
           </label>
@@ -112,7 +113,11 @@ function PerifericoManualNuevo() {
           </label>
           <label>
             Fecha de alta
-            <input name="fechaAlta" type="date" value={form.fechaAlta} onChange={onChange} />
+            <FriendlyDatePicker
+              name="fechaAlta"
+              value={form.fechaAlta}
+              onChange={(next) => setForm((f) => ({ ...f, fechaAlta: next }))}
+            />
           </label>
           <label>
             Motivo del alta

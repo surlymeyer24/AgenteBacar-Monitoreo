@@ -14,6 +14,8 @@ public class NvrDTO {
     private String direccionIp;
     private Integer puerto;        // opcional; puerto de gestión HTTP/ONVIF de la NVR
     private String descripcion;    // opcional; texto libre
+    private String usuario;
+    private String password;
     private List<CamaraDTO> camaras;
     /** Cámaras con este {@code nvrId}; informado en listados y detalle. */
     private Integer cantidadCamaras;

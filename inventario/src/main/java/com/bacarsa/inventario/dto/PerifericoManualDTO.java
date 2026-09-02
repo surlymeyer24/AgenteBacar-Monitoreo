@@ -23,5 +23,7 @@ public class PerifericoManualDTO {
     private String notas;
     private String estado;
     private LocalDate fechaAlta;
+    private String comboId;
+    private String comboNombre;
     private List<CambioEstadoDTO> historialEstados;
 }

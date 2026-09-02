@@ -7,6 +7,8 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Repository;
 
 import com.bacarsa.inventario.models.Estado;
@@ -32,6 +34,7 @@ public class PerifericoManualRepository {
         this.collectionName = collectionName;
     }
 
+    @Cacheable("perifericosManuales")
     public List<PerifericoManual> findAll() throws ExecutionException, InterruptedException {
         ApiFuture<QuerySnapshot> future = firestore.collection(collectionName).get();
         List<QueryDocumentSnapshot> documents = future.get().getDocuments();
@@ -42,6 +45,7 @@ public class PerifericoManualRepository {
         return result;
     }
 
+    @Cacheable(value = "perifericosManuales", key = "#id")
     public PerifericoManual findById(String id) throws ExecutionException, InterruptedException {
         DocumentSnapshot doc = firestore.collection(collectionName).document(id).get().get();
         if (!doc.exists()) {
@@ -50,33 +54,52 @@ public class PerifericoManualRepository {
         return snapshotToPeriferico(doc);
     }
 
+    @Cacheable(value = "perifericosManuales", key = "'hostname:' + #hostname.toLowerCase()")
+    public List<PerifericoManual> findByComputadoraHostname(String hostname)
+            throws ExecutionException, InterruptedException {
+        ApiFuture<QuerySnapshot> future = firestore.collection(collectionName)
+                .whereEqualTo("computadoraHostname", hostname)
+                .get();
+        List<PerifericoManual> result = new ArrayList<>();
+        for (QueryDocumentSnapshot doc : future.get().getDocuments()) {
+            result.add(snapshotToPeriferico(doc));
+        }
+        return result;
+    }
+
+    @CacheEvict(value = "perifericosManuales", allEntries = true)
     public String create(PerifericoManual periferico) throws ExecutionException, InterruptedException {
         DocumentReference ref = firestore.collection(collectionName).document();
         ref.set(periferico).get();
         return ref.getId();
     }
 
+    @CacheEvict(value = "perifericosManuales", allEntries = true)
     public void actualizar(String id, java.util.Map<String, Object> campos)
             throws ExecutionException, InterruptedException {
         if (campos.isEmpty()) return;
         firestore.collection(collectionName).document(id).update(campos).get();
     }
 
+    @CacheEvict(value = "perifericosManuales", allEntries = true)
     public void eliminar(String id) throws ExecutionException, InterruptedException {
         firestore.collection(collectionName).document(id).delete().get();
     }
 
+    @CacheEvict(value = "perifericosManuales", allEntries = true)
     public void decrementarCantidad(String id) throws ExecutionException, InterruptedException {
         firestore.collection(collectionName).document(id)
                 .update("cantidad", FieldValue.increment(-1)).get();
     }
 
+    @CacheEvict(value = "perifericosManuales", allEntries = true)
     public void updateComputadoraHostname(String id, String hostname)
             throws ExecutionException, InterruptedException {
         firestore.collection(collectionName).document(id)
                 .update("computadoraHostname", hostname).get();
     }
 
+    @CacheEvict(value = "perifericosManuales", allEntries = true)
     public void cambiarEstado(String id, Estado nuevoEstado, String motivo)
             throws ExecutionException, InterruptedException {
         DocumentReference docRef = firestore.collection(collectionName).document(id);

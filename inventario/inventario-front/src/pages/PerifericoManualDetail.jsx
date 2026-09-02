@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Package, Trash2, UserCheck } from 'lucide-react';
 import {
   fetchPerifericoM,
   actualizarPerifericoM,
@@ -7,23 +8,26 @@ import {
   asignarPerifericoM,
   deletePerifericoM,
 } from '../api/perifericoManualApi';
-import { ESTADOS_OPERATIVOS } from '../constants/estados';
+import { ESTADOS_OPERATIVOS, ESTADO_OPERATIVO_LABELS } from '../constants/estados';
+import { labelTipoStock, normalizarTipoStock, opcionesTipoStock } from '../constants/tiposStock';
+import InfraestructuraModal from '../components/InfraestructuraModal';
+import DetailOverlayShell, {
+  DetailEditButton,
+  DetailDangerButton,
+  DetailSection,
+} from '../components/DetailOverlayShell';
+import {
+  DetailFieldGrid,
+  HistorialEstadosSection,
+  CambiarEstadoForm,
+} from '../components/DetailInfraHelpers';
+import WriteGate from '../components/WriteGate';
 
-const TIPOS = ['teclado', 'mouse', 'monitor', 'impresora', 'webcam', 'parlante', 'microfono', 'otro'];
 const CONEXIONES = ['usb', 'inalambrico_usb', 'bluetooth', 'hdmi', 'otro'];
-
-function fmtFecha(iso) {
-  if (!iso) return '—';
-  try {
-    return new Date(iso).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' });
-  } catch {
-    return iso;
-  }
-}
 
 function formDesdeP(p) {
   return {
-    tipo: p.tipo ?? '',
+    tipo: normalizarTipoStock(p.tipo),
     cantidad: String(p.cantidad ?? 1),
     nombre: p.nombre ?? '',
     fabricante: p.fabricante ?? '',
@@ -38,14 +42,15 @@ function formDesdeP(p) {
 function PerifericoManualDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const asignarRef = useRef(null);
   const [p, setP] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
 
-  const [editando, setEditando] = useState(false);
-  const [form, setForm] = useState(null);
+  const [modalAbierto, setModalAbierto] = useState(false);
+  const [modalForm, setModalForm] = useState({});
+  const [modalError, setModalError] = useState('');
   const [guardando, setGuardando] = useState(false);
-  const [msgEdit, setMsgEdit] = useState(null);
 
   const [borrando, setBorrando] = useState(false);
 
@@ -62,6 +67,7 @@ function PerifericoManualDetail() {
   useEffect(() => {
     let cancel = false;
     setCargando(true);
+    setError(null);
     fetchPerifericoM(id)
       .then(data => {
         if (cancel) return;
@@ -73,62 +79,64 @@ function PerifericoManualDetail() {
     return () => { cancel = true; };
   }, [id]);
 
-  function iniciarEdicion() {
-    setForm(formDesdeP(p));
-    setMsgEdit(null);
-    setEditando(true);
-  }
-
-  function cancelarEdicion() {
-    setEditando(false);
-    setForm(null);
-    setMsgEdit(null);
+  function abrirEdicion() {
+    setModalForm(formDesdeP(p));
+    setModalError('');
+    setModalAbierto(true);
   }
 
   function onChangeForm(e) {
     const { name, value } = e.target;
-    setForm(f => ({ ...f, [name]: value }));
+    setModalForm(f => ({ ...f, [name]: value }));
   }
 
-  function guardarEdicion() {
+  function guardarEdicion(e) {
+    e.preventDefault();
     setGuardando(true);
-    setMsgEdit(null);
+    setModalError('');
     const body = {
-      tipo: form.tipo || undefined,
-      cantidad: parseInt(form.cantidad, 10) || 1,
-      nombre: form.nombre.trim() || undefined,
-      fabricante: form.fabricante.trim() || undefined,
-      conexion: form.conexion || undefined,
-      computadoraHostname: form.computadoraHostname.trim() || undefined,
-      ubicacion: form.ubicacion.trim() || undefined,
-      notas: form.notas.trim() || undefined,
-      fechaAlta: form.fechaAlta || undefined,
+      tipo: modalForm.tipo || undefined,
+      cantidad: parseInt(modalForm.cantidad, 10) || 1,
+      nombre: modalForm.nombre?.trim() || undefined,
+      fabricante: modalForm.fabricante?.trim() || undefined,
+      conexion: modalForm.conexion || undefined,
+      computadoraHostname: modalForm.computadoraHostname?.trim() || undefined,
+      ubicacion: modalForm.ubicacion?.trim() || undefined,
+      notas: modalForm.notas?.trim() || undefined,
+      fechaAlta: modalForm.fechaAlta || undefined,
     };
     actualizarPerifericoM(id, body)
       .then(data => {
-        if (!data) { setMsgEdit('No se encontró el periférico.'); return; }
+        if (!data) { setModalError('No se encontró el periférico.'); return; }
         setP(data);
-        setEditando(false);
-        setForm(null);
+        setModalAbierto(false);
       })
-      .catch(() => setMsgEdit('No se pudo guardar los cambios.'))
+      .catch(() => setModalError('No se pudo guardar los cambios.'))
       .finally(() => setGuardando(false));
   }
 
-  function hacerAsignar() {
+  function hacerAsignar(e) {
+    e?.preventDefault();
     if (!hostnameAsignar.trim()) return;
     setAsignando(true);
     setMsgAsignar(null);
     asignarPerifericoM(id, hostnameAsignar.trim(), motivoAsignar.trim() || undefined)
       .then(data => {
         if (!data) { setMsgAsignar('No se encontró el periférico.'); return; }
-        navigate(`/perifericos/stock/${encodeURIComponent(data.id)}`);
+        setHostnameAsignar('');
+        setMotivoAsignar('');
+        if (data.id && data.id !== id) {
+          navigate(`/perifericos/stock/${encodeURIComponent(data.id)}`);
+        } else {
+          setP(data);
+        }
       })
       .catch(() => setMsgAsignar('No se pudo asignar el periférico.'))
       .finally(() => setAsignando(false));
   }
 
-  function guardarEstado() {
+  function guardarEstado(e) {
+    e.preventDefault();
     if (!estadoSel || !motivoEstado.trim()) return;
     setGuardandoEstado(true);
     setMsgEstado(null);
@@ -154,200 +162,175 @@ function PerifericoManualDetail() {
       });
   }
 
-  if (cargando) return <p className="estado-msg">Cargando...</p>;
-  if (error) return <p className="estado-msg error">{error}</p>;
-  if (!p) return null;
+  function irAAsignar() {
+    asignarRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  if (cargando || error || !p) {
+    return (
+      <DetailOverlayShell
+        onClose={() => navigate('/perifericos/stock')}
+        title={cargando ? 'Cargando periférico…' : 'Periférico'}
+        titleIcon={<Package className="w-5 h-5 text-slate-300 shrink-0" />}
+        loading={cargando}
+        error={error || (!cargando && !p ? 'Periférico no encontrado.' : null)}
+        maxWidthClass="max-w-5xl"
+      />
+    );
+  }
+
+  const titulo = p.nombre
+    ? `${labelTipoStock(p.tipo) || p.tipo || 'Periférico'} — ${p.nombre}`
+    : (labelTipoStock(p.tipo) || p.tipo || 'Periférico');
 
   return (
-    <div className="page">
-      <Link to="/perifericos/stock" className="btn btn-secondary btn-sm">← Volver al stock</Link>
-      <h1 style={{ marginTop: '0.75rem', textTransform: 'capitalize' }}>
-        {p.tipo ?? 'Periférico'}{p.nombre ? ` — ${p.nombre}` : ''}
-      </h1>
-
-      {/* ── Card de datos ── */}
-      <div className="card" style={{ maxWidth: 560 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-          <strong>Datos del periférico</strong>
-          {!editando && (
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button className="btn btn-secondary btn-sm" onClick={iniciarEdicion}>Editar</button>
-              <button className="btn btn-sm" style={{ backgroundColor: '#dc3545', color: '#fff' }} onClick={borrarItem} disabled={borrando}>
-                {borrando ? 'Borrando...' : 'Eliminar'}
+    <>
+      <DetailOverlayShell
+        onClose={() => navigate('/perifericos/stock')}
+        title={titulo}
+        titleIcon={<Package className="w-5 h-5 text-slate-300 shrink-0" />}
+        subtitle={
+          <>
+            ID: <span className="font-mono text-slate-300">{p.id}</span>
+            {p.estado ? (
+              <>
+                <span className="text-slate-600 mx-1.5">•</span>
+                <span className="font-bold text-slate-200">{p.estado}</span>
+              </>
+            ) : null}
+          </>
+        }
+        actions={
+          <>
+            <WriteGate>
+              <button
+                type="button"
+                onClick={irAAsignar}
+                className="px-4 py-2 border border-slate-700 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm rounded-lg flex items-center gap-2 transition-colors shrink-0 cursor-pointer"
+              >
+                <UserCheck className="w-4 h-4" />
+                Asignar
               </button>
-            </div>
-          )}
+            </WriteGate>
+            <DetailEditButton onClick={abrirEdicion} />
+            <DetailDangerButton onClick={borrarItem} disabled={borrando}>
+              <Trash2 className="w-4 h-4" />
+              {borrando ? 'Eliminando…' : 'Eliminar'}
+            </DetailDangerButton>
+          </>
+        }
+        maxWidthClass="max-w-5xl"
+      >
+        <DetailSection title="Datos del periférico">
+          <DetailFieldGrid
+            fields={[
+              { label: 'Tipo', value: labelTipoStock(p.tipo) || p.tipo },
+              { label: 'Unidades', value: p.cantidad ?? 1 },
+              { label: 'Nombre', value: p.nombre },
+              { label: 'Fabricante', value: p.fabricante },
+              { label: 'Conexión', value: p.conexion },
+              { label: 'Asignado a', value: p.computadoraHostname || 'Sin asignar' },
+              { label: 'Ubicación', value: p.ubicacion },
+              { label: 'Estado actual', value: p.estado },
+              ...(p.comboNombre ? [{ label: 'Combo', value: p.comboNombre }] : []),
+              { label: 'Fecha de alta', value: p.fechaAlta ? String(p.fechaAlta) : null },
+              ...(p.notas ? [{ label: 'Notas', value: p.notas, fullWidth: true }] : []),
+            ]}
+          />
+        </DetailSection>
+
+        <div ref={asignarRef}>
+          <DetailSection title="Asignar stock a una persona">
+            <p className="text-sm text-slate-500 mb-3">
+              Asigna 1 unidad del stock a una persona. Si hay más de 1 en stock, se descuenta automáticamente y se crea un registro separado para la unidad asignada.
+            </p>
+            <WriteGate fallback={<p className="text-sm text-slate-500">Sin permiso de escritura.</p>}>
+              <form onSubmit={hacerAsignar} className="space-y-3 max-w-xl">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
+                    Persona *
+                  </label>
+                  <input
+                    className="inventory-input"
+                    placeholder="Ej. Juan Pérez"
+                    value={hostnameAsignar}
+                    onChange={e => setHostnameAsignar(e.target.value)}
+                    autoComplete="off"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
+                    Motivo (opcional)
+                  </label>
+                  <input
+                    className="inventory-input"
+                    placeholder="Motivo de la asignación"
+                    value={motivoAsignar}
+                    onChange={e => setMotivoAsignar(e.target.value)}
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={asignando || !hostnameAsignar.trim()}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-lg font-bold text-sm cursor-pointer transition-colors inline-flex items-center gap-2"
+                >
+                  <UserCheck className="w-4 h-4" />
+                  {asignando ? 'Asignando…' : 'Asignar 1 unidad'}
+                </button>
+                {msgAsignar ? <p className="text-sm text-red-600 font-medium">{msgAsignar}</p> : null}
+              </form>
+            </WriteGate>
+          </DetailSection>
         </div>
 
-        {editando ? (
-          <form className="camara-form" onSubmit={e => { e.preventDefault(); guardarEdicion(); }}>
-            <label>
-              Tipo
-              <select name="tipo" value={form.tipo} onChange={onChangeForm}>
-                <option value="">Sin especificar</option>
-                {TIPOS.map(t => <option key={t} value={t} style={{ textTransform: 'capitalize' }}>{t}</option>)}
-              </select>
-            </label>
-            <label>
-              Unidades
-              <input name="cantidad" type="number" min="1" value={form.cantidad} onChange={onChangeForm} />
-            </label>
-            <label>
-              Nombre / descripción
-              <input name="nombre" value={form.nombre} onChange={onChangeForm} autoComplete="off" />
-            </label>
-            <label>
-              Fabricante
-              <input name="fabricante" value={form.fabricante} onChange={onChangeForm} autoComplete="off" />
-            </label>
-            <label>
-              Conexión
-              <select name="conexion" value={form.conexion} onChange={onChangeForm}>
-                <option value="">Sin especificar</option>
-                {CONEXIONES.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </label>
-            <label>
-              PC asignada (hostname)
-              <input name="computadoraHostname" value={form.computadoraHostname} onChange={onChangeForm} autoComplete="off" />
-            </label>
-            <label>
-              Ubicación
-              <input name="ubicacion" value={form.ubicacion} onChange={onChangeForm} autoComplete="off" />
-            </label>
-            <label>
-              Notas
-              <textarea name="notas" value={form.notas} onChange={onChangeForm} rows={2} />
-            </label>
-            <label>
-              Fecha de alta
-              <input name="fechaAlta" type="date" value={form.fechaAlta} onChange={onChangeForm} />
-            </label>
-            {msgEdit && <p className="page error">{msgEdit}</p>}
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button type="submit" className="btn btn-primary btn-sm" disabled={guardando}>
-                {guardando ? 'Guardando…' : 'Guardar cambios'}
-              </button>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={cancelarEdicion} disabled={guardando}>
-                Cancelar
-              </button>
-            </div>
-          </form>
-        ) : (
-          <dl className="detail-dl">
-            <dt>Tipo</dt>
-            <dd style={{ textTransform: 'capitalize' }}>{p.tipo ?? '—'}</dd>
-            <dt>Unidades</dt>
-            <dd>{p.cantidad ?? 1}</dd>
-            <dt>Nombre</dt>
-            <dd>{p.nombre ?? '—'}</dd>
-            <dt>Fabricante</dt>
-            <dd>{p.fabricante ?? '—'}</dd>
-            <dt>Conexión</dt>
-            <dd>{p.conexion ?? '—'}</dd>
-            <dt>PC asignada</dt>
-            <dd>{p.computadoraHostname ?? <span className="muted">Sin asignar</span>}</dd>
-            <dt>Ubicación</dt>
-            <dd>{p.ubicacion ?? '—'}</dd>
-            <dt>Estado actual</dt>
-            <dd>{p.estado ?? '—'}</dd>
-            <dt>Fecha de alta</dt>
-            <dd>{p.fechaAlta ? String(p.fechaAlta) : '—'}</dd>
-            {p.notas && (<><dt>Notas</dt><dd>{p.notas}</dd></>)}
-          </dl>
-        )}
-      </div>
+        <CambiarEstadoForm
+          idPrefix="perif"
+          estados={ESTADOS_OPERATIVOS}
+          labels={ESTADO_OPERATIVO_LABELS}
+          estadoSel={estadoSel}
+          setEstadoSel={setEstadoSel}
+          motivo={motivoEstado}
+          setMotivo={setMotivoEstado}
+          onSubmit={guardarEstado}
+          guardando={guardandoEstado}
+          msg={msgEstado}
+        />
 
-      {/* ── Asignar ── */}
-      <div className="card" style={{ maxWidth: 560, marginTop: '1.25rem' }}>
-        <h2 style={{ marginTop: 0 }}>Asignar a computadora</h2>
-        <p className="muted" style={{ marginTop: 0, marginBottom: '0.75rem' }}>
-          Asigna 1 unidad a una PC. Si hay más de 1 en stock, se descuenta automáticamente y se crea un registro separado para la unidad asignada.
-        </p>
-        <div className="ubicacion-form">
-          <input
-            placeholder="Hostname de la PC (ej. PC-JUAN)"
-            value={hostnameAsignar}
-            onChange={e => setHostnameAsignar(e.target.value)}
-            autoComplete="off"
-          />
-          <input
-            placeholder="Motivo (opcional)"
-            value={motivoAsignar}
-            onChange={e => setMotivoAsignar(e.target.value)}
-          />
-          <button
-            className="btn btn-primary btn-sm"
-            onClick={hacerAsignar}
-            disabled={asignando || !hostnameAsignar.trim()}
-          >
-            {asignando ? 'Asignando…' : 'Asignar 1 unidad'}
-          </button>
-          {msgAsignar && <p className="page error" style={{ marginTop: '0.5rem' }}>{msgAsignar}</p>}
-        </div>
-      </div>
+        <HistorialEstadosSection historial={p.historialEstados ?? []} />
+      </DetailOverlayShell>
 
-      {/* ── Cambiar estado ── */}
-      <div className="card" style={{ maxWidth: 560, marginTop: '1.25rem' }}>
-        <h2 style={{ marginTop: 0 }}>Cambiar estado</h2>
-        <div className="ubicacion-form">
-          <select value={estadoSel} onChange={e => setEstadoSel(e.target.value)}>
-            <option value="">Seleccioná un estado</option>
-            {ESTADOS_OPERATIVOS.map(s => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
-          <textarea
-            placeholder="Motivo (obligatorio)"
-            value={motivoEstado}
-            onChange={e => setMotivoEstado(e.target.value)}
-            rows={2}
-            style={{ resize: 'vertical' }}
-          />
-          <button
-            className="btn btn-primary btn-sm"
-            onClick={guardarEstado}
-            disabled={guardandoEstado || !estadoSel || !motivoEstado.trim()}
-          >
-            {guardandoEstado ? 'Guardando…' : 'Cambiar estado'}
-          </button>
-          {msgEstado && <p className="page error" style={{ marginTop: '0.5rem' }}>{msgEstado}</p>}
-        </div>
-      </div>
-
-      {/* ── Historial ── */}
-      <div className="card" style={{ maxWidth: 700, marginTop: '1.25rem' }}>
-        <h2 style={{ marginTop: 0 }}>Historial de estados</h2>
-        {(!p.historialEstados || p.historialEstados.length === 0) ? (
-          <p className="muted">Sin cambios de estado registrados.</p>
-        ) : (
-          <div className="table-wrap" style={{ marginTop: 0 }}>
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Estado</th>
-                  <th>Motivo</th>
-                  <th>Inicio</th>
-                  <th>Fin</th>
-                  <th>Activo</th>
-                </tr>
-              </thead>
-              <tbody>
-                {p.historialEstados.map((h, i) => (
-                  <tr key={i}>
-                    <td>{h.estado ?? '—'}</td>
-                    <td>{h.motivo || '—'}</td>
-                    <td>{fmtFecha(h.fechaHoraInicio)}</td>
-                    <td>{h.fechaHoraFin ? fmtFecha(h.fechaHoraFin) : '—'}</td>
-                    <td>{h.activo ? 'Sí' : 'No'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    </div>
+      <InfraestructuraModal
+        isOpen={modalAbierto}
+        onClose={() => !guardando && setModalAbierto(false)}
+        onSubmit={guardarEdicion}
+        isEdit={true}
+        title="Periférico"
+        error={modalError}
+        formState={modalForm}
+        onChange={onChangeForm}
+        fields={[
+          {
+            name: 'tipo',
+            label: 'Tipo',
+            type: 'select',
+            options: opcionesTipoStock(modalForm.tipo).map(t => ({ value: t, label: labelTipoStock(t) })),
+          },
+          { name: 'cantidad', label: 'Unidades', type: 'number' },
+          { name: 'nombre', label: 'Nombre / descripción', type: 'text' },
+          { name: 'fabricante', label: 'Fabricante', type: 'text' },
+          {
+            name: 'conexion',
+            label: 'Conexión',
+            type: 'select',
+            options: CONEXIONES.map(c => ({ value: c, label: c })),
+          },
+          { name: 'computadoraHostname', label: 'Asignado a (persona)', type: 'text' },
+          { name: 'ubicacion', label: 'Ubicación', type: 'text' },
+          { name: 'fechaAlta', label: 'Fecha de alta', type: 'date' },
+          { name: 'notas', label: 'Notas', type: 'textarea', fullWidth: true },
+        ]}
+      />
+    </>
   );
 }
 

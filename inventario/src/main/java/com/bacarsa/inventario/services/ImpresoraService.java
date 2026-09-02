@@ -14,6 +14,7 @@ import com.bacarsa.inventario.models.Computadora;
 import com.bacarsa.inventario.models.ImpresoraFirestore;
 import com.bacarsa.inventario.models.PerifericosFirestore;
 import com.bacarsa.inventario.repository.ComputadoraRepository;
+import com.bacarsa.inventario.util.ImpresoraIpHelper;
 
 @Service
 public class ImpresoraService {
@@ -27,7 +28,7 @@ public class ImpresoraService {
     public List<ImpresoraAgrupadaDTO> listarAgrupadas() throws ExecutionException, InterruptedException {
         List<Computadora> computadoras = computadoraRepository.findAll();
 
-        // clave → DTO en construcción
+        // IP → DTO en construcción
         Map<String, ImpresoraAgrupadaDTO> agrupadas = new LinkedHashMap<>();
 
         for (Computadora c : computadoras) {
@@ -37,11 +38,10 @@ public class ImpresoraService {
             for (ImpresoraFirestore imp : p.getImpresoras()) {
                 if (!esImpresoraFisica(imp)) continue;
 
-                String clave = normLower(imp.getNombre()) + "|"
-                        + normLower(imp.getDriver()) + "|"
-                        + normalizarPuerto(imp.getPuerto());
+                String ip = ImpresoraIpHelper.extraerIp(imp.getPuerto());
+                if (ip == null) continue;
 
-                ImpresoraAgrupadaDTO grupo = agrupadas.computeIfAbsent(clave, k -> {
+                ImpresoraAgrupadaDTO grupo = agrupadas.computeIfAbsent(ip, k -> {
                     ImpresoraAgrupadaDTO dto = new ImpresoraAgrupadaDTO();
                     dto.setNombre(imp.getNombre());
                     dto.setDriver(imp.getDriver());
@@ -84,16 +84,6 @@ public class ImpresoraService {
         if (driver.contains("microsoft shared fax driver")) return false;
         if ("fax".equals(nombre) && driver.contains("fax")) return false;
         return true;
-    }
-
-    private static String normalizarPuerto(String puerto) {
-        if (puerto == null) return "";
-        String p = puerto.trim();
-        if (p.toLowerCase().startsWith("ip_")) {
-            p = p.substring(3);
-        }
-        p = p.replaceAll("(^|\\.)0+(\\d)", "$1$2");
-        return p.toLowerCase();
     }
 
     private static String normLower(String s) {

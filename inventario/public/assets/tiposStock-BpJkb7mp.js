@@ -1,0 +1,1 @@
+var e=[`computadora`,`camara_ip`,`teclado`,`mouse`,`monitor`,`impresora`,`webcam`,`parlante`,`microfono`,`otro`],t={camara_ip:`Cámara IP`};function n(e){return(e??``).trim().toLowerCase()}function r(e){let r=n(e);return r?t[r]?t[r]:r.charAt(0).toUpperCase()+r.slice(1):``}function i(t){let r=n(t);return r&&!e.includes(r)?[...e,r]:e}export{i,r as n,n as r,e as t};

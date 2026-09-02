@@ -25,6 +25,8 @@ public class PerifericoManual {
     private String notas;
     /** ISO-8601 fecha calendario ({@code yyyy-MM-dd}). */
     private String fechaAlta;
+    private String comboId;
+    private String comboNombre;
     private Estado estadoActual;
     private List<CambioEstado> historialEstados;
 

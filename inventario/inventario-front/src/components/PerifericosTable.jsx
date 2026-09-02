@@ -61,7 +61,7 @@ export default function PerifericosTable({ items, type, renderSpecs }) {
       <StudioDataTable>
         <table className={`${studioTableClass()} text-sm w-full text-left`}>
           <thead>
-            <tr className="bg-slate-50/70 border-b border-slate-200 text-[11px] font-extrabold text-slate-600 uppercase tracking-widest">
+            <tr className="bg-slate-50/70 border-b border-slate-200 text-xs font-extrabold text-slate-600 uppercase tracking-widest">
               <th className={studioThClass()}>ID EQUIPO</th>
               <th className={studioThClass()}>DESCRIPCIÓN DE PERIFÉRICO</th>
               <th className={studioThClass()}>ESPECIFICACIONES / DETALLES</th>
@@ -84,7 +84,7 @@ export default function PerifericosTable({ items, type, renderSpecs }) {
                 
                 return (
                   <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                    <td className={`${studioTdClass()} font-mono text-xs font-bold text-blue-600`}>
+                    <td className={`${studioTdClass()} font-mono text-sm font-bold text-blue-600`}>
                       {uniqueId}
                     </td>
                     
@@ -95,14 +95,14 @@ export default function PerifericosTable({ items, type, renderSpecs }) {
                       </div>
                     </td>
                     
-                    <td className={`${studioTdClass()} text-xs font-medium text-slate-500`}>
+                    <td className={`${studioTdClass()} text-sm font-medium text-slate-500`}>
                       {renderSpecs ? renderSpecs(item) : '—'}
                     </td>
                     
                     <td className={studioTdClass()}>
                       <button 
                         onClick={() => itemUuid && navigate(`/computadoras/${itemUuid}`)}
-                        className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-[#0c66e4] transition-colors cursor-pointer bg-slate-100 hover:bg-blue-50 px-2 py-1 rounded"
+                        className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-600 hover:text-[#0c66e4] transition-colors cursor-pointer bg-slate-100 hover:bg-blue-50 px-2 py-1 rounded"
                       >
                         <Laptop className="w-3.5 h-3.5" />
                         {item.hostname || item.pcHostname || 'Desconocido'}
@@ -110,13 +110,13 @@ export default function PerifericosTable({ items, type, renderSpecs }) {
                     </td>
                     
                     <td className={studioTdClass()}>
-                      <span className="px-2 py-1 bg-blue-50 text-blue-700 border border-blue-100 rounded-md text-[10px] font-extrabold uppercase tracking-wide">
+                      <span className="px-2 py-1 bg-blue-50 text-blue-700 border border-blue-100 rounded-md text-xs font-extrabold uppercase tracking-wide">
                         Autodetectado
                       </span>
                     </td>
                     
                     <td className={studioTdClass()}>
-                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-full text-[10px] font-extrabold uppercase tracking-wide">
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-full text-xs font-extrabold uppercase tracking-wide">
                         <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
                         ONLINE
                       </div>

@@ -13,5 +13,6 @@ public class CambioEstadoDTO {
     private String fechaHoraInicio; // ISO-8601
     private String fechaHoraFin; // ISO-8601
     private boolean activo;
-
+    private String ubicacionStock;
+    private String responsableInventario;
 }

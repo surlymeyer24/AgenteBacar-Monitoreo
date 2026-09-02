@@ -71,7 +71,7 @@ public class AdminImportController {
                 "requierePropiedad", "app.import.camaras-activas.allow-http=true",
                 "allowHttpImportHabilitado", allowHttpImport,
                 "ejemploCurl",
-                "curl.exe -X POST \"http://localhost:8080/api/admin/import/camaras-activas\""));
+                "curl.exe -X POST \"http://localhost:8081/api/admin/import/camaras-activas\""));
     }
 
     /**

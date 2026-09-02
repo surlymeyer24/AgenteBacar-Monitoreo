@@ -24,5 +24,7 @@ public class CamaraCreateDTO {
     /** Si es null, se usa la fecha actual al persistir. */
     private LocalDate fechaAlta;
     private String nvrId;
+    private String usuario;
+    private String password;
 
 }

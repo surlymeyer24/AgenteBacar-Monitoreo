@@ -1,77 +1,111 @@
 rules_version = '2';
 
+// ============================================================================
+// Firestore Security Rules — base (default) del proyecto devbac-42d14
+// ============================================================================
+// Fuente de verdad de este repo (inventario web). El Admin SDK (agente HW C#
+// y backend Spring) ignora estas reglas y siempre tiene acceso completo.
+// CyberWatch quedó descartado: no hay lectura de cliente a sus colecciones.
+//
+// Deploy (solo reglas, no toca índices ni las otras bases del proyecto):
+//   firebase deploy --only firestore:rules
+// ============================================================================
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Admin SDK (agentes C# y backend Spring) bypasea estas rules completamente.
-    // Estas rules solo aplican a clientes web (SDK de Firebase en el front).
+    // Campos de usuarios/ que el dueño del perfil puede editar desde el front.
+    // `rol` y `activo` quedan deliberadamente afuera: son la base de autorización.
+    function camposPerfil() {
+      return ['nombre', 'departamento', 'cargo', 'avatarColor',
+              'telefono', 'email', 'updatedAt'];
+    }
 
-    match /computadoras/{id} {
-      allow read:  if request.auth != null;
+    // Tipos y topes de tamaño para evitar basura y documentos inflados a propósito.
+    function perfilBienFormado(data) {
+      return (!('nombre'       in data) || (data.nombre       is string && data.nombre.size()       <= 120))
+          && (!('departamento' in data) || (data.departamento is string && data.departamento.size() <= 120))
+          && (!('cargo'        in data) || (data.cargo        is string && data.cargo.size()        <= 120))
+          && (!('avatarColor'  in data) || (data.avatarColor  is string && data.avatarColor.size()  <= 120))
+          && (!('telefono'     in data) || (data.telefono     is string && data.telefono.size()     <= 40))
+          && (!('updatedAt'    in data) || (data.updatedAt    is string && data.updatedAt.size()    <= 40))
+          && (!('email'        in data) || (data.email        is string && data.email.size()        <= 200));
+    }
+
+    // -------------------------------------------------------------------------
+    // config/ — cerrado salvo la lectura del doc del instalador
+    // -------------------------------------------------------------------------
+    // La escritura queda prohibida al cliente: acá vive la URL de actualización
+    // del agente y un write malicioso dispararía una actualización falsa.
+    // El front del inventario necesita leer solo config/agente_hw para mostrar
+    // la versión y el link de descarga en Sistema.
+    match /config/{document} {
+      allow read:  if request.auth != null && document == 'agente_hw';
       allow write: if false;
     }
 
-    // write:false bloquea enviarComandoAMaquinas() del SDK cliente.
-    // La escritura a tareas fue migrada al backend (POST /api/computadoras/{uuid}/comando).
-    match /tareas/{id} {
-      allow read:  if request.auth != null;
-      allow write: if false;
-    }
-
-    match /cyberwatch_instancias/{machineId} {
+    // -------------------------------------------------------------------------
+    // computadoras/ — lectura para el dashboard, escritura solo Admin SDK
+    // -------------------------------------------------------------------------
+    match /computadoras/{machineId} {
       allow read:  if request.auth != null;
       allow write: if false;
 
-      match /alertas/{alertId} {
-        allow read:   if request.auth != null;
-        allow create: if false;
-        allow update, delete: if false;
-      }
-
-      match /historial_navegacion/{entryId} {
+      match /programas/{programaId} {
         allow read:  if request.auth != null;
         allow write: if false;
       }
-
-      match /logs_amenazas/{logId} {
-        allow read:  if request.auth != null;
-        allow write: if false;
-      }
     }
 
-    match /config/{doc} {
+    // -------------------------------------------------------------------------
+    // tareas/ — solo lectura; los comandos los emite el backend
+    // -------------------------------------------------------------------------
+    // El front lee el estado de cada comando (useTareasHW). La escritura desde
+    // el cliente está cerrada porque se migró a POST /api/computadoras/{uuid}/comando.
+    match /tareas/{machineId} {
       allow read:  if request.auth != null;
       allow write: if false;
     }
 
-    match /{path=**}/alertas/{alertId} {
+    // -------------------------------------------------------------------------
+    // Logs del agente — lectura para el dashboard, escritura solo Admin SDK
+    // -------------------------------------------------------------------------
+    match /logs_actualizaciones/{logId} {
       allow read:  if request.auth != null;
       allow write: if false;
     }
 
-    match /{path=**}/logs_amenazas/{logId} {
+    match /logs_debug/{logId} {
       allow read:  if request.auth != null;
       allow write: if false;
     }
 
-    match /cyberwatch_logs/{logId} {
-      allow read:  if request.auth != null;
-      allow write: if false;
-    }
-
-    match /logs_actualizaciones/{id} {
-      allow read:  if request.auth != null;
-      allow write: if false;
-    }
-
-    match /logs_debug/{id} {
-      allow read:  if request.auth != null;
-      allow write: if false;
-    }
-
-    // Perfiles de usuario: cada usuario solo puede leer/escribir su propio documento.
+    // -------------------------------------------------------------------------
+    // usuarios/ — cada uno solo su propio perfil, sin poder tocar su rol
+    // -------------------------------------------------------------------------
+    // `rol` y `activo` son la fuente de autorización del backend
+    // (RoleAuthorizationFilter los lee de acá), así que el cliente NO puede
+    // escribirlos: si pudiera, cualquiera se haría ADMINISTRADOR desde la
+    // consola del navegador. hasOnly() los deja fuera de los campos editables.
     match /usuarios/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null && request.auth.uid == userId;
+
+      allow create: if request.auth != null
+                    && request.auth.uid == userId
+                    && request.resource.data.keys().hasOnly(camposPerfil())
+                    && perfilBienFormado(request.resource.data)
+                    && request.resource.data.email == request.auth.token.email;
+
+      // En update, request.resource.data es el documento resultante y sigue
+      // conteniendo rol/activo, así que el filtro va sobre las claves afectadas.
+      allow update: if request.auth != null
+                    && request.auth.uid == userId
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(camposPerfil())
+                    && perfilBienFormado(request.resource.data)
+                    && (!('email' in request.resource.data.diff(resource.data).affectedKeys())
+                        || request.resource.data.email == request.auth.token.email);
+
+      allow delete: if false;
     }
   }
 }

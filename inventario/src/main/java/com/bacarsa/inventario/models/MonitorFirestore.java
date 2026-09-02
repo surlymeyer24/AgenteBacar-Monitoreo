@@ -20,4 +20,8 @@ public class MonitorFirestore {
     @Getter(onMethod_ = @PropertyName("alto_cm"))
     @Setter(onMethod_ = @PropertyName("alto_cm"))
     private Double altoCm;
+    @Getter(onMethod_ = @PropertyName("numero_serie"))
+    @Setter(onMethod_ = @PropertyName("numero_serie"))
+    private String numeroSerie;
+    private String fabricante;
 }

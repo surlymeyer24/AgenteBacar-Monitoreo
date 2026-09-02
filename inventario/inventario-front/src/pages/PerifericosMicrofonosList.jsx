@@ -12,7 +12,10 @@ function claveFila(f, index) {
 
 function PerifericosMicrofonosList() {
   const { listados, loading, error } = usePerifericosAgenteListados();
-  const filas = listados?.microfonos ?? [];
+  const filas = (listados?.microfonos ?? []).filter(m => {
+    const fabricante = (m.fabricante ?? '').toLowerCase();
+    return !fabricante.includes('integrado');
+  });
 
   if (loading) return <StudioLoading />;
   if (error) return <StudioError message={error?.message ?? 'No se pudo cargar el listado'} />;

@@ -1,33 +1,61 @@
 import { Link } from 'react-router-dom';
+import { usePermisos } from '../../hooks/usePermisos';
 
 export function StudioLoading({ message = 'Cargando…' }) {
   return (
-    <div className="p-8 text-center text-slate-500 text-sm">{message}</div>
+    <div className="p-8 text-center text-slate-500 text-base">{message}</div>
   );
 }
 
 export function StudioError({ message }) {
   return (
-    <div className="p-8 text-center text-red-600 text-sm font-medium">{message}</div>
+    <div className="p-8 text-center text-red-600 text-base font-medium">{message}</div>
   );
 }
 
 export function StudioPageShell({ title, subtitle, actions, children }) {
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight text-slate-900">{title}</h1>
-          {subtitle ? <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p> : null}
+  const header = (
+    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+      <div className="flex gap-3 min-w-0">
+        <span
+          className="w-1.5 self-stretch min-h-[2.75rem] rounded-full bg-accent shrink-0"
+          aria-hidden
+        />
+        <div className="min-w-0 space-y-1">
+          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 uppercase leading-tight">
+            {title}
+          </h1>
+          {subtitle ? (
+            <p className="text-xs sm:text-sm font-medium text-slate-500 uppercase tracking-wide leading-relaxed">
+              {subtitle}
+            </p>
+          ) : null}
         </div>
-        {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
       </div>
-      {children}
+      {actions ? (
+        <div className="flex flex-wrap items-center gap-2 shrink-0">{actions}</div>
+      ) : null}
+    </div>
+  );
+
+  const hasBody = children != null && children !== false;
+
+  return (
+    <div
+      className={`bg-white rounded-xl border border-slate-200 shadow-xs border-t-[3px] border-t-accent p-5 sm:p-6 ${
+        hasBody ? 'space-y-6' : ''
+      }`}
+    >
+      {header}
+      {hasBody ? children : null}
     </div>
   );
 }
 
-export function StudioPrimaryButton({ children, onClick, to, type = 'button', disabled, id }) {
+export function StudioPrimaryButton({ children, onClick, to, type = 'button', disabled, id, requiresWrite = false, requiresAdmin = false }) {
+  const { loading, puedeEscribir, esAdministrador } = usePermisos();
+  if (requiresWrite && (loading || !puedeEscribir)) return null;
+  if (requiresAdmin && (loading || !esAdministrador)) return null;
   const cls =
     'inline-flex items-center gap-2 px-4 py-2 bg-[#0c66e4] hover:bg-[#0055cc] disabled:opacity-50 text-white rounded-lg font-medium text-sm transition-colors shadow-xs';
   if (to) {
@@ -44,7 +72,10 @@ export function StudioPrimaryButton({ children, onClick, to, type = 'button', di
   );
 }
 
-export function StudioSecondaryButton({ children, onClick, to, disabled, type = 'button' }) {
+export function StudioSecondaryButton({ children, onClick, to, disabled, type = 'button', requiresWrite = false, requiresAdmin = false }) {
+  const { loading, puedeEscribir, esAdministrador } = usePermisos();
+  if (requiresWrite && (loading || !puedeEscribir)) return null;
+  if (requiresAdmin && (loading || !esAdministrador)) return null;
   const cls =
     'inline-flex items-center gap-2 px-4 py-2 border border-slate-200 hover:bg-slate-50 disabled:opacity-50 text-slate-700 rounded-lg font-medium text-sm transition-colors';
   if (to) {
@@ -65,7 +96,7 @@ export function StudioCardGrid({ children, emptyMessage }) {
   const items = Array.isArray(children) ? children.filter(Boolean) : children ? [children] : [];
   if (!items.length) {
     return (
-      <div className="bg-white border border-slate-200 rounded-xl p-10 text-center text-sm text-slate-400 shadow-xs">
+      <div className="bg-white border border-slate-200 rounded-xl p-10 text-center text-base text-slate-400 shadow-xs">
         {emptyMessage ?? 'Sin registros'}
       </div>
     );
@@ -93,32 +124,32 @@ export function StudioPerifericoCard({
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-2">
           {badge ? (
-            <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${badgeClass}`}>
+            <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider ${badgeClass}`}>
               {badge}
             </span>
           ) : (
             <span />
           )}
-          {meta ? <span className="text-[10px] text-slate-400 font-mono">{meta}</span> : null}
+          {meta ? <span className="text-sm text-slate-400 font-mono">{meta}</span> : null}
         </div>
-        {title ? <h3 className="font-bold text-slate-900 text-xs leading-snug">{title}</h3> : null}
+        {title ? <h3 className="font-bold text-slate-900 text-base leading-snug">{title}</h3> : null}
         {lines.map((line, i) => (
-          <p key={i} className="text-[11px] text-slate-500 font-medium">
+          <p key={i} className="text-sm text-slate-500 font-medium">
             {line}
           </p>
         ))}
       </div>
 
       {(footerLabel || footerValue || footerLink) && (
-        <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold gap-2">
+        <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-base font-semibold gap-2">
           <div className="min-w-0">
             {footerLabel ? (
-              <span className="text-[10px] text-slate-400 block font-normal text-left">{footerLabel}</span>
+              <span className="text-sm text-slate-400 block font-normal text-left">{footerLabel}</span>
             ) : null}
             {footerValue ? <span className="text-slate-700 truncate block">{footerValue}</span> : null}
           </div>
           {footerLink ? (
-            <Link to={footerLink} className="p-1 text-[#0c66e4] hover:underline font-bold text-[11px] shrink-0">
+            <Link to={footerLink} className="p-1 text-[#0c66e4] hover:underline font-bold text-sm shrink-0">
               {footerLinkLabel}
             </Link>
           ) : null}
@@ -137,7 +168,7 @@ export function StudioDataTable({ children, className = '' }) {
 }
 
 export function studioTableClass() {
-  return 'w-full text-left border-collapse text-xs text-slate-700';
+  return 'w-full text-left border-collapse text-sm text-slate-700';
 }
 
 export function studioTheadClass() {
@@ -158,16 +189,16 @@ export function studioRowClass(clickable = true) {
 
 export function StudioMetricCard({ title, value, subtitle, icon: Icon, iconClass, to, accentClass = '' }) {
   const inner = (
-    <div className={`bg-white rounded-xl border border-slate-200 p-5 shadow-xs flex items-start justify-between transition-all hover:shadow-md ${accentClass}`}>
-      <div className="space-y-2">
-        <span className="text-xs font-semibold text-slate-500 tracking-wider uppercase">{title}</span>
+    <div className={`bg-white rounded-xl border border-slate-200 p-5 shadow-xs flex items-start justify-between transition-all hover:shadow-md h-full min-w-0 ${accentClass}`}>
+      <div className="space-y-2 min-w-0">
+        <span className="text-base font-semibold text-slate-500 tracking-wider uppercase block truncate">{title}</span>
         <div className="flex items-baseline gap-2">
-          <span className="text-3xl font-bold text-slate-900">{value}</span>
-          {subtitle ? <span className="text-xs text-slate-500">{subtitle}</span> : null}
+          <span className="text-4xl font-bold text-slate-900 tabular-nums">{value}</span>
+          {subtitle ? <span className="text-base text-slate-500 shrink-0">{subtitle}</span> : null}
         </div>
       </div>
       {Icon ? (
-        <div className={`p-3 rounded-lg ${iconClass ?? 'bg-slate-100 text-slate-600'}`}>
+        <div className={`p-3 rounded-lg shrink-0 ${iconClass ?? 'bg-slate-100 text-slate-600'}`}>
           <Icon className="w-6 h-6" />
         </div>
       ) : null}
@@ -175,7 +206,7 @@ export function StudioMetricCard({ title, value, subtitle, icon: Icon, iconClass
   );
   if (to) {
     return (
-      <Link to={to} className="no-underline text-inherit block">
+      <Link to={to} className="no-underline text-inherit block h-full min-w-0">
         {inner}
       </Link>
     );
@@ -195,7 +226,7 @@ export function StudioSection({ title, icon: Icon, iconClass, children }) {
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-5 space-y-4">
       {title ? (
-        <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3 m-0">
+        <h2 className="text-base font-bold text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3 m-0">
           {Icon ? <Icon className={`w-5 h-5 shrink-0 ${iconClass ?? 'text-slate-500'}`} /> : null}
           {title}
         </h2>
@@ -208,11 +239,11 @@ export function StudioSection({ title, icon: Icon, iconClass, children }) {
 export function StudioKpiBox({ label, value, sub, mono = false }) {
   return (
     <div className="p-3 border border-slate-100 rounded-lg bg-slate-50/50 text-center space-y-1">
-      <span className="text-[9px] text-slate-400 uppercase font-semibold block">{label}</span>
-      <p className={`font-bold text-slate-800 mt-1 ${mono ? 'font-mono text-xs' : 'text-sm truncate'}`} title={typeof value === 'string' ? value : undefined}>
+      <span className="text-xs text-slate-400 uppercase font-semibold block">{label}</span>
+      <p className={`font-bold text-slate-800 mt-1 ${mono ? 'font-mono text-base' : 'text-lg truncate'}`} title={typeof value === 'string' ? value : undefined}>
         {value}
       </p>
-      {sub ? <p className="text-[10px] text-slate-400">{sub}</p> : null}
+      {sub ? <p className="text-sm text-slate-400">{sub}</p> : null}
     </div>
   );
 }
@@ -224,7 +255,7 @@ export function StudioDiskBar({ label, tipo, libreGb, totalGb, porcentajeUsado }
   const barColor = pct > 85 ? 'bg-red-500' : pct > 65 ? 'bg-amber-500' : 'bg-blue-600';
   return (
     <div className="p-3 border border-slate-100 rounded-lg space-y-1.5 bg-slate-50/30">
-      <div className="flex justify-between items-center text-[11px] gap-2">
+      <div className="flex justify-between items-center text-sm gap-2">
         <span className="font-bold text-slate-800">{label}{tipo ? ` (${tipo})` : ''}</span>
         <span className="text-slate-500 shrink-0">
           {Number.isFinite(libre) && Number.isFinite(total)
@@ -235,7 +266,7 @@ export function StudioDiskBar({ label, tipo, libreGb, totalGb, porcentajeUsado }
       <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
         <div className={`h-full rounded-full ${barColor}`} style={{ width: `${Math.min(pct, 100)}%` }} />
       </div>
-      <p className="text-[10px] text-slate-400 text-right">{pct.toFixed(1)}% espacio utilizado</p>
+      <p className="text-sm text-slate-400 text-right">{pct.toFixed(1)}% espacio utilizado</p>
     </div>
   );
 }

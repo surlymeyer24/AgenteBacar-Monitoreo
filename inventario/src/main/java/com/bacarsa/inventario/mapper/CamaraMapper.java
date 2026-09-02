@@ -43,6 +43,8 @@ public class CamaraMapper {
         dto.setFechaAlta(parseFechaAltaIso(camara.getFechaAlta()));
         dto.setHistorialEstados(CambioEstadoMapper.toDTOList(camara.getHistorialEstados()));
         dto.setNvrId(camara.getNvrId());
+        dto.setUsuario(camara.getUsuario());
+        dto.setPassword(camara.getPassword());
         return dto;
     }
 

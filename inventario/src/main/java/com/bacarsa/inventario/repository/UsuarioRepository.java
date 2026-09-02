@@ -8,6 +8,8 @@ import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Repository;
 
 import com.bacarsa.inventario.models.Rol;
@@ -30,6 +32,7 @@ public class UsuarioRepository {
         this.collectionName = collectionName;
     }
 
+    @CacheEvict(value = "usuarios", allEntries = true)
     public void save(Usuario u) throws ExecutionException, InterruptedException {
         Map<String, Object> data = new HashMap<>();
         data.put("nombre", u.getNombre());
@@ -39,6 +42,11 @@ public class UsuarioRepository {
         firestore.collection(collectionName).document(u.getId()).set(data).get();
     }
 
+    /**
+     * No cachear vacíos: Spring Cache desempaqueta Optional, así que #result es Usuario o null.
+     * Un miss cacheado dejaría al usuario como VISUALIZADOR hasta que expire el TTL.
+     */
+    @Cacheable(value = "usuarios", key = "#uid", unless = "#result == null")
     public Optional<Usuario> findById(String uid) throws ExecutionException, InterruptedException {
         DocumentSnapshot doc = firestore.collection(collectionName).document(uid).get().get();
         if (!doc.exists()) {
@@ -47,6 +55,7 @@ public class UsuarioRepository {
         return Optional.of(snapshotToUsuario(doc));
     }
 
+    @Cacheable(value = "usuarios", key = "'email:' + #email", unless = "#result == null")
     public Optional<Usuario> findByEmail(String email) throws ExecutionException, InterruptedException {
         ApiFuture<QuerySnapshot> future = firestore.collection(collectionName)
                 .whereEqualTo("email", email)
@@ -58,6 +67,7 @@ public class UsuarioRepository {
         return Optional.of(snapshotToUsuario(docs.get(0)));
     }
 
+    @Cacheable("usuarios")
     public List<Usuario> findAll() throws ExecutionException, InterruptedException {
         ApiFuture<QuerySnapshot> future = firestore.collection(collectionName).get();
         List<QueryDocumentSnapshot> docs = future.get().getDocuments();
@@ -68,6 +78,7 @@ public class UsuarioRepository {
         return result;
     }
 
+    @CacheEvict(value = "usuarios", allEntries = true)
     public void delete(String uid) throws ExecutionException, InterruptedException {
         firestore.collection(collectionName).document(uid).delete().get();
     }

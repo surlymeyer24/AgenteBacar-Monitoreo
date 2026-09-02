@@ -8,6 +8,8 @@ const empty = {
   direccionIp: '',
   puerto: '',
   descripcion: '',
+  usuario: '',
+  password: '',
 };
 
 function NvrNueva() {
@@ -35,6 +37,8 @@ function NvrNueva() {
       nombre: form.nombre.trim(),
       direccionIp: form.direccionIp.trim() || undefined,
       descripcion: form.descripcion.trim() || undefined,
+      usuario: form.usuario.trim() || undefined,
+      password: form.password.trim() || undefined,
     };
     if (puertoNum !== undefined && !Number.isNaN(puertoNum)) {
       body.puerto = puertoNum;
@@ -94,6 +98,10 @@ function NvrNueva() {
           />
           <label htmlFor="nvr-nueva-desc">Descripción</label>
           <textarea id="nvr-nueva-desc" name="descripcion" rows={3} value={form.descripcion} onChange={onChange} />
+          <label htmlFor="nvr-nueva-usuario">Usuario</label>
+          <input id="nvr-nueva-usuario" name="usuario" value={form.usuario} onChange={onChange} autoComplete="off" />
+          <label htmlFor="nvr-nueva-password">Contraseña</label>
+          <input id="nvr-nueva-password" name="password" type="password" value={form.password} onChange={onChange} autoComplete="new-password" />
           {error ? <p className="page error">{error}</p> : null}
           <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
             <button type="submit" className="btn btn-primary" disabled={enviando}>

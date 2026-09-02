@@ -13,6 +13,13 @@ export function fetchComputadoras(params = {}) {
   });
 }
 
+export function fetchComputadorasRecientes(limit = 8) {
+  return apiFetch(`${BASE_URL}/recientes?limit=${limit}`).then(res => {
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  });
+}
+
 export function fetchComputadora(uuid) {
   return apiFetch(`${BASE_URL}/${uuid}`).then(res => {
     if (res.status === 404) return null;
@@ -53,11 +60,11 @@ export function updateResponsableInventario(uuid, responsableInventario) {
   });
 }
 
-export function updateEstado(uuid, estado, motivo) {
+export function updateEstado(uuid, estado, motivo, extras = {}) {
   return apiFetch(`${BASE_URL}/${uuid}/estado`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ estado, motivo }),
+    body: JSON.stringify({ estado, motivo, ...extras }),
   }).then(res => {
     if (res.status === 404) return null;
     if (res.status === 400) throw new Error('Estado o motivo inválido');

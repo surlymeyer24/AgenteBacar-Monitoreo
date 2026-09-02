@@ -26,7 +26,17 @@ function PerifericosMouseList() {
         items={filas} 
         type="mouse" 
         renderSpecs={(m) => (
-          <>Fabricante: {m.fabricante || 'Standard'} <span className="text-slate-300 mx-1">|</span> {m.conexion || 'USB'}</>
+          <>
+            Fabricante: {m.fabricante || 'Standard'}
+            <span className="text-slate-300 mx-1">|</span>
+            {m.conexion || 'USB'}
+            {(m.vid || m.pid) && (
+              <>
+                <span className="text-slate-300 mx-1">|</span>
+                {[m.vid && `VID_${m.vid}`, m.pid && `PID_${m.pid}`].filter(Boolean).join('/')}
+              </>
+            )}
+          </>
         )} 
       />
     </StudioPageShell>

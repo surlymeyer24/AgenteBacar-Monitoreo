@@ -1,7 +1,7 @@
 import { API_ORIGIN } from './config.js';
 import { apiFetch } from './http.js';
 
-/** GET estadísticas agregadas (por defecto http://localhost:8080/api/dashboard/stats). */
+/** GET estadísticas agregadas (por defecto http://localhost:8081/api/dashboard/stats). */
 const STATS_URL = `${API_ORIGIN}/api/dashboard/stats`;
 
 export function fetchDashboardStats() {

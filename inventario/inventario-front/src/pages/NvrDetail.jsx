@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
+import { HardDrive, Plus } from 'lucide-react';
 import { fetchNvr, fetchCamarasPorNvr, fetchNvrs, actualizarNvr } from '../api/nvrApi';
 import { fetchCamara, createCamara, asignarNvrCamara, fetchCamaras, deleteCamara } from '../api/camaraApi';
 import {
@@ -8,16 +9,30 @@ import {
   PLANTILLA_CSV_CAMARAS,
 } from '../lib/camarasImport';
 import { UBICACIONES_CAMARA_SUGERIDAS, labelUbicacionEnum } from '../constants/ubicaciones';
+import { CredentialsDisplay } from '../components/CredentialsField';
 import InfraestructuraModal from '../components/InfraestructuraModal';
+import DetailOverlayShell, {
+  DetailEditButton,
+  DetailSection,
+} from '../components/DetailOverlayShell';
+import { fmtFechaAlta } from '../components/DetailInfraHelpers';
+import WriteGate from '../components/WriteGate';
+import { ESTADO_OPERATIVO_LABELS } from '../constants/estados';
 
-function fmtFechaAlta(v) {
-  if (v == null || v === '') return '—';
-  if (typeof v === 'string') return v;
-  if (Array.isArray(v) && v.length >= 3) {
-    const [y, m, d] = v;
-    return `${String(y).padStart(4, '0')}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+function labelEstadoCam(raw) {
+  if (raw == null || raw === '') return '—';
+  const key = String(raw).trim();
+  return ESTADO_OPERATIVO_LABELS[key] ?? key;
+}
+
+function badgeEstadoCamClass(raw) {
+  const e = String(raw ?? '').toUpperCase().replace(/\s+/g, '_');
+  if (e.includes('BAJA') || e.includes('INACTIV')) return 'bg-red-50 text-red-700 border-red-200';
+  if (e.includes('MANTEN')) return 'bg-amber-50 text-amber-800 border-amber-200';
+  if (e.includes('OPERATIV') || e.includes('ACTIV') || e.includes('ASIGNAD')) {
+    return 'bg-emerald-50 text-emerald-800 border-emerald-200';
   }
-  return String(v);
+  return 'bg-slate-100 text-slate-600 border-slate-200';
 }
 
 function mergeCamaraDto(prev, dto) {
@@ -98,7 +113,9 @@ function NvrDetail() {
       nombre: nvr.nombre || '',
       direccionIp: nvr.direccionIp || '',
       puerto: nvr.puerto != null ? String(nvr.puerto) : '',
-      descripcion: nvr.descripcion || ''
+      descripcion: nvr.descripcion || '',
+      usuario: nvr.usuario || '',
+      password: nvr.password || '',
     });
     setEditNvrError('');
     setIsEditNvrModalOpen(true);
@@ -113,6 +130,8 @@ function NvrDetail() {
         nombre: editNvrForm.nombre.trim(),
         direccionIp: editNvrForm.direccionIp?.trim() || undefined,
         descripcion: editNvrForm.descripcion?.trim() || undefined,
+        usuario: editNvrForm.usuario?.trim() || undefined,
+        password: editNvrForm.password?.trim() || undefined,
       };
       const puertoNum = editNvrForm.puerto && String(editNvrForm.puerto).trim() !== '' 
         ? Number.parseInt(String(editNvrForm.puerto).trim(), 10) 
@@ -276,208 +295,283 @@ function NvrDetail() {
     }
   }
 
-  if (cargando) return <p className="estado-msg">Cargando...</p>;
-  if (error) return <p className="estado-msg error">{error}</p>;
-  if (!nvr) return <p className="estado-msg">NVR no encontrada</p>;
+  if (cargando || error || !nvr) {
+    return (
+      <DetailOverlayShell
+        onClose={() => navigate('/nvrs')}
+        title={cargando ? 'Cargando NVR…' : 'NVR'}
+        titleIcon={<HardDrive className="w-5 h-5 text-slate-300 shrink-0" />}
+        loading={cargando}
+        error={error || (!cargando && !nvr ? 'NVR no encontrada' : null)}
+      />
+    );
+  }
 
   return (
-    <div className="page">
-      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
-        <button type="button" className="btn btn-secondary btn-sm" onClick={() => navigate('/nvrs')}>
-          ← Volver
-        </button>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-          <button
-            type="button"
-            className="btn btn-primary btn-sm"
-            onClick={handleOpenEditNvrModal}
-          >
-            Editar
-          </button>
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm"
-            onClick={handleOpenAddModal}
-          >
-            Nueva cámara
-          </button>
-          <Link to="/nvrs/nueva" className="btn btn-secondary btn-sm">
-            Crear NVR
-          </Link>
-        </div>
-      </div>
+    <>
+      <DetailOverlayShell
+        onClose={() => navigate('/nvrs')}
+        title={nvr.nombre}
+        titleIcon={<HardDrive className="w-5 h-5 text-slate-300 shrink-0" />}
+        subtitle={
+          <>
+            ID: <span className="font-mono text-slate-300">{nvr.id}</span>
+            {nvr.direccionIp ? (
+              <>
+                <span className="text-slate-600 mx-1.5">•</span>
+                <span className="font-mono text-slate-300">{nvr.direccionIp}</span>
+                {nvr.puerto != null ? `:${nvr.puerto}` : ''}
+              </>
+            ) : null}
+          </>
+        }
+        actions={
+          <>
+            <DetailEditButton onClick={handleOpenEditNvrModal} />
+            <WriteGate>
+              <button
+                type="button"
+                onClick={handleOpenAddModal}
+                className="px-4 py-2 border border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700 font-bold text-sm rounded-lg flex items-center gap-2 transition-colors shrink-0 cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                Nueva cámara
+              </button>
+            </WriteGate>
+          </>
+        }
+      >
+        <DetailSection title="Datos generales">
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+            <div>
+              <dt className="text-xs font-bold text-slate-400 uppercase tracking-wider">ID</dt>
+              <dd className="font-mono text-slate-800 mt-0.5 break-all">{nvr.id}</dd>
+            </div>
+            <div>
+              <dt className="text-xs font-bold text-slate-400 uppercase tracking-wider">IP</dt>
+              <dd className="font-mono text-slate-800 mt-0.5">{nvr.direccionIp ?? '—'}</dd>
+            </div>
+            <div>
+              <dt className="text-xs font-bold text-slate-400 uppercase tracking-wider">Puerto</dt>
+              <dd className="text-slate-800 mt-0.5 font-semibold">{nvr.puerto != null ? String(nvr.puerto) : '—'}</dd>
+            </div>
+            <div className="sm:col-span-2">
+              <dt className="text-xs font-bold text-slate-400 uppercase tracking-wider">Descripción</dt>
+              <dd className="text-slate-800 mt-0.5">{nvr.descripcion ?? '—'}</dd>
+            </div>
+          </dl>
+        </DetailSection>
 
-      <h1 style={{ marginTop: '0.75rem' }}>{nvr.nombre}</h1>
+        <DetailSection title="Credenciales de acceso">
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+            <div>
+              <dt className="text-xs font-bold text-slate-400 uppercase tracking-wider">Usuario</dt>
+              <dd className="text-slate-800 mt-0.5 font-semibold">{nvr.usuario ?? '—'}</dd>
+            </div>
+            <div>
+              <CredentialsDisplay label="Contraseña" value={nvr.password} />
+            </div>
+          </dl>
+        </DetailSection>
 
-      <div className="card">
-        <h2>Datos generales</h2>
-        <dl className="detail-dl">
-          <dt>ID</dt><dd className="uuid">{nvr.id}</dd>
-          <dt>IP</dt><dd className="uuid">{nvr.direccionIp ?? '—'}</dd>
-          <dt>Puerto</dt><dd>{nvr.puerto != null ? String(nvr.puerto) : '—'}</dd>
-          <dt>Descripción</dt><dd>{nvr.descripcion ?? '—'}</dd>
-        </dl>
-      </div>
-
-      <div ref={tablaCamarasRef} className="card" style={{ marginTop: '1rem' }}>
-        <h2>Cámaras en esta NVR</h2>
-        {importando && progresoImport ? (
-          <p className="inventory-toolbar-msg" role="status" style={{ marginTop: '0.35rem' }}>
-            {progresoImport.iniciando && progresoImport.fila === 0
-              ? (
-                <>Procesando <strong>{progresoImport.total}</strong> fila{progresoImport.total === 1 ? '' : 's'}…</>
-                )
-              : (
-                <>
-                  Fila <strong>{progresoImport.fila}</strong> de <strong>{progresoImport.total}</strong>
-                  {progresoImport.ultimoNombre ? (
-                    <>
-                      {' — '}
-                      <span className="muted">
-                        última: {progresoImport.ultimoNombre}
+        <DetailSection
+          title={`Cámaras en esta NVR (${camaras.length})`}
+          actions={
+            <WriteGate>
+              <button
+                type="button"
+                onClick={handleOpenAddModal}
+                className="text-xs font-bold text-[#0c66e4] hover:underline cursor-pointer"
+              >
+                + Agregar
+              </button>
+            </WriteGate>
+          }
+        >
+          <div ref={tablaCamarasRef}>
+            {importando && progresoImport ? (
+              <p className="text-sm text-slate-600 mb-3" role="status">
+                {progresoImport.iniciando && progresoImport.fila === 0 ? (
+                  <>Procesando <strong>{progresoImport.total}</strong> fila{progresoImport.total === 1 ? '' : 's'}…</>
+                ) : (
+                  <>
+                    Fila <strong>{progresoImport.fila}</strong> de <strong>{progresoImport.total}</strong>
+                    {progresoImport.ultimoNombre ? (
+                      <span className="text-slate-400">
+                        {' — '}última: {progresoImport.ultimoNombre}
                         {progresoImport.tipo === 'creada' ? ' (nueva)' : ' (asignada a esta NVR)'}
                       </span>
-                    </>
-                  ) : null}
-                </>
+                    ) : null}
+                  </>
                 )}
-          </p>
-        ) : null}
-        {msgBorrar ? (
-          <p
-            className={msgBorrar.tipo === 'err' ? 'estado-msg error' : 'inventory-toolbar-msg inventory-toolbar-msg--ok'}
-            style={{ marginTop: '0.35rem' }}
-            role="status"
-          >
-            {msgBorrar.texto}
-          </p>
-        ) : null}
-        {camaras.length === 0 && !importando ? (
-          <p className="estado-msg">
-            Ninguna cámara asignada.{' '}
-            <Link to={`/camaras/nueva?nvrId=${encodeURIComponent(id)}`}>Dar de alta una cámara</Link>
-            {' '}o importá un archivo abajo.
-          </p>
-        ) : null}
-        {(camaras.length > 0 || importando) ? (
-          <div className="table-wrap" style={{ marginTop: camaras.length > 0 ? 0 : '0.5rem' }}>
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Dispositivo</th>
-                  <th>Nombre</th>
-                  <th>IP</th>
-                  <th>Ubicación</th>
-                  <th>Estado</th>
-                  <th>Fecha alta</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {camaras.map(cam => (
-                  <tr
-                    key={cam.id}
-                    onClick={() => navigate(`/camaras/${encodeURIComponent(cam.id)}`)}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <td className="uuid">{cam.id}</td>
-                    <td>{cam.nombre}</td>
-                    <td>{cam.direccionIp ?? '—'}</td>
-                    <td>{cam.ubicacion ?? '—'}</td>
-                    <td>{cam.estado ?? '—'}</td>
-                    <td>{fmtFechaAlta(cam.fechaAlta)}</td>
-                    <td onClick={e => e.stopPropagation()}>
-                      <button
-                        type="button"
-                        className="btn btn-danger btn-sm"
-                        disabled={borrandoId === cam.id}
-                        onClick={e => eliminarCamaraFila(e, cam)}
-                        title="Eliminar cámara del inventario"
-                      >
-                        {borrandoId === cam.id ? '…' : 'Borrar'}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : null}
-      </div>
-
-      <div className="card" style={{ marginTop: '1rem' }}>
-        <h2>Importar cámaras (CSV / Excel)</h2>
-        <p className="muted" style={{ marginTop: '0.35rem', maxWidth: '42rem' }}>
-          Las filas se procesan en esta NVR (<strong>{nvr.nombre}</strong>). Si el <strong>dispositivo</strong> ya existe y{' '}
-          <strong>no</strong> está en otra NVR, se le asigna esta. Si ya está asignada a otra NVR, esa fila se omite (no se mueven
-          cámaras entre sitios automáticamente). Si no existe el dispositivo, se crea la cámara (nombre y ubicación en archivo;
-          si falta ubicación se usa <code>IMPORTACION</code>). Las filas OK aparecen arriba según se procesan.
-        </p>
-        <p className="muted" style={{ marginTop: '0.25rem', fontSize: '0.9rem' }}>
-          Columnas reconocidas: <strong>dispositivo</strong> (o id, código), <strong>nombre</strong>,{' '}
-          <strong>ubicacion</strong>, marca, direccionIp, puerto, tipo, descripcion.
-        </p>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.75rem', alignItems: 'center' }}>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".csv,.xlsx,.xls,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            style={{ display: 'none' }}
-            disabled={importando}
-            onChange={onArchivoImport}
-          />
-          <button
-            type="button"
-            className="btn btn-primary btn-sm"
-            disabled={importando}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            {importando ? 'Importando…' : 'Elegir archivo…'}
-          </button>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={descargarPlantilla} disabled={importando}>
-            Descargar plantilla CSV
-          </button>
-        </div>
-        {resultadoImport?.error ? (
-          <p className="estado-msg error" style={{ marginTop: '0.75rem' }}>{resultadoImport.error}</p>
-        ) : null}
-        {resultadoImport && !resultadoImport.error ? (
-          <div style={{ marginTop: '0.75rem' }}>
-            <p className="inventory-toolbar-msg inventory-toolbar-msg--ok" role="status" style={{ margin: 0 }}>
-              Creadas: <strong>{resultadoImport.creadas}</strong>
-              {' · '}
-              Asignadas a esta NVR: <strong>{resultadoImport.asignadas}</strong>
-              {resultadoImport.omitidas > 0 ? (
-                <>
-                  {' · '}
-                  Filas vacías omitidas: <strong>{resultadoImport.omitidas}</strong>
-                </>
-              ) : null}
-              {resultadoImport.enOtraNvr > 0 ? (
-                <>
-                  {' · '}
-                  Ya en otra NVR (sin mover): <strong>{resultadoImport.enOtraNvr}</strong>
-                </>
-              ) : null}
-            </p>
-            {resultadoImport.ayuda ? (
-              <p className="estado-msg" style={{ marginTop: '0.5rem' }}>{resultadoImport.ayuda}</p>
+              </p>
             ) : null}
-            {resultadoImport.errores?.length > 0 ? (
-              <div style={{ marginTop: '0.5rem' }}>
-                <p className="muted" style={{ margin: '0 0 0.35rem' }}>Errores por fila:</p>
-                <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.9rem' }}>
-                  {resultadoImport.errores.map((er, i) => (
-                    <li key={i}>Fila {er.linea}: {er.mensaje}</li>
-                  ))}
-                </ul>
+            {msgBorrar ? (
+              <p
+                className={`text-sm mb-3 font-medium ${msgBorrar.tipo === 'err' ? 'text-red-600' : 'text-emerald-600'}`}
+                role="status"
+              >
+                {msgBorrar.texto}
+              </p>
+            ) : null}
+            {camaras.length === 0 && !importando ? (
+              <p className="text-sm text-slate-500">
+                Ninguna cámara asignada.{' '}
+                <Link to={`/camaras/nueva?nvrId=${encodeURIComponent(id)}`} className="text-[#0c66e4] font-semibold hover:underline">
+                  Dar de alta una cámara
+                </Link>
+                {' '}o importá un archivo abajo.
+              </p>
+            ) : null}
+            {(camaras.length > 0 || importando) ? (
+              <div className="rounded-xl border border-slate-200 overflow-hidden bg-slate-50/40">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse min-w-[42rem]">
+                    <thead>
+                      <tr className="bg-slate-100/90 border-b border-slate-200">
+                        <th className="py-3 px-4 text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">Dispositivo</th>
+                        <th className="py-3 px-4 text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">Nombre</th>
+                        <th className="py-3 px-4 text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">IP</th>
+                        <th className="py-3 px-4 text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">Ubicación</th>
+                        <th className="py-3 px-4 text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">Estado</th>
+                        <th className="py-3 px-4 text-[10px] font-extrabold text-slate-500 uppercase tracking-widest whitespace-nowrap">Fecha alta</th>
+                        <th className="py-3 px-4 text-[10px] font-extrabold text-slate-500 uppercase tracking-widest text-right">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 bg-white">
+                      {camaras.map(cam => (
+                        <tr
+                          key={cam.id}
+                          onClick={() => navigate(`/camaras/${encodeURIComponent(cam.id)}`)}
+                          className="hover:bg-slate-50/80 transition-colors cursor-pointer"
+                        >
+                          <td className="py-3.5 px-4 align-middle">
+                            <span className="inline-flex items-center px-2 py-1 rounded-md bg-slate-100 border border-slate-200 text-[11px] font-mono font-semibold text-slate-600">
+                              {cam.id}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 align-middle text-sm font-bold text-slate-900">
+                            {cam.nombre ?? '—'}
+                          </td>
+                          <td className="py-3.5 px-4 align-middle whitespace-nowrap">
+                            {cam.direccionIp ? (
+                              <span className="inline-flex items-center px-2 py-1 rounded-md bg-slate-100 border border-slate-200 text-[11px] font-mono font-semibold text-slate-600">
+                                {cam.direccionIp}
+                              </span>
+                            ) : (
+                              <span className="text-slate-300 text-sm font-semibold">—</span>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-4 align-middle text-sm text-slate-700 font-medium">
+                            {cam.ubicacion ? labelUbicacionEnum(cam.ubicacion) : '—'}
+                          </td>
+                          <td className="py-3.5 px-4 align-middle">
+                            <span
+                              className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wide border ${badgeEstadoCamClass(cam.estado)}`}
+                            >
+                              {labelEstadoCam(cam.estado)}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 align-middle whitespace-nowrap">
+                            {fmtFechaAlta(cam.fechaAlta) !== '—' ? (
+                              <span className="inline-flex items-center px-2 py-1 rounded-md bg-slate-100 border border-slate-200 text-[11px] font-mono font-semibold text-slate-600">
+                                {fmtFechaAlta(cam.fechaAlta)}
+                              </span>
+                            ) : (
+                              <span className="text-slate-300 text-sm font-semibold">—</span>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-4 align-middle text-right" onClick={e => e.stopPropagation()}>
+                            <WriteGate>
+                              <button
+                                type="button"
+                                className="px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide text-red-700 hover:bg-red-50 rounded-full border border-red-200 cursor-pointer disabled:opacity-50 transition-colors"
+                                disabled={borrandoId === cam.id}
+                                onClick={e => eliminarCamaraFila(e, cam)}
+                                title="Eliminar cámara del inventario"
+                              >
+                                {borrandoId === cam.id ? '…' : 'Borrar'}
+                              </button>
+                            </WriteGate>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             ) : null}
           </div>
-        ) : null}
-      </div>
+        </DetailSection>
 
-      <InfraestructuraModal 
+        <DetailSection title="Importar cámaras (CSV / Excel)">
+          <p className="text-sm text-slate-500 mb-2 max-w-3xl">
+            Las filas se procesan en esta NVR (<strong className="text-slate-700">{nvr.nombre}</strong>). Si el{' '}
+            <strong>dispositivo</strong> ya existe y no está en otra NVR, se le asigna esta. Si ya está en otra NVR, esa fila se omite.
+            Si no existe, se crea la cámara.
+          </p>
+          <p className="text-xs text-slate-400 mb-4">
+            Columnas: <strong>dispositivo</strong>, <strong>nombre</strong>, <strong>ubicacion</strong>, marca, direccionIp, puerto, tipo, descripcion.
+          </p>
+          <div className="flex flex-wrap gap-2 items-center">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv,.xlsx,.xls,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              className="hidden"
+              disabled={importando}
+              onChange={onArchivoImport}
+            />
+            <WriteGate>
+              <button
+                type="button"
+                disabled={importando}
+                onClick={() => fileInputRef.current?.click()}
+                className="px-4 py-2 bg-[#0c66e4] hover:bg-[#0055cc] disabled:opacity-50 text-white rounded-lg font-bold text-sm cursor-pointer transition-colors"
+              >
+                {importando ? 'Importando…' : 'Elegir archivo…'}
+              </button>
+            </WriteGate>
+            <button
+              type="button"
+              onClick={descargarPlantilla}
+              disabled={importando}
+              className="px-4 py-2 border border-slate-200 hover:bg-slate-100 text-slate-700 rounded-lg font-bold text-sm cursor-pointer transition-colors disabled:opacity-50"
+            >
+              Descargar plantilla CSV
+            </button>
+          </div>
+          {resultadoImport?.error ? (
+            <p className="text-sm text-red-600 font-medium mt-3">{resultadoImport.error}</p>
+          ) : null}
+          {resultadoImport && !resultadoImport.error ? (
+            <div className="mt-3 space-y-2">
+              <p className="text-sm text-emerald-700 font-medium" role="status">
+                Creadas: <strong>{resultadoImport.creadas}</strong>
+                {' · '}
+                Asignadas: <strong>{resultadoImport.asignadas}</strong>
+                {resultadoImport.omitidas > 0 ? <> · Omitidas: <strong>{resultadoImport.omitidas}</strong></> : null}
+                {resultadoImport.enOtraNvr > 0 ? <> · Ya en otra NVR: <strong>{resultadoImport.enOtraNvr}</strong></> : null}
+              </p>
+              {resultadoImport.ayuda ? (
+                <p className="text-sm text-slate-500">{resultadoImport.ayuda}</p>
+              ) : null}
+              {resultadoImport.errores?.length > 0 ? (
+                <div>
+                  <p className="text-xs font-bold text-slate-500 mb-1">Errores por fila:</p>
+                  <ul className="list-disc pl-5 text-sm text-slate-600 space-y-0.5">
+                    {resultadoImport.errores.map((er, i) => (
+                      <li key={i}>Fila {er.linea}: {er.mensaje}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </DetailSection>
+      </DetailOverlayShell>
+
+      <InfraestructuraModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSubmit={handleModalSubmit}
@@ -485,7 +579,7 @@ function NvrDetail() {
         title="Cámara de Seguridad"
         error={modalError}
         formState={modalForm}
-        onChange={(e) => setModalForm({...modalForm, [e.target.name]: e.target.value})}
+        onChange={(e) => setModalForm({ ...modalForm, [e.target.name]: e.target.value })}
         fields={[
           { name: 'dispositivo', label: 'Dispositivo (ID único / Serie)', type: 'text', placeholder: 'Ej. camara-patio-1', required: true },
           { name: 'nombre', label: 'Nombre comercial / descriptivo', type: 'text', placeholder: 'Ej. Domo Entrada Principal', required: true },
@@ -496,11 +590,11 @@ function NvrDetail() {
           { name: 'tipo', label: 'Tipo de Cámara / Modelo', type: 'text', placeholder: 'Ej. Domo, Bala, PTZ', required: true },
           { name: 'marca', label: 'Marca', type: 'text', placeholder: 'Ej. Hikvision, Dahua' },
           { name: 'responsable', label: 'Responsable', type: 'text', placeholder: 'Ej. Sistemas / Seguridad' },
-          { name: 'descripcion', label: 'Descripción / Notas', type: 'textarea', placeholder: 'Notas adicionales...', fullWidth: true }
+          { name: 'descripcion', label: 'Descripción / Notas', type: 'textarea', placeholder: 'Notas adicionales...', fullWidth: true },
         ]}
       />
 
-      <InfraestructuraModal 
+      <InfraestructuraModal
         isOpen={isEditNvrModalOpen}
         onClose={() => setIsEditNvrModalOpen(false)}
         onSubmit={handleEditNvrSubmit}
@@ -508,15 +602,17 @@ function NvrDetail() {
         title="NVR"
         error={editNvrError}
         formState={editNvrForm}
-        onChange={(e) => setEditNvrForm({...editNvrForm, [e.target.name]: e.target.value})}
+        onChange={(e) => setEditNvrForm({ ...editNvrForm, [e.target.name]: e.target.value })}
         fields={[
           { name: 'nombre', label: 'Nombre del NVR', type: 'text', required: true },
           { name: 'direccionIp', label: 'Dirección IP', type: 'text' },
           { name: 'puerto', label: 'Puerto', type: 'number' },
-          { name: 'descripcion', label: 'Descripción / Notas', type: 'textarea', fullWidth: true }
+          { name: 'usuario', label: 'Usuario', type: 'text', placeholder: 'Admin NVR' },
+          { name: 'password', label: 'Contraseña', type: 'password', placeholder: '••••••••' },
+          { name: 'descripcion', label: 'Descripción / Notas', type: 'textarea', fullWidth: true },
         ]}
       />
-    </div>
+    </>
   );
 }
 

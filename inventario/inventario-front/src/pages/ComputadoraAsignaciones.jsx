@@ -8,6 +8,8 @@ import { useComputadorasList } from '../context/ComputadorasListContext';
 import ComputadoraSubnav from '../components/ComputadoraSubnav';
 import { UBICACIONES_COMPUTADORA, labelUbicacionEnum, coincideUbicacionFiltro } from '../constants/ubicaciones';
 import { ESTADOS_OPERATIVOS, ESTADO_OPERATIVO_LABELS } from '../constants/estados';
+import WriteGate from '../components/WriteGate';
+import { usePermisos } from '../hooks/usePermisos';
 
 /** Orden de solapas: Asignadas → Baja → Sin asignar → Mantenimiento */
 const SOLAPAS_ESTADO = [
@@ -78,6 +80,7 @@ function valorRiDraft(c, riDraft) {
 }
 
 export default function ComputadoraAsignaciones() {
+  const { puedeEscribir } = usePermisos();
   const { todas, setTodas, cargando, error } = useComputadorasList();
   const [buscar, setBuscar] = useState('');
   const [filtroUbicacion, setFiltroUbicacion] = useState('');
@@ -87,6 +90,8 @@ export default function ComputadoraAsignaciones() {
   const [msgRi, setMsgRi] = useState(null);
   const [estadoSel, setEstadoSel] = useState({});
   const [motivoEstado, setMotivoEstado] = useState({});
+  const [ubicacionStockDraft, setUbicacionStockDraft] = useState({});
+  const [asignarADraft, setAsignarADraft] = useState({});
   const [savingEst, setSavingEst] = useState(null);
   const [msgEst, setMsgEst] = useState(null);
   const [solapaEstado, setSolapaEstado] = useState('ASIGNADA');
@@ -153,10 +158,29 @@ export default function ComputadoraAsignaciones() {
     const est = (estadoSel[uuid] ?? '').trim();
     const mot = (motivoEstado[uuid] ?? '').trim();
     if (!est) return;
+
+    const extras = {};
+    if (est === 'SIN_ASIGNAR') {
+      const ubStock = (ubicacionStockDraft[uuid] ?? '').trim();
+      if (!ubStock) {
+        setMsgEst('La ubicación de stock es obligatoria para pasar a Sin Asignar.');
+        return;
+      }
+      extras.ubicacionStock = ubStock;
+    }
+    if (est === 'ASIGNADA') {
+      const asignar = (asignarADraft[uuid] ?? '').trim();
+      if (!asignar) {
+        setMsgEst('Debe indicar a quién se asigna el equipo.');
+        return;
+      }
+      extras.responsableInventario = asignar;
+    }
+
     setSavingEst(uuid);
     setMsgEst(null);
     try {
-      const dto = await updateEstado(uuid, est, mot);
+      const dto = await updateEstado(uuid, est, mot, extras);
       if (!dto) {
         setMsgEst('No se encontró la computadora.');
         return;
@@ -164,6 +188,8 @@ export default function ComputadoraAsignaciones() {
       setTodas(prev => prev.map(p => (p.uuid === uuid ? { ...p, ...dto } : p)));
       setEstadoSel(prev => ({ ...prev, [uuid]: '' }));
       setMotivoEstado(prev => ({ ...prev, [uuid]: '' }));
+      setUbicacionStockDraft(prev => ({ ...prev, [uuid]: '' }));
+      setAsignarADraft(prev => ({ ...prev, [uuid]: '' }));
     } catch {
       setMsgEst('No se pudo cambiar el estado.');
     } finally {
@@ -202,9 +228,11 @@ export default function ComputadoraAsignaciones() {
             Asignaciones
           </h1>
         </div>
+        <WriteGate>
         <Link to="/computadoras/nueva" className="btn btn-primary btn-sm">
           Nueva computadora
         </Link>
+        </WriteGate>
       </div>
 
       <div className="detail-tabs-block detail-tabs-block--unified">
@@ -330,7 +358,7 @@ export default function ComputadoraAsignaciones() {
                       <button
                         type="button"
                         className="btn btn-primary btn-sm"
-                        disabled={savingRi === c.uuid}
+                        disabled={!puedeEscribir || savingRi === c.uuid}
                         onClick={() => guardarResponsable(c.uuid)}
                       >
                         {savingRi === c.uuid ? '…' : 'Guardar'}
@@ -352,6 +380,24 @@ export default function ComputadoraAsignaciones() {
                           <option key={k} value={k}>{ESTADO_OPERATIVO_LABELS[k] ?? k}</option>
                         ))}
                       </select>
+                      {estadoSel[c.uuid] === 'SIN_ASIGNAR' && (
+                        <input
+                          className="inventory-input"
+                          type="text"
+                          placeholder="Ubicación de stock (ej: Depósito IT, Rack 3)"
+                          value={ubicacionStockDraft[c.uuid] ?? ''}
+                          onChange={e => setUbicacionStockDraft(prev => ({ ...prev, [c.uuid]: e.target.value }))}
+                        />
+                      )}
+                      {estadoSel[c.uuid] === 'ASIGNADA' && (
+                        <input
+                          className="inventory-input"
+                          type="text"
+                          placeholder="Asignar a (nombre del responsable)"
+                          value={asignarADraft[c.uuid] ?? ''}
+                          onChange={e => setAsignarADraft(prev => ({ ...prev, [c.uuid]: e.target.value }))}
+                        />
+                      )}
                       <input
                         className="inventory-input"
                         type="text"
@@ -363,7 +409,8 @@ export default function ComputadoraAsignaciones() {
                         type="button"
                         className="btn btn-secondary btn-sm"
                         disabled={
-                          savingEst === c.uuid
+                          !puedeEscribir
+                          || savingEst === c.uuid
                           || !(estadoSel[c.uuid] ?? '').trim()
                         }
                         onClick={() => guardarEstado(c.uuid)}

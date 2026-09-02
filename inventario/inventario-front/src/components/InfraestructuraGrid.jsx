@@ -1,11 +1,14 @@
-import { Server, Router, SwitchCamera, Video, ShieldAlert, BadgeCheck, HardDrive, Cpu, AlertCircle, PlayCircle, Network, Edit2, Trash2 } from 'lucide-react';
+import { Server, Router, SwitchCamera, Video, ShieldAlert, BadgeCheck, HardDrive, Cpu, AlertCircle, PlayCircle, Network, Edit2, Trash2, Wifi } from 'lucide-react';
 import { labelUbicacionEnum } from '../constants/ubicaciones';
+import { usePermisos } from '../hooks/usePermisos';
 
 function getIconForType(type) {
   switch (type) {
     case 'router':
     case 'switch':
       return <Network className="w-4 h-4 text-amber-600" />;
+    case 'access-point':
+      return <Wifi className="w-4 h-4 text-cyan-600" />;
     case 'nvr':
       return <HardDrive className="w-4 h-4 text-purple-600" />;
     case 'camara':
@@ -21,8 +24,9 @@ function getIconForType(type) {
 
 function getLabelForType(type, item) {
   switch (type) {
-    case 'router': return 'Router / AP';
+    case 'router': return 'Router';
     case 'switch': return 'Switch';
+    case 'access-point': return 'Access Point';
     case 'nvr': return 'NVR';
     case 'camara': return 'Cámara de Seg.';
     case 'servidor': return 'Servidor';
@@ -32,6 +36,10 @@ function getLabelForType(type, item) {
 }
 
 export default function InfraestructuraGrid({ items, type, onItemClick, selectedIds, onToggleSelection, onEditItem, onDeleteItem }) {
+  const { puedeEscribir } = usePermisos();
+  const puedeEditar = puedeEscribir && onEditItem;
+  const puedeEliminar = puedeEscribir && onDeleteItem;
+  const esSeleccionable = puedeEscribir && selectedIds != null && onToggleSelection != null;
   if (!items || items.length === 0) {
     return (
       <div className="bg-white rounded-xl border border-slate-200 p-12 text-center flex flex-col items-center justify-center space-y-4 shadow-sm">
@@ -40,13 +48,13 @@ export default function InfraestructuraGrid({ items, type, onItemClick, selected
         </div>
         <div className="space-y-1">
           <h3 className="font-bold text-slate-950 text-base">No se encontraron equipos</h3>
-          <p className="text-xs text-slate-500 max-w-sm">No hay registros de infraestructura para mostrar con los filtros actuales.</p>
+          <p className="text-sm text-slate-500 max-w-sm">No hay registros de infraestructura para mostrar con los filtros actuales.</p>
         </div>
       </div>
     );
   }
 
-  const isSelectable = selectedIds != null && onToggleSelection != null;
+  const isSelectable = esSeleccionable;
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
@@ -78,49 +86,49 @@ export default function InfraestructuraGrid({ items, type, onItemClick, selected
         const isSelected = isSelectable && selectedIds.has(item.id);
 
         return (
-          <div 
+          <div
             key={item.id}
             onClick={() => onItemClick && onItemClick(item)}
-            className={`bg-white rounded-xl border p-5 shadow-xs transition-all flex flex-col justify-between space-y-4 group cursor-pointer ${isSelected ? 'border-[#0c66e4] ring-1 ring-[#0c66e4] bg-blue-50/10' : 'border-slate-200 hover:border-[#0c66e4] hover:shadow-md'}`}
+            className={`bg-white rounded-xl border p-3 sm:p-4 shadow-xs transition-all flex flex-col justify-between space-y-3 group cursor-pointer ${isSelected ? 'border-[#0c66e4] ring-1 ring-[#0c66e4] bg-blue-50/10' : 'border-slate-200 hover:border-[#0c66e4] hover:shadow-md'}`}
           >
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
                   {isSelectable && (
-                    <div onClick={(e) => { e.stopPropagation(); onToggleSelection(item.id); }}>
-                      <input type="checkbox" checked={isSelected} readOnly className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer" />
+                    <div onClick={(e) => { e.stopPropagation(); onToggleSelection(item.id); }} className="flex-shrink-0">
+                      <input type="checkbox" checked={isSelected} readOnly className="w-3.5 h-3.5 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer" />
                     </div>
                   )}
-                  <span className="text-xs font-mono font-bold text-[#0c66e4]">{topId}</span>
+                  <span className="text-sm sm:text-base font-mono font-bold text-[#0c66e4] truncate">{topId}</span>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  {onEditItem && (
-                    <button 
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  {puedeEditar && (
+                    <button
                       onClick={(e) => { e.stopPropagation(); onEditItem(item); }}
-                      className="p-1 text-slate-400 hover:bg-slate-100 hover:text-indigo-600 rounded transition-colors"
+                      className="p-0.5 text-slate-400 hover:bg-slate-100 hover:text-indigo-600 rounded transition-colors"
                       title="Editar"
                     >
-                      <Edit2 className="w-3.5 h-3.5" />
+                      <Edit2 className="w-3 h-3" />
                     </button>
                   )}
-                  {onDeleteItem && (
-                    <button 
+                  {puedeEliminar && (
+                    <button
                       onClick={(e) => { e.stopPropagation(); onDeleteItem(item); }}
-                      className="p-1 text-slate-400 hover:bg-red-50 hover:text-red-600 rounded transition-colors"
+                      className="p-0.5 text-slate-400 hover:bg-red-50 hover:text-red-600 rounded transition-colors"
                       title="Eliminar"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Trash2 className="w-3 h-3" />
                     </button>
                   )}
                   {item.estado && (
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${badgeCls} uppercase tracking-wider`}>
+                    <span className={`px-1.5 py-0.5 rounded-full text-xs sm:text-sm font-bold border ${badgeCls} uppercase max-w-[80px] truncate`} title={item.estado}>
                       {item.estado}
                     </span>
                   )}
                 </div>
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-0.5">
                 {(() => {
                   let displayNombre = item.nombre;
                   if (type === 'maquina-tesoreria') {
@@ -131,34 +139,34 @@ export default function InfraestructuraGrid({ items, type, onItemClick, selected
                     displayNombre = 'Sin nombre';
                   }
                   return (
-                    <h3 className="font-bold text-slate-950 group-hover:text-[#0c66e4] transition-colors line-clamp-1 leading-tight" title={displayNombre}>
+                    <h3 className="text-base font-bold text-slate-950 group-hover:text-[#0c66e4] transition-colors line-clamp-1 leading-tight" title={displayNombre}>
                       {displayNombre}
                     </h3>
                   );
                 })()}
-                <p className="text-xs text-slate-500 font-mono line-clamp-1">
+                <p className="text-sm text-slate-500 font-mono line-clamp-1">
                   {marcaModelo} {(item.numeroSerie || item.nroSerie) ? ` • S/N: ${item.numeroSerie || item.nroSerie}` : ''}
                 </p>
               </div>
 
-              <div className="flex items-center gap-2 text-xs bg-slate-50 rounded-lg p-2 w-fit">
+              <div className="flex items-center gap-1.5 text-sm bg-slate-50 rounded-lg px-2 py-1.5 w-fit">
                 {getIconForType(item.tipoComponente || type)}
                 <span className="font-semibold text-slate-700">{getLabelForType(item.tipoComponente || type, item)}</span>
               </div>
             </div>
 
-            <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-              <div className="text-xs">
-                <p className="text-slate-400 text-[10px]">{type === 'maquina-tesoreria' ? 'Vida Útil:' : 'Ubicación Física:'}</p>
-                <p className="font-semibold text-slate-800 truncate max-w-[120px]" title={item.sitio || labelUbicacionEnum(item.ubicacion) || 'No especificada'}>
-                    {type === 'maquina-tesoreria' 
-                      ? (item.vida || 'No especificada') 
-                      : (item.sitio || labelUbicacionEnum(item.ubicacion) || 'No especificada')}
-                  </p>
+            <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <p className="text-slate-400 text-xs sm:text-sm truncate">{type === 'maquina-tesoreria' ? 'Vida Útil:' : 'Ubicación:'}</p>
+                <p className="text-sm sm:text-base font-semibold text-slate-800 truncate" title={item.sitio || labelUbicacionEnum(item.ubicacion) || 'No especificada'}>
+                  {type === 'maquina-tesoreria'
+                    ? (item.vida || 'No especificada')
+                    : (item.sitio || labelUbicacionEnum(item.ubicacion) || 'No especificada')}
+                </p>
               </div>
-              <div className="text-right">
-                <p className="text-slate-400 text-[10px]">{item.ip ? 'Dirección IP:' : 'Identificador:'}</p>
-                <p className="font-mono font-bold text-slate-900">{item.ip ? item.ip : shortId}</p>
+              <div className="text-right shrink-0">
+                <p className="text-slate-400 text-xs sm:text-sm">{item.ip ? 'IP:' : 'ID:'}</p>
+                <p className="font-mono font-bold text-sm sm:text-base text-slate-900">{item.ip ? item.ip : shortId}</p>
               </div>
             </div>
           </div>

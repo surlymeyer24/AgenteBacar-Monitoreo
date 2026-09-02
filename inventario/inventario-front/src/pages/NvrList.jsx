@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useMemo } from 'react';
+import { Link, useNavigate, Outlet } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { fetchNvrs, crearNvr, actualizarNvr } from '../api/nvrApi';
 import { createCamara } from '../api/camaraApi';
@@ -19,11 +19,24 @@ import {
   studioTheadClass,
   studioThClass,
   studioTdClass,
+  StudioFilterBar,
 } from '../components/studio/StudioUi';
+import TableFilters from '../components/TableFilters';
 
 function NvrList() {
   const navigate = useNavigate();
   const [lista, setLista] = useState([]);
+  const [buscar, setBuscar] = useState('');
+
+  const itemsFiltrados = useMemo(() => {
+    if (!buscar) return lista;
+    const lowerBuscar = buscar.toLowerCase();
+    return lista.filter(item => 
+      (item.nombre && item.nombre.toLowerCase().includes(lowerBuscar)) ||
+      (item.direccionIp && item.direccionIp.toLowerCase().includes(lowerBuscar)) ||
+      (item.descripcion && item.descripcion.toLowerCase().includes(lowerBuscar))
+    );
+  }, [lista, buscar]);
 
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -188,26 +201,46 @@ function NvrList() {
     else alert('Importación completada con éxito.');
   }
 
-  if (cargando) return <StudioLoading />;
-  if (error) return <StudioError message={error} />;
+  if (cargando) {
+    return (
+      <>
+        <StudioLoading />
+        <Outlet />
+      </>
+    );
+  }
+  if (error) {
+    return (
+      <>
+        <StudioError message={error} />
+        <Outlet />
+      </>
+    );
+  }
 
   return (
+    <>
     <StudioPageShell
       title={`Infraestructura: NVR y Cámaras de Seguridad (${lista.length})`}
       subtitle="Dispositivos y grabadoras digitales conectadas al canal de circuito cerrado local."
       actions={
         <>
-          <StudioSecondaryButton onClick={() => setModalImportAbierto(true)}>
+          <StudioSecondaryButton requiresWrite onClick={() => setModalImportAbierto(true)}>
             Importar Excel/CSV
           </StudioSecondaryButton>
-          <StudioSecondaryButton onClick={handleOpenAddCamaraModal}>Nueva cámara</StudioSecondaryButton>
-          <StudioPrimaryButton onClick={handleOpenAddModal}>Nuevo +</StudioPrimaryButton>
+          <StudioSecondaryButton requiresWrite onClick={handleOpenAddCamaraModal}>Nueva cámara</StudioSecondaryButton>
+          <StudioPrimaryButton requiresWrite onClick={handleOpenAddModal}>Nuevo +</StudioPrimaryButton>
         </>
       }
     >
+      <StudioFilterBar>
+        <TableFilters>
+          <TableFilters.Search value={buscar} onChange={setBuscar} placeholder="Buscar..." />
+        </TableFilters>
+      </StudioFilterBar>
       <div className="pt-2">
         <InfraestructuraGrid 
-          items={lista} 
+          items={itemsFiltrados} 
           type="nvr" 
           onEditItem={handleOpenEditModal}
           onDeleteItem={handleDeleteItem}
@@ -266,6 +299,8 @@ function NvrList() {
       />
     
     </StudioPageShell>
+    <Outlet />
+    </>
   );
 }
 

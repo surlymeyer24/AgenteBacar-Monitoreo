@@ -3,13 +3,13 @@ import { useComputadorasHW } from '../hooks/useComputadorasHW';
 import { useComandoHW, enviarComandoAMaquinas } from '../hooks/useComandoHW';
 import {
   useLogsActualizacion,
-  deleteLogsActualizacionCoinciden,
   LOGS_SNAPSHOT_CAP,
 } from '../hooks/useLogsActualizacion';
 import { useLogsDebug } from '../hooks/useLogsDebug';
 import { formatTimestamp } from '../lib/formatFirestore';
 import { EVENTO_BADGE_HW } from '../lib/comandoLogBadges';
 import { useConfigAgenteDescarga } from '../hooks/useConfigAgenteDescarga';
+import { nivelActividadSync, tituloSyncDot, syncDotInlineStyle } from '../utils/syncActividad';
 import { 
   Cpu, Search, Settings, CloudLightning, RefreshCw, Ban, 
   CheckSquare, Square, Trash2, Download
@@ -42,10 +42,22 @@ function coincideVersionTexto(needleRaw, versionStr) {
 }
 
 // ─── sub-componente: fila de nodo con comandos individuales ──────────────────
-function NodoComando({ computadoraId, hostname, versionLabel, seleccionada, onToggleSeleccion, sistemaOperativo, estadoConexion, versionEtiqueta }) {
-  const { enviarActualizarDatos, enviarActualizarAgente, sending, error } = useComandoHW(computadoraId);
+function NodoComando({ computadora, computadoraId, hostname, versionLabel, seleccionada, onToggleSeleccion, versionEtiqueta }) {
+  const { enviarActualizarDatos, enviarActualizarAgente, sendingComando, sending, error, okMsg } = useComandoHW(computadoraId);
   const [enviandoReset, setEnviandoReset] = useState(false);
   const [errorReset, setErrorReset] = useState(null);
+  const [okReset, setOkReset] = useState(null);
+  const nivelSync = nivelActividadSync(computadora);
+
+  async function handleActualizarAgente(e) {
+    e.stopPropagation();
+    const etiqueta = versionEtiqueta ?? 'configurada';
+    if (!window.confirm(
+      `¿Enviar ACTUALIZAR_AGENTE a ${hostname || computadoraId}?\n\n` +
+      `El agente descargará e instalará la versión ${etiqueta}.`,
+    )) return;
+    await enviarActualizarAgente();
+  }
 
   async function handleResetUuid(e) {
     e.stopPropagation();
@@ -55,18 +67,21 @@ function NodoComando({ computadoraId, hostname, versionLabel, seleccionada, onTo
     )) return;
     setEnviandoReset(true);
     setErrorReset(null);
+    setOkReset(null);
     const res = await enviarComandoAMaquinas([computadoraId], 'RESETEAR_ID');
     setEnviandoReset(false);
     if (!res.ok) setErrorReset(res.message);
+    else setOkReset('Comando RESETEAR_ID enviado.');
   }
 
   const ocupado = sending || enviandoReset;
+  const feedback = error ? { ok: false, text: error } : okMsg ? { ok: true, text: okMsg } : errorReset ? { ok: false, text: errorReset } : okReset ? { ok: true, text: okReset } : null;
   const isOutdated = versionEtiqueta && versionLabel !== versionEtiqueta.replace('v', '');
 
   return (
     <div 
       onClick={onToggleSeleccion}
-      className={`p-3.5 border rounded-xl flex items-center justify-between transition-all cursor-pointer ${
+      className={`p-3.5 border rounded-xl flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between transition-all cursor-pointer ${
         seleccionada 
           ? 'bg-indigo-50/40 border-indigo-200 shadow-sm' 
           : 'bg-white border-slate-200/80 hover:bg-slate-50'
@@ -81,9 +96,13 @@ function NodoComando({ computadoraId, hostname, versionLabel, seleccionada, onTo
           )}
         </div>
         <div className="min-w-0">
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
+            <span
+              aria-hidden
+              title={tituloSyncDot(nivelSync)}
+              style={syncDotInlineStyle(nivelSync)}
+            />
             <span className="font-extrabold text-sm text-slate-900 truncate">{hostname || computadoraId}</span>
-            <span className={`w-1.5 h-1.5 rounded-full ${estadoConexion === 'ONLINE' ? 'bg-emerald-500' : 'bg-slate-300'}`} />
             {isOutdated && (
               <span className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 font-black text-[9px] uppercase tracking-wide border border-amber-200">
                 Desactualizado
@@ -93,29 +112,34 @@ function NodoComando({ computadoraId, hostname, versionLabel, seleccionada, onTo
           <div className="text-xs font-medium text-slate-400 flex items-center gap-1.5 mt-0.5 truncate">
             <span>UUID: <code className="font-mono bg-indigo-50/50 text-slate-500 p-0.5 px-1 rounded">{computadoraId}</code></span>
           </div>
+          {feedback && (
+            <p className={`text-xs font-semibold mt-1 mb-0 ${feedback.ok ? 'text-emerald-600' : 'text-rose-600'}`}>
+              {feedback.text}
+            </p>
+          )}
         </div>
       </div>
-      <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+      <div className="flex flex-wrap items-center gap-2 shrink-0" onClick={e => e.stopPropagation()}>
         <span className="text-xs font-extrabold text-slate-500 mr-2 bg-slate-50 border border-slate-200 p-1 px-2 rounded font-mono">
           v{versionLabel}
         </span>
         <button
           type="button"
           disabled={ocupado}
-          onClick={() => enviarActualizarDatos()}
-          className="px-3 py-1.5 text-slate-700 hover:text-indigo-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded text-xs font-black transition-colors"
+          onClick={(e) => { e.stopPropagation(); void enviarActualizarDatos(); }}
+          className="px-3 py-1.5 text-slate-700 hover:text-indigo-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded text-xs font-black transition-colors disabled:opacity-50"
           title="Sincronizar telemetría de hardware inmediatamente"
         >
-          Sync
+          {sendingComando === 'ACTUALIZAR_DATOS' ? 'Enviando…' : 'Sync'}
         </button>
         <button
           type="button"
           disabled={ocupado}
-          onClick={() => enviarActualizarAgente()}
-          className="px-3 py-1.5 text-white bg-indigo-600 hover:bg-indigo-700 rounded text-xs font-black transition-colors"
-          title={`Actualizar agente`}
+          onClick={handleActualizarAgente}
+          className="px-3 py-1.5 text-white bg-indigo-600 hover:bg-indigo-700 rounded text-xs font-black transition-colors disabled:opacity-50"
+          title="Actualizar agente a la versión configurada"
         >
-          Update
+          {sendingComando === 'ACTUALIZAR_AGENTE' ? 'Enviando…' : 'Update'}
         </button>
         <button
           type="button"
@@ -206,26 +230,9 @@ export default function System() {
     }),
   [logsCombinados, busquedaHistorialLogs, filtroVersionHistorial, filtroFuenteLogs]);
 
-  // — Borrar logs (solo logs_actualizaciones; logs_debug tienen TTL) —
-  const [borrandoLogs, setBorrandoLogs]         = useState(false);
-  const [feedbackBorrarLogs, setFeedbackBorrarLogs] = useState(null);
-
-  async function handleBorrarLogs() {
-    const hayFecha = Boolean(logFechaDesde || logFechaHasta) && !rangoFechasInvalido;
-    const aclaracion = hayFecha
-      ? 'Solo se borrarán los registros de logs_actualizaciones en el rango de fechas elegido.'
-      : 'Se borrarán TODOS los registros de logs_actualizaciones.\n(Los logs de debug se auto-expiran por TTL y no se borran manualmente.)';
-    if (!window.confirm(`¿Borrar logs en Firebase?\n\n${aclaracion}\n\nEsta acción no se puede deshacer.`)) return;
-    setFeedbackBorrarLogs(null);
-    setBorrandoLogs(true);
-    const res = await deleteLogsActualizacionCoinciden(filtroLogsFirestore);
-    setBorrandoLogs(false);
-    if (res.ok) {
-      setFeedbackBorrarLogs({ ok: true, text: `Se borraron ${res.deleted} registro${res.deleted !== 1 ? 's' : ''} de logs_actualizaciones.` });
-    } else {
-      setFeedbackBorrarLogs({ ok: false, text: res.message });
-    }
-  }
+  // El borrado de logs se quitó de la UI: las reglas de Firestore dejan
+  // logs_actualizaciones como solo lectura para el cliente, así que borrar desde el
+  // navegador siempre falla. Debe rehacerse como endpoint del backend para ADMINISTRADOR.
 
   // — Comandos a máquinas —
   const [busquedaComandosMaquinas, setBusquedaComandosMaquinas] = useState('');
@@ -236,6 +243,7 @@ export default function System() {
   const [enviandoAgenteSeleccion, setEnviandoAgenteSeleccion]   = useState(false);
   const [enviandoResetSeleccion, setEnviandoResetSeleccion]     = useState(false);
   const [errorAgenteSeleccion, setErrorAgenteSeleccion]         = useState(null);
+  const [okAgenteSeleccion, setOkAgenteSeleccion]             = useState(null);
 
   const computadorasFiltradas = useMemo(() =>
     computadoras.filter(c => {
@@ -273,10 +281,12 @@ export default function System() {
     if (ids.length === 0) return;
     if (!window.confirm(`¿Enviar ACTUALIZAR_AGENTE a ${ids.length} máquina${ids.length !== 1 ? 's' : ''}?\n\nCada una descargará el instalador desde la URL configurada.`)) return;
     setErrorAgenteSeleccion(null);
+    setOkAgenteSeleccion(null);
     setEnviandoAgenteSeleccion(true);
     const res = await enviarComandoAMaquinas(ids, 'ACTUALIZAR_AGENTE');
     setEnviandoAgenteSeleccion(false);
     if (!res.ok) setErrorAgenteSeleccion(res.message);
+    else setOkAgenteSeleccion(`ACTUALIZAR_AGENTE enviado a ${res.enviados ?? ids.length} máquina(s).`);
   }
 
   async function handleResetearUuidSeleccionadas() {
@@ -324,14 +334,14 @@ export default function System() {
       {/* ── Cards de resumen ──────────────────────────────────────────────── */}
       <div className="sys-stats-grid">
         <div className="sys-stat-card">
-          <div>
+          <div className="sys-stat-card-body">
             <div className="sys-stat-label">Terminales registrados</div>
             <div className="sys-stat-value">{computadoras.length}</div>
           </div>
           <div className="sys-stat-icon sys-stat-icon--blue">💻</div>
         </div>
         <div className="sys-stat-card">
-          <div>
+          <div className="sys-stat-card-body">
             <div className="sys-stat-label">Versión configurada</div>
             <div className="sys-stat-value sys-stat-value--blue">{versionEtiqueta ?? '—'}</div>
           </div>
@@ -339,18 +349,18 @@ export default function System() {
         </div>
         
         {/* ── Tarjeta Instalador Agente ── */}
-        <div className="sys-stat-card" style={{ gridColumn: 'span 2' }}>
-          <div className="flex items-center gap-3">
-            <div className="sys-stat-icon sys-stat-icon--blue flex items-center justify-center">
+        <div className="sys-stat-card sys-stat-card--installer">
+          <div className="sys-stat-card-installer-body flex items-center gap-3 min-w-0">
+            <div className="sys-stat-icon sys-stat-icon--blue flex items-center justify-center shrink-0">
               <Download className="w-5 h-5 text-blue-600" />
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="sys-stat-label">Instalador del agente</div>
               <div className="text-xs text-slate-500 font-medium">Compatible con Windows</div>
             </div>
           </div>
-          
-          <div className="flex items-center">
+
+          <div className="sys-stat-card-installer-actions">
             {loadingConfig ? (
               <span className="text-xs text-slate-400">Sincronizando...</span>
             ) : urlDescarga ? (
@@ -451,7 +461,8 @@ export default function System() {
           </div>
 
           {idsValidos.size > 0 && (
-            <div className="p-4 bg-indigo-50/50 border border-indigo-150 rounded-xl flex items-center justify-between flex-wrap gap-4 mt-4">
+            <div className="p-4 bg-indigo-50/50 border border-indigo-150 rounded-xl flex flex-col gap-3 mt-4">
+              <div className="flex items-center justify-between flex-wrap gap-4">
               <span className="text-sm font-extrabold text-indigo-900 uppercase tracking-wide flex items-center gap-1.5">
                 <CloudLightning className="w-5 h-5 text-indigo-600 animate-bounce" /> Acciones por Lote ({idsValidos.size}):
               </span>
@@ -461,7 +472,7 @@ export default function System() {
                   type="button"
                   disabled={enviandoAgenteSeleccion}
                   onClick={() => void handleActualizarAgenteSeleccionadas()}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold rounded-lg text-sm transition-colors shadow-sm"
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold rounded-lg text-sm transition-colors shadow-sm disabled:opacity-50"
                 >
                   {enviandoAgenteSeleccion ? 'Procesando...' : 'Actualizar Agente'}
                 </button>
@@ -470,12 +481,23 @@ export default function System() {
                   type="button"
                   disabled={enviandoResetSeleccion}
                   onClick={() => void handleResetearUuidSeleccionadas()}
-                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-extrabold rounded-lg text-sm transition-colors shadow-sm"
+                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-extrabold rounded-lg text-sm transition-colors shadow-sm disabled:opacity-50"
                 >
                   {enviandoResetSeleccion ? 'Mandando...' : 'Resetear UUID'}
                 </button>
               </div>
+              </div>
+              {errorAgenteSeleccion && (
+                <p className="text-sm font-semibold text-rose-600 m-0">{errorAgenteSeleccion}</p>
+              )}
+              {okAgenteSeleccion && (
+                <p className="text-sm font-semibold text-emerald-600 m-0">{okAgenteSeleccion}</p>
+              )}
             </div>
+          )}
+
+          {errorActualizarTodas && (
+            <p className="text-sm font-semibold text-rose-600 mt-2 mb-0">{errorActualizarTodas}</p>
           )}
         </div>
 
@@ -508,11 +530,10 @@ export default function System() {
               {computadorasFiltradas.map(c => (
                 <NodoComando
                   key={c.id}
+                  computadora={c}
                   computadoraId={c.id}
                   hostname={c.hostname ?? c.id}
                   versionLabel={versionInstaladaTexto(c)}
-                  sistemaOperativo={c.sistema_operativo}
-                  estadoConexion={c.estado_conexion}
                   versionEtiqueta={versionEtiqueta}
                   seleccionada={idsValidos.has(c.id)}
                   onToggleSeleccion={() => toggleSeleccion(c.id)}
@@ -624,7 +645,7 @@ export default function System() {
               type="date"
               className="sys-terminal-input"
               value={logFechaDesde}
-              onChange={e => { setLogFechaDesde(e.target.value); setFeedbackBorrarLogs(null); }}
+              onChange={e => setLogFechaDesde(e.target.value)}
             />
           </div>
           <div className="filter-field" style={{ flex: '0 1 9rem' }}>
@@ -634,7 +655,7 @@ export default function System() {
               type="date"
               className="sys-terminal-input"
               value={logFechaHasta}
-              onChange={e => { setLogFechaHasta(e.target.value); setFeedbackBorrarLogs(null); }}
+              onChange={e => setLogFechaHasta(e.target.value)}
             />
           </div>
         </div>
@@ -655,30 +676,15 @@ export default function System() {
                   setLogFechaHasta('');
                   setBusquedaHistorialLogs('');
                   setFiltroVersionHistorial('');
-                  setFeedbackBorrarLogs(null);
                 }}
               >
                 Limpiar filtros
               </button>
             )}
           </div>
-          <button
-            type="button"
-            className="btn btn-danger btn-sm"
-            disabled={borrandoLogs || logsActualizaciones.length === 0 || !!errorAct}
-            onClick={() => void handleBorrarLogs()}
-            title="Solo borra logs_actualizaciones; los de debug se auto-expiran"
-          >
-            {borrandoLogs ? 'Borrando…' : 'Borrar logs_actualizaciones'}
-          </button>
         </div>
 
         {/* Mensajes de estado */}
-        {feedbackBorrarLogs && (
-          <div className={`sys-terminal-feedback ${feedbackBorrarLogs.ok ? 'sys-terminal-feedback--ok' : 'sys-terminal-feedback--err'}`}>
-            {feedbackBorrarLogs.text}
-          </div>
-        )}
         {rangoFechasInvalido && (
           <div className="sys-terminal-feedback sys-terminal-feedback--err">
             [ERROR] La fecha «Desde» no puede ser posterior a «Hasta».
