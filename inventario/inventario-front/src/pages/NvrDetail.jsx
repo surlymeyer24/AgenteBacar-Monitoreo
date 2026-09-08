@@ -8,7 +8,7 @@ import {
   importCamarasRowsToNvr,
   PLANTILLA_CSV_CAMARAS,
 } from '../lib/camarasImport';
-import { UBICACIONES_CAMARA_SUGERIDAS, labelUbicacionEnum } from '../constants/ubicaciones';
+import { labelUbicacionEnum } from '../constants/ubicaciones';
 import { CredentialsDisplay } from '../components/CredentialsField';
 import InfraestructuraModal from '../components/InfraestructuraModal';
 import DetailOverlayShell, {
@@ -17,12 +17,11 @@ import DetailOverlayShell, {
 } from '../components/DetailOverlayShell';
 import { fmtFechaAlta } from '../components/DetailInfraHelpers';
 import WriteGate from '../components/WriteGate';
-import { ESTADO_OPERATIVO_LABELS } from '../constants/estados';
+import { useCatalogo, labelDeCatalogo, opcionesTextoLibre } from '../hooks/useCatalogo';
 
-function labelEstadoCam(raw) {
+function labelEstadoCam(items, raw) {
   if (raw == null || raw === '') return '—';
-  const key = String(raw).trim();
-  return ESTADO_OPERATIVO_LABELS[key] ?? key;
+  return labelDeCatalogo(items, String(raw).trim());
 }
 
 function badgeEstadoCamClass(raw) {
@@ -49,6 +48,8 @@ function mergeCamaraDto(prev, dto) {
 function NvrDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { items: estadoItems } = useCatalogo('estados_operativos');
+  const { items: ubicCamItems } = useCatalogo('ubicaciones_camara');
   const [nvr, setNvr] = useState(null);
   const [camaras, setCamaras] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -469,7 +470,7 @@ function NvrDetail() {
                             <span
                               className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wide border ${badgeEstadoCamClass(cam.estado)}`}
                             >
-                              {labelEstadoCam(cam.estado)}
+                              {labelEstadoCam(estadoItems, cam.estado)}
                             </span>
                           </td>
                           <td className="py-3.5 px-4 align-middle whitespace-nowrap">
@@ -584,7 +585,7 @@ function NvrDetail() {
           { name: 'dispositivo', label: 'Dispositivo (ID único / Serie)', type: 'text', placeholder: 'Ej. camara-patio-1', required: true },
           { name: 'nombre', label: 'Nombre comercial / descriptivo', type: 'text', placeholder: 'Ej. Domo Entrada Principal', required: true },
           { name: 'nvrId', label: 'NVR (opcional)', type: 'select', options: nvrs.map(n => ({ value: n.id, label: n.nombre ?? n.id })) },
-          { name: 'ubicacion', label: 'Ubicación', type: 'select', options: UBICACIONES_CAMARA_SUGERIDAS.map(u => ({ value: u, label: labelUbicacionEnum(u) })), required: true },
+          { name: 'ubicacion', label: 'Ubicación', type: 'select', options: opcionesTextoLibre(ubicCamItems), required: true },
           { name: 'direccionIp', label: 'Dirección IP', type: 'text', placeholder: 'Ej. 192.168.1.100' },
           { name: 'puerto', label: 'Puerto', type: 'number', placeholder: 'Ej. 37777' },
           { name: 'tipo', label: 'Tipo de Cámara / Modelo', type: 'text', placeholder: 'Ej. Domo, Bala, PTZ', required: true },

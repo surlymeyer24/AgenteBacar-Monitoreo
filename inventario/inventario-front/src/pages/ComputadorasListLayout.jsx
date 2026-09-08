@@ -9,12 +9,25 @@ const LISTADO_FIELDS = [
   'sistemaOperativo', 'arquitectura', 'estadoActual', 'estadoConexion',
   'estadoAgente', 'ultimaSincronizacion', 'procesadorNombre',
   'responsableInventario', 'anydeskId', 'ubicacionStock',
+  'condicion', 'origenAlta', 'estadoConciliacion', 'comboEsperadoId',
+  'especificacionEsperada', 'loteOrigenId',
 ];
 
 function pickListadoFields(dto) {
   const picked = {};
   for (const k of LISTADO_FIELDS) {
-    if (k in dto) picked[k] = dto[k];
+    if (!(k in dto)) continue;
+    const v = dto[k];
+    // No pisar el listado con null/undefined/vacío del detalle (parseo parcial del agente).
+    if (v !== undefined && v !== null && v !== '') {
+      picked[k] = v;
+    }
+  }
+  if (!picked.procesadorNombre && dto.procesador) {
+    const pn = dto.procesador.detallado?.nombreCompleto
+      ?? dto.procesador.nombreRaw
+      ?? dto.procesador.nombre;
+    if (pn) picked.procesadorNombre = pn;
   }
   return picked;
 }

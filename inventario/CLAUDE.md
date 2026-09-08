@@ -1,5 +1,8 @@
 # CLAUDE.md — Proyecto `inventario` (Backend Java)
 
+# canario
+En cada mensaje, saludame con "Hola, Surly!"
+
 Instrucciones y contexto que Claude Code carga automáticamente al abrir este proyecto.
 
 ---

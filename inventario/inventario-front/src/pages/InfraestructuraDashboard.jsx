@@ -10,6 +10,7 @@ import {
   StudioMetricCard,
 } from '../components/studio/StudioUi';
 import { contarMaquinasPorTipo } from '../utils/reporteInventario';
+import { useCatalogo, labelsEnumCatalogo } from '../hooks/useCatalogo';
 
 function camarasPorNvrDesdeLista(camaras, nvrs) {
   const list = Array.isArray(camaras) ? camaras : [];
@@ -94,6 +95,8 @@ function InfraestructuraDashboard() {
   const { data: listaNvrs = [], isLoading: nvrsLoading } = useNvrs();
   const { data: camaras = [], isLoading: camarasLoading } = useCamaras();
   const { data: maquinas = [] } = useMaquinas();
+  const { items: tipoMaqItems } = useCatalogo('tipos_maquina');
+  const tipoMaqLabels = useMemo(() => labelsEnumCatalogo(tipoMaqItems), [tipoMaqItems]);
   const { data: servidores = [] } = useServidores();
   const { data: internos = [] } = useInternos();
 
@@ -106,8 +109,8 @@ function InfraestructuraDashboard() {
   );
 
   const maquinasPorTipo = useMemo(
-    () => contarMaquinasPorTipo(maquinas),
-    [maquinas],
+    () => contarMaquinasPorTipo(maquinas, tipoMaqLabels),
+    [maquinas, tipoMaqLabels],
   );
 
   if (cargando) return <StudioLoading message="Cargando infraestructura…" />;

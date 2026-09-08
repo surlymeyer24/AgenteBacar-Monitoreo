@@ -7,7 +7,7 @@ import ImportModal from '../components/ImportModal';
 import { nvrsSchema } from '../lib/importSchemas/nvrsSchema';
 import InfraestructuraGrid from '../components/InfraestructuraGrid';
 import InfraestructuraModal from '../components/InfraestructuraModal';
-import { UBICACIONES_CAMARA_SUGERIDAS, labelUbicacionEnum } from '../constants/ubicaciones';
+import { useCatalogo, opcionesTextoLibre } from '../hooks/useCatalogo';
 import {
   StudioPageShell,
   StudioLoading,
@@ -25,6 +25,7 @@ import TableFilters from '../components/TableFilters';
 
 function NvrList() {
   const navigate = useNavigate();
+  const { items: ubicCamItems } = useCatalogo('ubicaciones_camara');
   const [lista, setLista] = useState([]);
   const [buscar, setBuscar] = useState('');
 
@@ -288,7 +289,7 @@ function NvrList() {
           { name: 'dispositivo', label: 'Dispositivo (ID único / Serie)', type: 'text', placeholder: 'Ej. camara-patio-1', required: true },
           { name: 'nombre', label: 'Nombre comercial / descriptivo', type: 'text', placeholder: 'Ej. Domo Entrada Principal', required: true },
           { name: 'nvrId', label: 'NVR (opcional)', type: 'select', options: lista.map(n => ({ value: n.id, label: n.nombre ?? n.id })) },
-          { name: 'ubicacion', label: 'Ubicación', type: 'select', options: UBICACIONES_CAMARA_SUGERIDAS.map(u => ({ value: u, label: labelUbicacionEnum(u) })), required: true },
+          { name: 'ubicacion', label: 'Ubicación', type: 'select', options: opcionesTextoLibre(ubicCamItems), required: true },
           { name: 'direccionIp', label: 'Dirección IP', type: 'text', placeholder: 'Ej. 192.168.1.100' },
           { name: 'puerto', label: 'Puerto', type: 'number', placeholder: 'Ej. 37777' },
           { name: 'tipo', label: 'Tipo de Cámara / Modelo', type: 'text', placeholder: 'Ej. Domo, Bala, PTZ', required: true },

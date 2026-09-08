@@ -3,6 +3,7 @@ package com.bacarsa.inventario.mapper;
 import java.util.Map;
 
 import com.bacarsa.inventario.dto.ComputadoraListadoDTO;
+import com.bacarsa.inventario.models.EspecificacionStock;
 import com.bacarsa.inventario.models.EstadoOperativo;
 import com.bacarsa.inventario.models.Ubicacion;
 import com.google.cloud.Timestamp;
@@ -80,6 +81,15 @@ public final class ComputadoraListadoMapper {
         }
         dto.setAnydeskId(anydeskId);
 
+        dto.setCondicion(doc.getString("condicion"));
+        dto.setOrigenAlta(doc.getString("origen_alta"));
+        dto.setEstadoConciliacion(doc.getString("estado_conciliacion"));
+        dto.setComboEsperadoId(doc.getString("combo_esperado_id"));
+
+        EspecificacionStock specEsperada = EspecificacionStockMapper.fromFirestoreMap(doc.get("especificacion_esperada"));
+        dto.setEspecificacionEsperada(EspecificacionStockMapper.toDTO(specEsperada));
+        dto.setLoteOrigenId(doc.getString("lote_origen_id"));
+
         return dto;
     }
 
@@ -97,9 +107,11 @@ public final class ComputadoraListadoMapper {
     private static String getStringSafe(DocumentSnapshot doc, String field) {
         Object val = doc.get(field);
         if (val instanceof String s) return s;
-        if (val instanceof Map) {
-            Object nombre = ((Map<?, ?>) val).get("nombre");
-            if (nombre instanceof String s) return s;
+        if (val instanceof Map<?, ?> map) {
+            Object tipo = map.get("tipo");
+            if (tipo instanceof String s && !s.isBlank()) return s;
+            Object nombre = map.get("nombre");
+            if (nombre instanceof String s && !s.isBlank()) return s;
         }
         return null;
     }

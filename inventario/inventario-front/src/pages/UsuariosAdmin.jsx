@@ -21,7 +21,8 @@ import {
   StudioFilterBar,
 } from '../components/studio/StudioUi';
 import TableFilters from '../components/TableFilters';
-import { ROLES_SISTEMA, labelRolSistema, badgeClassRol } from '../constants/roles';
+import { ROLES_SISTEMA, badgeClassRol } from '../constants/roles';
+import { useCatalogo, opcionesEnumCatalogo, labelDeCatalogo } from '../hooks/useCatalogo';
 
 const FORM_INICIAL = {
   email: '',
@@ -32,6 +33,7 @@ const FORM_INICIAL = {
 };
 
 export default function UsuariosAdmin() {
+  const { items: rolItems } = useCatalogo('roles_sistema');
   const [lista, setLista] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
@@ -233,9 +235,7 @@ export default function UsuariosAdmin() {
           >
             <option value="">Todos</option>
             <option value="SIN_ROL">Sin rol</option>
-            {ROLES_SISTEMA.map(r => (
-              <option key={r.value} value={r.value}>{r.label}</option>
-            ))}
+            {opcionesEnumCatalogo(rolItems)}
           </TableFilters.Select>
         </TableFilters>
       </StudioFilterBar>
@@ -271,7 +271,7 @@ export default function UsuariosAdmin() {
                 </td>
                 <td className={studioTdClass()}>
                   <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold border uppercase ${badgeClassRol(u.rol)}`}>
-                    {labelRolSistema(u.rol)}
+                    {labelDeCatalogo(rolItems, u.rol) || u.rol || 'Sin rol'}
                   </span>
                 </td>
                 <td className={studioTdClass()}>
@@ -400,9 +400,7 @@ export default function UsuariosAdmin() {
                   onChange={e => setForm(f => ({ ...f, rol: e.target.value }))}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-slate-800 bg-white"
                 >
-                  {ROLES_SISTEMA.map(r => (
-                    <option key={r.value} value={r.value}>{r.label}</option>
-                  ))}
+                  {opcionesEnumCatalogo(rolItems)}
                 </select>
                 <p className="text-[10px] text-slate-500 mt-1">
                   {ROLES_SISTEMA.find(r => r.value === form.rol)?.descripcion}

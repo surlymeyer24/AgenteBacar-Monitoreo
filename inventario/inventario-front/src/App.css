@@ -2902,3 +2902,31 @@ a.metric-card.dashboard-metric-link:active {
     overflow-x: hidden;
   }
 }
+
+/* Modal detalle de computadora — tipografía más legible */
+.computadora-detail-modal {
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.computadora-detail-modal .text-\[10px\] {
+  font-size: 0.75rem;
+}
+
+.computadora-detail-modal .text-\[11px\] {
+  font-size: 0.8125rem;
+}
+
+.computadora-detail-modal .text-xs {
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.computadora-detail-modal .text-sm {
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+.computadora-detail-modal .text-base {
+  font-size: 1.0625rem;
+}

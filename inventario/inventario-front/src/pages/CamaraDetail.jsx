@@ -3,8 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Camera, Trash2 } from 'lucide-react';
 import { fetchCamara, updateEstadoCamara, asignarNvrCamara, deleteCamara, actualizarCamara } from '../api/camaraApi';
 import { fetchNvrs } from '../api/nvrApi';
-import { ESTADOS_OPERATIVOS, ESTADO_OPERATIVO_LABELS } from '../constants/estados';
-import { UBICACIONES_CAMARA_SUGERIDAS, labelUbicacionEnum } from '../constants/ubicaciones';
+import { useCatalogo, opcionesEnumCatalogo, opcionesTextoLibre } from '../hooks/useCatalogo';
 import { CredentialsDisplay } from '../components/CredentialsField';
 import InfraestructuraModal from '../components/InfraestructuraModal';
 import DetailOverlayShell, {
@@ -23,6 +22,8 @@ import WriteGate from '../components/WriteGate';
 function CamaraDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { items: estadoItems } = useCatalogo('estados_operativos');
+  const { items: ubicCamItems } = useCatalogo('ubicaciones_camara');
   const [cam, setCam] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
@@ -284,8 +285,7 @@ function CamaraDetail() {
 
         <CambiarEstadoForm
           idPrefix="cam"
-          estados={ESTADOS_OPERATIVOS}
-          labels={ESTADO_OPERATIVO_LABELS}
+          opciones={opcionesEnumCatalogo(estadoItems)}
           estadoSel={estadoSel}
           setEstadoSel={setEstadoSel}
           motivo={motivoEstado}
@@ -296,7 +296,7 @@ function CamaraDetail() {
           motivoObligatorio={false}
         />
 
-        <HistorialEstadosSection historial={historial} />
+        <HistorialEstadosSection historial={historial} estadoItems={estadoItems} />
       </DetailOverlayShell>
 
       <InfraestructuraModal
@@ -311,7 +311,7 @@ function CamaraDetail() {
         fields={[
           { name: 'nombre', label: 'Nombre comercial / descriptivo', type: 'text', required: true },
           { name: 'nvrId', label: 'NVR (opcional)', type: 'select', options: nvrs.map(n => ({ value: n.id, label: n.nombre ?? n.id })) },
-          { name: 'ubicacion', label: 'Ubicación', type: 'select', options: UBICACIONES_CAMARA_SUGERIDAS.map(u => ({ value: u, label: labelUbicacionEnum(u) })), required: true },
+          { name: 'ubicacion', label: 'Ubicación', type: 'select', options: opcionesTextoLibre(ubicCamItems), required: true },
           { name: 'direccionIp', label: 'Dirección IP', type: 'text' },
           { name: 'puerto', label: 'Puerto', type: 'number' },
           { name: 'tipo', label: 'Tipo de Cámara / Modelo', type: 'text', required: true },
@@ -320,7 +320,7 @@ function CamaraDetail() {
           { name: 'usuario', label: 'Usuario ONVIF', type: 'text' },
           { name: 'password', label: 'Contraseña', type: 'password' },
           { name: 'descripcion', label: 'Descripción / Notas', type: 'textarea', fullWidth: true },
-          { name: 'estado', label: 'Estado', type: 'select', options: ESTADOS_OPERATIVOS.map(e => ({ value: e, label: ESTADO_OPERATIVO_LABELS[e] })) },
+          { name: 'estado', label: 'Estado', type: 'select', options: opcionesEnumCatalogo(estadoItems) },
         ]}
       />
     </>

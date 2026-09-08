@@ -11,6 +11,8 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Repository;
 
+import com.bacarsa.inventario.mapper.EspecificacionStockMapper;
+import com.bacarsa.inventario.models.EspecificacionStock;
 import com.bacarsa.inventario.models.Estado;
 import com.bacarsa.inventario.models.PerifericoManual;
 import com.google.api.core.ApiFuture;
@@ -67,6 +69,22 @@ public class PerifericoManualRepository {
         return result;
     }
 
+    @Cacheable(value = "perifericosManuales", key = "'uuid:' + #computadoraUuid")
+    public List<PerifericoManual> findByComputadoraUuid(String computadoraUuid)
+            throws ExecutionException, InterruptedException {
+        if (computadoraUuid == null || computadoraUuid.isBlank()) {
+            return List.of();
+        }
+        ApiFuture<QuerySnapshot> future = firestore.collection(collectionName)
+                .whereEqualTo("computadora_uuid", computadoraUuid.trim())
+                .get();
+        List<PerifericoManual> result = new ArrayList<>();
+        for (QueryDocumentSnapshot doc : future.get().getDocuments()) {
+            result.add(snapshotToPeriferico(doc));
+        }
+        return result;
+    }
+
     @CacheEvict(value = "perifericosManuales", allEntries = true)
     public String create(PerifericoManual periferico) throws ExecutionException, InterruptedException {
         DocumentReference ref = firestore.collection(collectionName).document();
@@ -97,6 +115,15 @@ public class PerifericoManualRepository {
             throws ExecutionException, InterruptedException {
         firestore.collection(collectionName).document(id)
                 .update("computadoraHostname", hostname).get();
+    }
+
+    @CacheEvict(value = "perifericosManuales", allEntries = true)
+    public void updateAsignacionPc(String id, String computadoraUuid, String hostname)
+            throws ExecutionException, InterruptedException {
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("computadora_uuid", computadoraUuid);
+        updates.put("computadoraHostname", hostname);
+        firestore.collection(collectionName).document(id).update(updates).get();
     }
 
     @CacheEvict(value = "perifericosManuales", allEntries = true)
@@ -150,6 +177,9 @@ public class PerifericoManualRepository {
             p = new PerifericoManual();
         }
         p.setId(doc.getId());
+        EspecificacionStock spec = EspecificacionStockMapper.fromFirestoreMap(doc.get("especificacion_stock"));
+        spec = EspecificacionStockMapper.enrichFromNombre(spec, doc.getString("nombre"));
+        p.setEspecificacionStock(spec);
         return p;
     }
 

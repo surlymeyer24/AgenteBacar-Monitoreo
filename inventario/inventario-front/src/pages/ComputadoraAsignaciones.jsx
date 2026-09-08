@@ -6,8 +6,8 @@ import {
 } from '../api/computadoraApi';
 import { useComputadorasList } from '../context/ComputadorasListContext';
 import ComputadoraSubnav from '../components/ComputadoraSubnav';
-import { UBICACIONES_COMPUTADORA, labelUbicacionEnum, coincideUbicacionFiltro } from '../constants/ubicaciones';
-import { ESTADOS_OPERATIVOS, ESTADO_OPERATIVO_LABELS } from '../constants/estados';
+import { coincideUbicacionFiltro } from '../constants/ubicaciones';
+import { useCatalogo, opcionesEnumCatalogo, labelDeCatalogo } from '../hooks/useCatalogo';
 import WriteGate from '../components/WriteGate';
 import { usePermisos } from '../hooks/usePermisos';
 
@@ -20,12 +20,12 @@ const SOLAPAS_ESTADO = [
 ];
 
 /** Compara `estadoActual` del DTO (nombre legible o nombre de enum) con una solapa. */
-function resolverSolapaParaEstado(estadoActual) {
+function resolverSolapaParaEstado(estadoActual, items) {
   const raw = (estadoActual ?? '').trim();
   if (!raw) return null;
   const lower = raw.toLowerCase();
   for (const { key } of SOLAPAS_ESTADO) {
-    const label = ESTADO_OPERATIVO_LABELS[key];
+    const label = labelDeCatalogo(items, key);
     if (
       raw === label
       || raw === key
@@ -82,6 +82,8 @@ function valorRiDraft(c, riDraft) {
 export default function ComputadoraAsignaciones() {
   const { puedeEscribir } = usePermisos();
   const { todas, setTodas, cargando, error } = useComputadorasList();
+  const { items: ubicCompItems } = useCatalogo('ubicaciones_computadora');
+  const { items: estadoItems } = useCatalogo('estados_operativos');
   const [buscar, setBuscar] = useState('');
   const [filtroUbicacion, setFiltroUbicacion] = useState('');
   const [orden, setOrden] = useState('hostname-asc');
@@ -104,7 +106,7 @@ export default function ComputadoraAsignaciones() {
   const conteosPorSolapa = useMemo(() => {
     const acc = { ASIGNADA: 0, BAJA: 0, SIN_ASIGNAR: 0, EN_MANTENIMIENTO: 0, otros: 0 };
     for (const c of antesFiltro) {
-      const k = resolverSolapaParaEstado(c.estadoActual);
+      const k = resolverSolapaParaEstado(c.estadoActual, estadoItems);
       if (k && acc[k] !== undefined) acc[k] += 1;
       else acc.otros += 1;
     }
@@ -112,7 +114,7 @@ export default function ComputadoraAsignaciones() {
   }, [antesFiltro]);
 
   const porSolapa = useMemo(
-    () => antesFiltro.filter(c => resolverSolapaParaEstado(c.estadoActual) === solapaEstado),
+    () => antesFiltro.filter(c => resolverSolapaParaEstado(c.estadoActual, estadoItems) === solapaEstado),
     [antesFiltro, solapaEstado],
   );
 
@@ -283,8 +285,8 @@ export default function ComputadoraAsignaciones() {
               onChange={e => setFiltroUbicacion(e.target.value)}
             >
               <option value="">{`Todas (${total})`}</option>
-              {UBICACIONES_COMPUTADORA.map(u => (
-                <option key={u} value={u}>{labelUbicacionEnum(u)}</option>
+              {opcionesEnumCatalogo(ubicCompItems).map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
               ))}
             </select>
           </div>
@@ -365,7 +367,7 @@ export default function ComputadoraAsignaciones() {
                       </button>
                     </div>
                   </td>
-                  <td>{c.ubicacion ?? '—'}</td>
+                  <td>{c.ubicacion ? labelDeCatalogo(ubicCompItems, c.ubicacion) : '—'}</td>
                   <td>{c.estadoActual ?? '—'}</td>
                   <td>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', minWidth: '12rem' }}>
@@ -376,8 +378,8 @@ export default function ComputadoraAsignaciones() {
                         aria-label={`Nuevo estado para ${c.hostname ?? c.uuid}`}
                       >
                         <option value="">Estado…</option>
-                        {ESTADOS_OPERATIVOS.map(k => (
-                          <option key={k} value={k}>{ESTADO_OPERATIVO_LABELS[k] ?? k}</option>
+                        {opcionesEnumCatalogo(estadoItems).map(o => (
+                          <option key={o.value} value={o.value}>{o.label}</option>
                         ))}
                       </select>
                       {estadoSel[c.uuid] === 'SIN_ASIGNAR' && (

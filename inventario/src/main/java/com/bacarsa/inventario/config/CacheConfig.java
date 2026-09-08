@@ -36,8 +36,10 @@ public class CacheConfig {
                 buildCache("accessPoints", 180, 500),
                 buildCache("televisores", 180, 500),
                 buildCache("celulares", 180, 500),
+                buildCache("responsables", 180, 500),
                 buildCache("usuarios", 180, 500),
-                buildCache("progresoLogisticaResumen", 180, 500)
+                buildCache("progresoLogisticaResumen", 180, 500),
+                buildCache("catalogoItems", 300, 50)
         ));
         return manager;
     }

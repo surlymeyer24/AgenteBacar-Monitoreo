@@ -11,6 +11,6 @@ import lombok.NoArgsConstructor;
 public class AsignarPerifericoDTO {
 
     @NotBlank
-    private String computadoraHostname;
+    private String computadoraUuid;
     private String motivo;
 }

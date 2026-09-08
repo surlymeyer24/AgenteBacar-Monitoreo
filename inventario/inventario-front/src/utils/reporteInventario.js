@@ -1,34 +1,24 @@
-import { ESTADO_OPERATIVO_LABELS } from '../constants/estados';
 import { labelUbicacionEnum } from '../constants/ubicaciones';
 import { nivelActividadSync } from './syncActividad';
 
 const ESTADOS_PC = ['ASIGNADA', 'SIN_ASIGNAR', 'EN_MANTENIMIENTO', 'BAJA', 'ACTIVA', 'INACTIVA'];
 
-const TIPO_LABELS_MAQUINA = {
-  VALIDADORA: 'Validadora',
-  BOLSILLOS: 'Bolsillos',
-  RECONTADORA: 'Recontadora',
-  ENVASADORA: 'Envasadora',
-  FAJADORA: 'Fajadora',
-};
-
-function labelTipoMaquina(tipo) {
+function labelTipoMaquina(tipo, tipoLabels = {}) {
   const k = (tipo ?? '').trim().toUpperCase();
-  return TIPO_LABELS_MAQUINA[k] ?? ((tipo ?? '').trim() || 'Sin tipo');
+  return tipoLabels[k] ?? ((tipo ?? '').trim() || 'Sin tipo');
 }
 
 /** Compara `estadoActual` del DTO con la clave del enum (misma lógica que Asignaciones). */
-export function resolverEstadoPc(estadoActual) {
+export function resolverEstadoPc(estadoActual, estadoLabels = {}) {
   const raw = (estadoActual ?? '').trim();
   if (!raw) return null;
   const lower = raw.toLowerCase();
   for (const key of ESTADOS_PC) {
-    const label = ESTADO_OPERATIVO_LABELS[key];
+    const label = estadoLabels[key];
     if (
-      raw === label
-      || raw === key
-      || lower === label.toLowerCase()
+      raw === key
       || lower === key.toLowerCase()
+      || (label && (raw === label || lower === label.toLowerCase()))
     ) {
       return key;
     }
@@ -142,12 +132,12 @@ function mapaConEtiquetas(porClave, usarLabelUbicacion = false) {
   return out;
 }
 
-function contarEstadosPcDesdeLista(computadoras) {
+function contarEstadosPcDesdeLista(computadoras, estadoLabels = {}) {
   const acc = {};
   for (const key of ESTADOS_PC) acc[key] = 0;
   let otros = 0;
   for (const c of computadoras ?? []) {
-    const k = resolverEstadoPc(c.estadoActual);
+    const k = resolverEstadoPc(c.estadoActual, estadoLabels);
     if (k && acc[k] !== undefined) acc[k] += 1;
     else otros += 1;
   }
@@ -155,10 +145,10 @@ function contarEstadosPcDesdeLista(computadoras) {
   return acc;
 }
 
-export function contarMaquinasPorTipo(maquinas) {
+export function contarMaquinasPorTipo(maquinas, tipoLabels = {}) {
   const map = new Map();
   for (const m of maquinas ?? []) {
-    const label = labelTipoMaquina(m.tipo);
+    const label = labelTipoMaquina(m.tipo, tipoLabels);
     map.set(label, (map.get(label) ?? 0) + 1);
   }
   return Object.fromEntries(
@@ -166,10 +156,10 @@ export function contarMaquinasPorTipo(maquinas) {
   );
 }
 
-function armarDetalleMaquinas(maquinas) {
+function armarDetalleMaquinas(maquinas, tipoLabels = {}) {
   return (maquinas ?? []).map(m => ({
     id: m.id ?? m.nroSerie ?? '—',
-    tipo: labelTipoMaquina(m.tipo),
+    tipo: labelTipoMaquina(m.tipo, tipoLabels),
     modelo: m.modelo ?? '—',
     nroSerie: m.nroSerie ?? '—',
     estado: m.estadoActual ?? m.estado ?? '—',
@@ -213,6 +203,8 @@ export function construirReporteInventario({
   nvrs,
   camaras,
   maquinasTesoreria,
+  estadoLabels = {},
+  tipoMaquinaLabels = {},
 }) {
   const pcs = Array.isArray(computadoras) ? computadoras : [];
   const manual = Array.isArray(perifericosManual) ? perifericosManual : [];
@@ -223,12 +215,12 @@ export function construirReporteInventario({
   const desktop = pcs.length - notebook;
 
   const porEstadoStats = s.porEstadoComputadoras ?? {};
-  const porEstado = contarEstadosPcDesdeLista(pcs);
+  const porEstado = contarEstadosPcDesdeLista(pcs, estadoLabels);
   const { activas: syncActivas, inactivas: syncInactivas } = contarSyncPc(pcs);
 
-  const stockManualComputadoras = sumarCantidadComputadorasManual(manual, ESTADO_OPERATIVO_LABELS.SIN_ASIGNAR);
+  const stockManualComputadoras = sumarCantidadComputadorasManual(manual, estadoLabels.SIN_ASIGNAR);
   const stockManualComputadorasTotal = sumarCantidadComputadorasManual(manual);
-  const asignadasManualComputadoras = sumarCantidadComputadorasManual(manual, ESTADO_OPERATIVO_LABELS.ASIGNADA);
+  const asignadasManualComputadoras = sumarCantidadComputadorasManual(manual, estadoLabels.ASIGNADA);
 
   const registradas = pcs.length;
   const total = registradas + stockManualComputadorasTotal;
@@ -253,10 +245,10 @@ export function construirReporteInventario({
     if (Number(v) > 0) perifericosPorTipoAgente[k] = Number(v);
   }
 
-  const stockManual = sumarCantidadPerifericos(manual, ESTADO_OPERATIVO_LABELS.SIN_ASIGNAR, true);
-  const asignadosManual = sumarCantidadPerifericos(manual, ESTADO_OPERATIVO_LABELS.ASIGNADA, true);
-  const stockManualPorTipo = contarStockManualPorTipo(manual, ESTADO_OPERATIVO_LABELS.SIN_ASIGNAR, true);
-  const asignadosManualPorTipo = contarStockManualPorTipo(manual, ESTADO_OPERATIVO_LABELS.ASIGNADA, true);
+  const stockManual = sumarCantidadPerifericos(manual, estadoLabels.SIN_ASIGNAR, true);
+  const asignadosManual = sumarCantidadPerifericos(manual, estadoLabels.ASIGNADA, true);
+  const stockManualPorTipo = contarStockManualPorTipo(manual, estadoLabels.SIN_ASIGNAR, true);
+  const asignadosManualPorTipo = contarStockManualPorTipo(manual, estadoLabels.ASIGNADA, true);
 
   const camarasPorNvr = camarasPorNvrDesdeLista(camaras, nvrs);
   const listaNvrs = Array.isArray(nvrs) ? nvrs : [];
@@ -311,8 +303,8 @@ export function construirReporteInventario({
     },
     tesoreria: {
       total: maquinas.length,
-      porTipo: contarMaquinasPorTipo(maquinas),
-      detalle: armarDetalleMaquinas(maquinas),
+      porTipo: contarMaquinasPorTipo(maquinas, tipoMaquinaLabels),
+      detalle: armarDetalleMaquinas(maquinas, tipoMaquinaLabels),
     },
   };
 }

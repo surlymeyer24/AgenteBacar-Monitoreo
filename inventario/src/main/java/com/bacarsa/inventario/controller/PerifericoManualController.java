@@ -19,9 +19,13 @@ import com.bacarsa.inventario.dto.CambiarEstadoDTO;
 import com.bacarsa.inventario.dto.ComboCreateDTO;
 import com.bacarsa.inventario.dto.PerifericoManualCreateDTO;
 import com.bacarsa.inventario.dto.PerifericoManualDTO;
+import com.bacarsa.inventario.dto.SacarUnidadStockDTO;
+import com.bacarsa.inventario.dto.SacarUnidadStockResultDTO;
 import com.bacarsa.inventario.services.PerifericoManualService;
 
 import jakarta.validation.Valid;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/perifericos-manuales")
@@ -89,7 +93,7 @@ public class PerifericoManualController {
             @Valid @RequestBody AsignarPerifericoDTO body)
             throws ExecutionException, InterruptedException {
         try {
-            PerifericoManualDTO dto = service.asignar(id, body.getComputadoraHostname(), body.getMotivo());
+            PerifericoManualDTO dto = service.asignar(id, body.getComputadoraUuid(), body.getMotivo());
             if (dto == null) return ResponseEntity.notFound().build();
             return ResponseEntity.ok(dto);
         } catch (IllegalArgumentException ex) {
@@ -108,6 +112,20 @@ public class PerifericoManualController {
             return ResponseEntity.ok(dto);
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @PostMapping("/{id}/sacar-unidad")
+    public ResponseEntity<?> sacarUnidad(
+            @PathVariable String id,
+            @RequestBody(required = false) SacarUnidadStockDTO body)
+            throws ExecutionException, InterruptedException {
+        try {
+            SacarUnidadStockDTO dto = body != null ? body : new SacarUnidadStockDTO();
+            SacarUnidadStockResultDTO result = service.sacarUnidad(id, dto);
+            return ResponseEntity.status(HttpStatus.CREATED).body(result);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
         }
     }
 

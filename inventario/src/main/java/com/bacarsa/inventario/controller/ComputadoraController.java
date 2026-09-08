@@ -16,16 +16,22 @@ import org.springframework.web.bind.annotation.RestController;
 import com.bacarsa.inventario.dto.CambiarEstadoDTO;
 import com.bacarsa.inventario.dto.ComandoDTO;
 import com.bacarsa.inventario.dto.ComandoMasivoDTO;
+import com.bacarsa.inventario.dto.ArmarComboDTO;
 import com.bacarsa.inventario.dto.ComputadoraCreateDTO;
 import com.bacarsa.inventario.dto.ComputadoraDTO;
 import com.bacarsa.inventario.dto.ComputadoraListadoDTO;
+import com.bacarsa.inventario.dto.ComputadoraStockUpdateDTO;
+import com.bacarsa.inventario.dto.IngresarStockDTO;
+import com.bacarsa.inventario.dto.PerifericoManualDTO;
 import com.bacarsa.inventario.dto.ResponsableInventarioDTO;
 import com.bacarsa.inventario.dto.UbicacionUpdateDTO;
 import com.bacarsa.inventario.models.DispositivoAudioFirestore;
 import com.bacarsa.inventario.models.DispositivoUsbFirestore;
 import com.bacarsa.inventario.models.ImpresoraFirestore;
 import com.bacarsa.inventario.models.MonitorFirestore;
+import com.bacarsa.inventario.services.ArmadoComboService;
 import com.bacarsa.inventario.services.ComputadoraService;
+import com.bacarsa.inventario.services.PerifericoManualService;
 
 import jakarta.validation.Valid;
 
@@ -34,9 +40,15 @@ import jakarta.validation.Valid;
 public class ComputadoraController {
 
     private final ComputadoraService computadoraService;
+    private final ArmadoComboService armadoComboService;
+    private final PerifericoManualService perifericoManualService;
 
-    public ComputadoraController(ComputadoraService computadoraService) {
+    public ComputadoraController(ComputadoraService computadoraService,
+                                 ArmadoComboService armadoComboService,
+                                 PerifericoManualService perifericoManualService) {
         this.computadoraService = computadoraService;
+        this.armadoComboService = armadoComboService;
+        this.perifericoManualService = perifericoManualService;
     }
 
     @GetMapping("/recientes")
@@ -119,6 +131,36 @@ public class ComputadoraController {
         return dto == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(dto);
     }
 
+    @PostMapping("/{uuid}/datos-stock")
+    public ResponseEntity<ComputadoraDTO> actualizarDatosStock(
+            @PathVariable String uuid,
+            @RequestBody ComputadoraStockUpdateDTO body) throws ExecutionException, InterruptedException {
+        try {
+            ComputadoraDTO dto = computadoraService.actualizarDatosStock(uuid, body);
+            if (dto == null) {
+                return ResponseEntity.notFound().build();
+            }
+            return ResponseEntity.ok(dto);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @PostMapping("/{uuid}/ingresar-stock")
+    public ResponseEntity<ComputadoraDTO> ingresarStock(
+            @PathVariable String uuid,
+            @Valid @RequestBody IngresarStockDTO body) throws ExecutionException, InterruptedException {
+        try {
+            ComputadoraDTO dto = computadoraService.ingresarStock(uuid, body);
+            if (dto == null) {
+                return ResponseEntity.notFound().build();
+            }
+            return ResponseEntity.ok(dto);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
     @PostMapping("/{uuid}/ubicacion")
     public ResponseEntity<ComputadoraDTO> actualizarUbicacion(
             @PathVariable String uuid,
@@ -189,6 +231,38 @@ public class ComputadoraController {
             throws ExecutionException, InterruptedException {
         int enviados = computadoraService.enviarComandoMasivo(body.getUuids(), body.getComando());
         return ResponseEntity.ok(java.util.Map.of("enviados", enviados));
+    }
+
+    @PostMapping("/{uuid}/armar-combo")
+    public ResponseEntity<ComputadoraDTO> armarCombo(
+            @PathVariable String uuid,
+            @Valid @RequestBody ArmarComboDTO body)
+            throws ExecutionException, InterruptedException {
+        ComputadoraDTO dto = armadoComboService.armarCombo(uuid, body);
+        if (dto == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(dto);
+    }
+
+    @GetMapping("/{uuid}/perifericos-stock-disponibles")
+    public ResponseEntity<List<PerifericoManualDTO>> perifericosStockDisponibles(
+            @PathVariable String uuid,
+            @RequestParam(name = "tipos", required = false) List<String> tipos)
+            throws ExecutionException, InterruptedException {
+        if (computadoraService.getByUuid(uuid) == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(armadoComboService.listarPerifericosStockDisponibles(tipos));
+    }
+
+    @GetMapping("/{uuid}/perifericos-manuales")
+    public ResponseEntity<List<PerifericoManualDTO>> perifericosManuales(@PathVariable String uuid)
+            throws ExecutionException, InterruptedException {
+        if (computadoraService.getByUuid(uuid) == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(perifericoManualService.listarPorComputadoraUuid(uuid));
     }
 
 }

@@ -66,9 +66,15 @@ const TelevisorList = lazy(() => import('./pages/TelevisorList'));
 const CelularList = lazy(() => import('./pages/CelularList'));
 const System = lazy(() => import('./pages/System'));
 const UsuariosAdmin = lazy(() => import('./pages/UsuariosAdmin'));
+const CatalogosAdmin = lazy(() => import('./pages/CatalogosAdmin'));
 const MiPerfil = lazy(() => import('./pages/MiPerfil'));
 const EtiquetasQrList = lazy(() => import('./pages/EtiquetasQrList'));
 const EtiquetaQrFicha = lazy(() => import('./pages/EtiquetaQrFicha'));
+const EventosHardwareList = lazy(() => import('./pages/EventosHardwareList'));
+const ConciliacionesList = lazy(() => import('./pages/ConciliacionesList'));
+const EventoHardwareDetail = lazy(() => import('./pages/EventoHardwareDetail'));
+const ResponsablesList = lazy(() => import('./pages/ResponsablesList'));
+const ResponsableDetail = lazy(() => import('./pages/ResponsableDetail'));
 
 function RouteFallback() {
   return (
@@ -199,6 +205,10 @@ function AppRoutes() {
         <Route path="/reportes" element={<Reportes />} />
         <Route path="/etiquetas-qr" element={<EtiquetasQrList />} />
         <Route path="/etiquetas-qr/:uuid" element={<EtiquetaQrFicha />} />
+        <Route path="/eventos-hardware" element={<EventosHardwareList />}>
+          <Route path=":id" element={<EventoHardwareDetail />} />
+        </Route>
+        <Route path="/conciliaciones" element={<ConciliacionesList />} />
         <Route path="/computadoras" element={<ComputadorasListLayout />}>
           <Route path="asignaciones" element={<ComputadoraAsignaciones />} />
           <Route path="" element={<ComputadoraList />}>
@@ -206,6 +216,8 @@ function AppRoutes() {
             <Route path=":uuid" element={<ComputadoraDetail />} />
           </Route>
         </Route>
+        <Route path="/responsables" element={<ResponsablesList />} />
+        <Route path="/responsables/:id" element={<ResponsableDetail />} />
         <Route path="/perifericos" element={<PerifericosTodosList />} />
         <Route path="/perifericos/dashboard" element={<PerifericosDashboard />} />
         <Route path="/perifericos/impresoras" element={<PerifericosImpresorasList />} />
@@ -249,6 +261,7 @@ function AppRoutes() {
         </Route>
         <Route path="/system" element={<RequireAdmin><System /></RequireAdmin>} />
         <Route path="/admin/usuarios" element={<RequireAdmin><UsuariosAdmin /></RequireAdmin>} />
+        <Route path="/admin/catalogos" element={<RequireAdmin><CatalogosAdmin /></RequireAdmin>} />
         <Route path="/perfil" element={<MiPerfil />} />
       </Route>
     </Routes>

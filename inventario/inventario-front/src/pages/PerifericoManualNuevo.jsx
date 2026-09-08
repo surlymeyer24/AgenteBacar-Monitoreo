@@ -1,10 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { createPerifericoM } from '../api/perifericoManualApi';
-import { TIPOS_STOCK, labelTipoStock } from '../constants/tiposStock';
+import { useCatalogo, opcionesCatalogo } from '../hooks/useCatalogo';
 import FriendlyDatePicker from '../components/FriendlyDatePicker';
-
-const CONEXIONES = ['usb', 'inalambrico_usb', 'bluetooth', 'hdmi', 'otro'];
 
 const empty = {
   tipo: '',
@@ -12,6 +10,7 @@ const empty = {
   nombre: '',
   fabricante: '',
   conexion: '',
+  numeroSerie: '',
   computadoraHostname: '',
   ubicacion: '',
   notas: '',
@@ -21,6 +20,8 @@ const empty = {
 
 function PerifericoManualNuevo() {
   const navigate = useNavigate();
+  const { items: tiposStock } = useCatalogo('tipos_stock');
+  const { items: conexionItems } = useCatalogo('conexiones_periferico');
   const [form, setForm] = useState(empty);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState(null);
@@ -47,6 +48,8 @@ function PerifericoManualNuevo() {
     if (n) body.nombre = n;
     if (fab) body.fabricante = fab;
     if (con) body.conexion = con;
+    const serial = form.numeroSerie.trim();
+    if (serial) body.numeroSerie = serial;
     if (host) body.computadoraHostname = host;
     if (ub) body.ubicacion = ub;
     if (notas) body.notas = notas;
@@ -73,8 +76,8 @@ function PerifericoManualNuevo() {
             Tipo *
             <select name="tipo" value={form.tipo} onChange={onChange} required>
               <option value="">Seleccioná un tipo</option>
-              {TIPOS_STOCK.map(t => (
-                <option key={t} value={t}>{labelTipoStock(t)}</option>
+              {tiposStock.map(t => (
+                <option key={t.codigo} value={t.codigo}>{t.label}</option>
               ))}
             </select>
           </label>
@@ -94,10 +97,14 @@ function PerifericoManualNuevo() {
             Tipo de conexión
             <select name="conexion" value={form.conexion} onChange={onChange}>
               <option value="">Sin especificar</option>
-              {CONEXIONES.map(c => (
-                <option key={c} value={c}>{c}</option>
+              {opcionesCatalogo(conexionItems, form.conexion).map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
               ))}
             </select>
+          </label>
+          <label>
+            Número de serie
+            <input name="numeroSerie" value={form.numeroSerie} onChange={onChange} placeholder="Ej. SN123456 (recomendado para monitores)" autoComplete="off" className="font-mono" />
           </label>
           <label>
             PC asignada (hostname)

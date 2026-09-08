@@ -21,6 +21,12 @@ public final class ComputadoraListadoFields {
             "anydesk",
             "procesador",
             "usuarios",
-            "ubicacion_stock"
+            "ubicacion_stock",
+            "condicion",
+            "origen_alta",
+            "estado_conciliacion",
+            "combo_esperado_id",
+            "especificacion_esperada",
+            "lote_origen_id"
     );
 }

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { createCamara } from '../api/camaraApi';
 import { fetchNvrs } from '../api/nvrApi';
-import { UBICACIONES_CAMARA_SUGERIDAS } from '../constants/ubicaciones';
+import { useCatalogo, opcionesTextoLibre } from '../hooks/useCatalogo';
 import FriendlyDatePicker from '../components/FriendlyDatePicker';
 
 const empty = {
@@ -22,6 +22,7 @@ const empty = {
 function CamaraNueva() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { items: ubicCamItems } = useCatalogo('ubicaciones_camara');
   const [form, setForm] = useState(empty);
   const [nvrs, setNvrs] = useState([]);
   const [enviando, setEnviando] = useState(false);
@@ -133,8 +134,8 @@ function CamaraNueva() {
               autoComplete="off"
             />
             <datalist id="ubicaciones-camara-sugeridas">
-              {UBICACIONES_CAMARA_SUGERIDAS.map(u => (
-                <option key={u} value={u} />
+              {opcionesTextoLibre(ubicCamItems).map(o => (
+                <option key={o.value} value={o.value} />
               ))}
             </datalist>
           </label>

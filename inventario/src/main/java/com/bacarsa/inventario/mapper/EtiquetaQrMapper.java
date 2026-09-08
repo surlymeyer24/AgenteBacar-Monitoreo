@@ -34,6 +34,7 @@ public class EtiquetaQrMapper {
         dto.setUuid(pc.getUuid());
         dto.setHostname(pc.getHostname());
         dto.setUsuarioActual(pc.getUsuarioActual());
+        dto.setResponsableInventario(pc.getResponsableInventario());
         dto.setUbicacion(pc.getUbicacion() == null ? null : pc.getUbicacion().name());
         dto.setTipoEquipo(pc.getTipoEquipo() != null ? pc.getTipoEquipo().getTipo() : null);
         dto.setCantidadMonitores(cantidadMonitores);

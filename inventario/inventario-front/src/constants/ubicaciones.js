@@ -1,7 +1,53 @@
-/** Etiqueta legible para un valor de ubicación (enum con guiones bajos o texto libre). */
-export function labelUbicacionEnum(key) {
+/** Alias legacy (enum/Firestore) → codigo del catálogo `ubicaciones_computadora`. */
+const UBICACION_CODIGO_ALIASES = {
+  seguridadprivad: 'seguridad_privada',
+};
+
+/** Fallback alineado al seed Java cuando el catálogo aún no cargó. */
+export const UBICACIONES_COMPUTADORA_LABELS = {
+  ADMINISTRACION: 'Administración',
+  MONITOREO: 'Monitoreo',
+  TESORERIA: 'Tesorería',
+  CAPITAL_HUMANO: 'Capital Humano',
+  SISTEMAS: 'Sistemas',
+  SEGURIDAD_PRIVADA: 'Seguridad Privada',
+  SEGURIDADPRIVAD: 'Seguridad Privada',
+  OPERACIONES: 'Operaciones',
+};
+
+/** Normaliza un valor guardado en entidad → codigo snake_case del catálogo. */
+export function codigoCatalogoDesdeValor(valor) {
+  if (!valor) return '';
+  const lower = String(valor).trim().toLowerCase().replace(/-/g, '_');
+  return UBICACION_CODIGO_ALIASES[lower] ?? lower;
+}
+
+/**
+ * Label legible para ubicación de PC: prioriza items del catálogo, luego fallback fijo.
+ * @param {string} key valor en Firestore (ej. SEGURIDAD_PRIVADA)
+ * @param {Array<{codigo:string,label:string}>} [catalogItems] items de useCatalogo('ubicaciones_computadora')
+ */
+export function labelUbicacion(key, catalogItems) {
   if (!key) return '—';
-  return String(key).replace(/_/g, ' ');
+  const raw = String(key).trim();
+  const codigo = codigoCatalogoDesdeValor(raw);
+
+  if (catalogItems?.length) {
+    const item = catalogItems.find(i => i.codigo === codigo);
+    if (item?.label) return item.label;
+  }
+
+  const enumKey = raw.toUpperCase().replace(/-/g, '_');
+  if (UBICACIONES_COMPUTADORA_LABELS[enumKey]) {
+    return UBICACIONES_COMPUTADORA_LABELS[enumKey];
+  }
+
+  return raw.includes('_') ? raw.replace(/_/g, ' ') : raw;
+}
+
+/** @deprecated Preferir labelUbicacion(key, catalogItems). */
+export function labelUbicacionEnum(key) {
+  return labelUbicacion(key);
 }
 
 /**

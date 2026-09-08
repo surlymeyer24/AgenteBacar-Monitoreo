@@ -17,4 +17,6 @@ public class ComputadoraCreateDTO {
     private String sistemaOperativo;
     private String arquitectura;
     private String motivo;
+    private String tipoEquipo;
+    private String condicion;
 }

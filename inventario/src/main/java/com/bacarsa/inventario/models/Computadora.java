@@ -36,6 +36,21 @@ public class Computadora {
     @Getter(onMethod_ = @PropertyName("nucleos_fisicos"))
     @Setter(onMethod_ = @PropertyName("nucleos_fisicos"))
     private int nucleosFisicos;
+    @Getter(onMethod_ = @PropertyName("procesador_detallado"))
+    @Setter(onMethod_ = @PropertyName("procesador_detallado"))
+    private ProcesadorDetallado procesadorDetallado;
+    @Getter(onMethod_ = @PropertyName("ram_placa"))
+    @Setter(onMethod_ = @PropertyName("ram_placa"))
+    private RamPlaca ramPlaca;
+    @Getter(onMethod_ = @PropertyName("ram_total_gb"))
+    @Setter(onMethod_ = @PropertyName("ram_total_gb"))
+    private Double ramTotalGb;
+    @Getter(onMethod_ = @PropertyName("cpu_uso_porcentaje"))
+    @Setter(onMethod_ = @PropertyName("cpu_uso_porcentaje"))
+    private Double cpuUsoPorcentaje;
+    @Getter(onMethod_ = @PropertyName("ram_uso_porcentaje"))
+    @Setter(onMethod_ = @PropertyName("ram_uso_porcentaje"))
+    private Double ramUsoPorcentaje;
     /** Valor crudo del agente (p. ej. ONLINE, OFFLINE). */
     @Getter(onMethod_ = @PropertyName("estado_conexion"))
     @Setter(onMethod_ = @PropertyName("estado_conexion"))
@@ -65,6 +80,80 @@ public class Computadora {
     @Getter(onMethod_ = @PropertyName("anydesk_id"))
     @Setter(onMethod_ = @PropertyName("anydesk_id"))
     private String anydeskId;
+
+    private String condicion;
+
+    @Getter(onMethod_ = @PropertyName("origen_alta"))
+    @Setter(onMethod_ = @PropertyName("origen_alta"))
+    private OrigenAlta origenAlta;
+
+    @Getter(onMethod_ = @PropertyName("estado_conciliacion"))
+    @Setter(onMethod_ = @PropertyName("estado_conciliacion"))
+    private EstadoConciliacion estadoConciliacion;
+
+    @Getter(onMethod_ = @PropertyName("baseline_esperado"))
+    @Setter(onMethod_ = @PropertyName("baseline_esperado"))
+    private BaselineEsperado baselineEsperado;
+
+    @Getter(onMethod_ = @PropertyName("combo_esperado_id"))
+    @Setter(onMethod_ = @PropertyName("combo_esperado_id"))
+    private String comboEsperadoId;
+
+    @Getter(onMethod_ = @PropertyName("primer_reporte_agente_at"))
+    @Setter(onMethod_ = @PropertyName("primer_reporte_agente_at"))
+    private Timestamp primerReporteAgenteAt;
+
+    @Getter(onMethod_ = @PropertyName("matching_job_estado"))
+    @Setter(onMethod_ = @PropertyName("matching_job_estado"))
+    private MatchingJobEstado matchingJobEstado;
+
+    @Getter(onMethod_ = @PropertyName("matching_en_proceso_at"))
+    @Setter(onMethod_ = @PropertyName("matching_en_proceso_at"))
+    private Timestamp matchingEnProcesoAt;
+
+    @Getter(onMethod_ = @PropertyName("matching_intentos"))
+    @Setter(onMethod_ = @PropertyName("matching_intentos"))
+    private Integer matchingIntentos;
+
+    @Getter(onMethod_ = @PropertyName("score_conciliacion"))
+    @Setter(onMethod_ = @PropertyName("score_conciliacion"))
+    private Integer scoreConciliacion;
+
+    @Getter(onMethod_ = @PropertyName("fecha_conciliacion"))
+    @Setter(onMethod_ = @PropertyName("fecha_conciliacion"))
+    private Timestamp fechaConciliacion;
+
+    @Getter(onMethod_ = @PropertyName("agente_uuid"))
+    @Setter(onMethod_ = @PropertyName("agente_uuid"))
+    private String agenteUuid;
+
+    @Getter(onMethod_ = @PropertyName("lote_origen_id"))
+    @Setter(onMethod_ = @PropertyName("lote_origen_id"))
+    private String loteOrigenId;
+
+    @Getter(onMethod_ = @PropertyName("especificacion_esperada"))
+    @Setter(onMethod_ = @PropertyName("especificacion_esperada"))
+    private EspecificacionStock especificacionEsperada;
+
+    @Getter(onMethod_ = @PropertyName("serial_equipo"))
+    @Setter(onMethod_ = @PropertyName("serial_equipo"))
+    private String serialEquipo;
+
+    @Getter(onMethod_ = @PropertyName("motherboard_serial"))
+    @Setter(onMethod_ = @PropertyName("motherboard_serial"))
+    private String motherboardSerial;
+
+    @Getter(onMethod_ = @PropertyName("bios_uuid"))
+    @Setter(onMethod_ = @PropertyName("bios_uuid"))
+    private String biosUuid;
+
+    @Getter(onMethod_ = @PropertyName("mac_principal"))
+    @Setter(onMethod_ = @PropertyName("mac_principal"))
+    private String macPrincipal;
+
+    @Getter(onMethod_ = @PropertyName("asset_tag"))
+    @Setter(onMethod_ = @PropertyName("asset_tag"))
+    private String assetTag;
 
     public Computadora() {
         this.historialEstados = new ArrayList<>();

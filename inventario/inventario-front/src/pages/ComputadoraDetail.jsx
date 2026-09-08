@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef, Fragment } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   fetchComputadora,
   updateUbicacion,
@@ -8,17 +8,21 @@ import {
   deleteComputadora,
 } from '../api/computadoraApi';
 import { useOptionalComputadorasList } from '../context/ComputadorasListContext';
-import { UBICACIONES_COMPUTADORA } from '../constants/ubicaciones';
-import { ESTADOS_OPERATIVOS, ESTADO_OPERATIVO_LABELS } from '../constants/estados';
+import { useCatalogo, opcionesEnumCatalogo, labelDeCatalogo } from '../hooks/useCatalogo';
+import { labelUbicacion } from '../constants/ubicaciones';
 import { textoConexionAgente } from '../utils/estadoConexion';
 import { filtrarUsbParaInventario, filtrarAudioParaInventario } from '../utils/perifericos';
 import WriteGate from '../components/WriteGate';
 import ComputadoraPerifericosSection from '../components/ComputadoraPerifericosSection';
 import ComputadoraSoftwareSection from '../components/ComputadoraSoftwareSection';
+import ComputadoraHardwareSection from '../components/ComputadoraHardwareSection';
+import ComputadoraEventosTimeline from '../components/ComputadoraEventosTimeline';
+import { getComputerRamDetails } from '../utils/ramHelpers';
 import {
-  Trash2, Info, HardDrive, Monitor, CheckCircle, Clock, User, ChevronLeft, Laptop, SlidersHorizontal, ShieldCheck
+  Trash2, Info, Monitor, CheckCircle, Clock, User, ChevronLeft, Laptop, SlidersHorizontal, ShieldCheck, ShieldAlert, Package
 } from 'lucide-react';
 import { StudioLoading, StudioError } from '../components/studio/StudioUi';
+import ArmarComboModal, { BaselineEsperadoBlock, EspecificacionEsperadaBlock } from '../components/ArmarComboModal';
 
 function fmtFechaIso(s) {
   if (s == null || s === '') return '—';
@@ -54,21 +58,30 @@ function fmtUltimaSincronizacion(raw) {
   return `${legible} (${rel})`;
 }
 
-function fmtUbicacion(u) {
-  if (!u) return 'Sin asignar';
-  return u.replace(/_/g, ' ').replace(/\w\S*/g, (w) => w.charAt(0).toUpperCase() + w.substring(1).toLowerCase());
-}
+const ORIGEN_ALTA_MAP = {
+  STOCK: { label: 'Stock', cls: 'bg-emerald-900/40 text-emerald-300 border border-emerald-700/50' },
+  LEGACY: { label: 'Legacy', cls: 'bg-slate-700/50 text-slate-300 border border-slate-600' },
+  DETECTADA_POR_AGENTE: { label: 'Agente', cls: 'bg-blue-900/40 text-blue-300 border border-blue-700/50' },
+  DETECTADA_VINCULADA_RETRO: { label: 'Vinc. retro', cls: 'bg-purple-900/40 text-purple-300 border border-purple-700/50' },
+};
 
-function ramTotalGb(modulos) {
-  if (!modulos?.length) return null;
-  const sum = modulos.reduce((acc, m) => acc + (Number(m.capacidadGB) || 0), 0);
-  return sum > 0 ? sum : null;
-}
+const ESTADO_CONCILIACION_MAP = {
+  SIN_BASELINE: { label: 'Sin baseline', cls: 'bg-slate-700/50 text-slate-300 border border-slate-600' },
+  NO_APLICA: { label: 'No aplica', cls: 'bg-slate-700/50 text-slate-400 border border-slate-600' },
+  BASELINE_LISTO: { label: 'Baseline listo', cls: 'bg-cyan-900/40 text-cyan-300 border border-cyan-700/50' },
+  PENDIENTE: { label: 'Pendiente', cls: 'bg-amber-900/40 text-amber-300 border border-amber-700/50' },
+  COINCIDE: { label: 'Coincide', cls: 'bg-emerald-900/40 text-emerald-300 border border-emerald-700/50' },
+  DISCREPANCIA: { label: 'Discrepancia', cls: 'bg-red-900/40 text-red-300 border border-red-700/50' },
+};
 
 function ComputadoraDetail() {
   const { uuid } = useParams();
   const navigate = useNavigate();
   const listado = useOptionalComputadorasList();
+  const { items: ubicCompItems } = useCatalogo('ubicaciones_computadora');
+  const { items: estadoItems } = useCatalogo('estados_operativos');
+  const { items: tiposEquipoItems } = useCatalogo('tipos_equipo');
+  const { items: condicionesItems } = useCatalogo('condiciones_equipo');
   const mergeEnListadoRef = useRef(listado?.mergeEnListado);
   mergeEnListadoRef.current = listado?.mergeEnListado;
   const [c, setC] = useState(null);
@@ -88,6 +101,7 @@ function ComputadoraDetail() {
   const [eliminando, setEliminando] = useState(false);
   const [msgEliminar, setMsgEliminar] = useState(null);
   const [copiedAnydesk, setCopiedAnydesk] = useState(false);
+  const [armarComboOpen, setArmarComboOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -111,6 +125,12 @@ function ComputadoraDetail() {
   if (cargando) return <StudioLoading />;
   if (error) return <StudioError message={error} />;
   if (!c) return <StudioError message="Computadora no encontrada" />;
+
+  const puedeArmarCombo = c.origenAlta === 'STOCK'
+    && c.estadoConciliacion === 'SIN_BASELINE'
+    && (c.estadoActual ?? '').toLowerCase() === 'sin asignar';
+  const puedeIngresarStock = c.origenAlta === 'STOCK'
+    && (c.estadoActual ?? '').toLowerCase() !== 'sin asignar';
 
   function guardarUbicacion(e) {
     e?.preventDefault();
@@ -174,10 +194,9 @@ function ComputadoraDetail() {
   }
 
   const historial = c.historialEstados ?? [];
-  const totalRam = ramTotalGb(c.modulos);
   const conexionTexto = textoConexionAgente(c);
   const isActivo = conexionTexto?.toLowerCase().includes('activ');
-  const esNotebook = (c.tipoEquipo ?? '').toLowerCase().includes('notebook');
+  const esNotebook = String(c.tipoEquipo ?? '').trim().toLowerCase() === 'notebook';
 
   const countMonitores = c.perifericos?.monitores?.length ?? 0;
   const countImpresoras = c.perifericos?.impresoras?.length ?? 0;
@@ -185,12 +204,17 @@ function ComputadoraDetail() {
   const countAudio =
     filtrarAudioParaInventario(c.perifericos?.audio?.entrada ?? []).length +
     filtrarAudioParaInventario(c.perifericos?.audio?.salida ?? []).length;
-  const countPerifericos = countMonitores + countImpresoras + countUsb + countAudio;
+  const countPerifericos = countUsb + countAudio;
+  const ramResumen = getComputerRamDetails(c);
+  const ramTabBadge = ramResumen.totalGb > 0
+    ? `${Math.round(ramResumen.totalGb)} GB RAM`
+    : null;
 
   // ── JSX ──────────────────────────────────────────────────────────
   return (
+    <Fragment>
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 overflow-hidden">
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.5)] flex flex-col w-full max-w-7xl max-h-full overflow-hidden ring-1 ring-slate-900/5">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.5)] flex flex-col w-full max-w-7xl max-h-full overflow-hidden ring-1 ring-slate-900/5 computadora-detail-modal">
       
       {/* Modal header with hostname and status sync */}
       <div className="bg-slate-900 text-white p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-950 shrink-0">
@@ -204,13 +228,27 @@ function ComputadoraDetail() {
           </button>
           <span className={`w-3.5 h-3.5 rounded-full inline-block ${isActivo ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.73)] animate-pulse' : 'bg-slate-400'}`} />
           <div>
-            <h3 className="font-extrabold text-xl sm:text-2xl text-white leading-tight flex items-center gap-2">
-              {esNotebook ? <Laptop className="w-5 h-5 text-slate-300" /> : <Monitor className="w-5 h-5 text-slate-300" />}
+            <h3 className="font-extrabold text-2xl sm:text-[1.75rem] text-white leading-tight flex items-center gap-2">
+              {esNotebook ? <Laptop className="w-6 h-6 text-slate-300" /> : <Monitor className="w-6 h-6 text-slate-300" />}
               {c.hostname}
             </h3>
-            <p className="text-xs text-slate-400 mt-1">
-              UUID: <span className="font-mono text-slate-300">{c.uuid}</span> <span className="text-slate-600 mx-1.5">•</span> <span className="font-bold text-slate-200">{fmtUbicacion(c.ubicacion)}</span>
+            <p className="text-sm text-slate-400 mt-1">
+              UUID: <span className="font-mono text-slate-300">{c.uuid}</span> <span className="text-slate-600 mx-1.5">•</span> <span className="font-bold text-slate-200">{labelUbicacion(c.ubicacion, ubicCompItems) || 'Sin asignar'}</span>
             </p>
+            {(c.origenAlta || c.estadoConciliacion) && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                {c.origenAlta && ORIGEN_ALTA_MAP[c.origenAlta] && (
+                  <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-bold ${ORIGEN_ALTA_MAP[c.origenAlta].cls}`}>
+                    {ORIGEN_ALTA_MAP[c.origenAlta].label}
+                  </span>
+                )}
+                {c.estadoConciliacion && ESTADO_CONCILIACION_MAP[c.estadoConciliacion] && (
+                  <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-bold ${ESTADO_CONCILIACION_MAP[c.estadoConciliacion].cls}`}>
+                    {ESTADO_CONCILIACION_MAP[c.estadoConciliacion].label}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -223,7 +261,7 @@ function ComputadoraDetail() {
                 setCopiedAnydesk(true);
                 setTimeout(() => setCopiedAnydesk(false), 1800);
               }}
-              className="px-4 py-2 border border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 font-bold text-sm rounded-lg flex items-center gap-2 transition-colors shrink-0 font-mono"
+              className="px-4 py-2 border border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 font-bold text-base rounded-lg flex items-center gap-2 transition-colors shrink-0 font-mono"
               title="Copiar ID de AnyDesk"
             >
               {copiedAnydesk ? (
@@ -235,10 +273,29 @@ function ComputadoraDetail() {
           )}
 
           <WriteGate>
+          {puedeIngresarStock && (
+            <Link
+              to={`/perifericos/stock?tab=unidades&editarPc=${encodeURIComponent(c.uuid)}`}
+              className="px-4 py-2 border border-teal-700/50 bg-teal-950/40 text-teal-200 hover:bg-teal-900/50 font-bold text-base rounded-lg flex items-center gap-2 transition-colors shrink-0"
+            >
+              <Package className="w-4 h-4" />
+              Ingresar a stock
+            </Link>
+          )}
+          {puedeArmarCombo && (
+            <button
+              type="button"
+              onClick={() => setArmarComboOpen(true)}
+              className="px-4 py-2 border border-indigo-700/50 bg-indigo-950/40 text-indigo-200 hover:bg-indigo-900/50 font-bold text-base rounded-lg flex items-center gap-2 transition-colors shrink-0"
+            >
+              <Package className="w-4 h-4" />
+              Armar combo
+            </button>
+          )}
           <button 
             onClick={solicitarEliminar}
             disabled={eliminando}
-            className="px-4 py-2 border border-red-900/50 text-red-400 hover:bg-red-950/30 hover:border-red-800 font-bold text-sm rounded-lg flex items-center gap-2 transition-colors shrink-0"
+            className="px-4 py-2 border border-red-900/50 text-red-400 hover:bg-red-950/30 hover:border-red-800 font-bold text-base rounded-lg flex items-center gap-2 transition-colors shrink-0"
           >
             <Trash2 className="w-4 h-4" />
             {eliminando ? 'Eliminando...' : 'Eliminar esta PC'}
@@ -251,32 +308,44 @@ function ComputadoraDetail() {
       <div className="flex border-b border-slate-200 bg-white px-8 shrink-0 gap-1 overflow-x-auto">
         <button 
           onClick={() => setSolapa('hardware')}
-          className={`py-4 px-4 text-sm font-bold border-b-2 transition-all shrink-0 flex items-center gap-1.5 ${solapa === 'hardware' ? 'border-[#0c66e4] text-[#0c66e4] font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+          className={`py-4 px-4 text-base font-bold border-b-2 transition-all shrink-0 flex items-center gap-1.5 ${solapa === 'hardware' ? 'border-[#0c66e4] text-[#0c66e4] font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
         >
           Hardware
+          {ramTabBadge && (
+            <span className="px-1.5 py-0.5 rounded-full text-xs bg-indigo-100 text-indigo-700 font-mono font-bold">
+              {ramTabBadge}
+            </span>
+          )}
         </button>
         <button 
           onClick={() => setSolapa('perifericos')}
-          className={`py-4 px-4 text-sm font-bold border-b-2 transition-all shrink-0 flex items-center gap-1.5 ${solapa === 'perifericos' ? 'border-[#0c66e4] text-[#0c66e4] font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+          className={`py-4 px-4 text-base font-bold border-b-2 transition-all shrink-0 flex items-center gap-1.5 ${solapa === 'perifericos' ? 'border-[#0c66e4] text-[#0c66e4] font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
         >
-          <SlidersHorizontal className="w-3.5 h-3.5" />
+          <SlidersHorizontal className="w-4 h-4" />
           Periféricos & Conexiones
-          <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-blue-100 text-blue-700 font-mono font-bold">
+          <span className="px-1.5 py-0.5 rounded-full text-xs bg-blue-100 text-blue-700 font-mono font-bold">
             {countPerifericos}
           </span>
         </button>
         <button 
           onClick={() => setSolapa('software')}
-          className={`py-4 px-4 text-sm font-bold border-b-2 transition-all shrink-0 flex items-center gap-1.5 ${solapa === 'software' ? 'border-[#0c66e4] text-[#0c66e4] font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+          className={`py-4 px-4 text-base font-bold border-b-2 transition-all shrink-0 flex items-center gap-1.5 ${solapa === 'software' ? 'border-[#0c66e4] text-[#0c66e4] font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
         >
-          <ShieldCheck className="w-3.5 h-3.5" />
+          <ShieldCheck className="w-4 h-4" />
           Software
         </button>
-        <button 
+        <button
           onClick={() => setSolapa('asignacion')}
-          className={`py-4 px-4 text-sm font-bold border-b-2 transition-all shrink-0 ${solapa === 'asignacion' ? 'border-[#0c66e4] text-[#0c66e4] font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+          className={`py-4 px-4 text-base font-bold border-b-2 transition-all shrink-0 ${solapa === 'asignacion' ? 'border-[#0c66e4] text-[#0c66e4] font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
         >
           Inventario / Asignación
+        </button>
+        <button
+          onClick={() => setSolapa('auditoria')}
+          className={`py-4 px-4 text-base font-bold border-b-2 transition-all shrink-0 flex items-center gap-1.5 ${solapa === 'auditoria' ? 'border-[#0c66e4] text-[#0c66e4] font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+        >
+          <ShieldAlert className="w-4 h-4" />
+          Auditoría HW
         </button>
       </div>
 
@@ -285,82 +354,13 @@ function ComputadoraDetail() {
         
         {/* 1. HARDWARE TAB CONTENTS */}
         {solapa === 'hardware' && (
-          <div className="space-y-8">
-            
-            {/* Resource CPU/RAM Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
-                <span className="text-xs font-extrabold text-slate-400 block uppercase tracking-wider">Procesador</span>
-                <span className="text-sm sm:text-base font-bold text-slate-800 block mt-2 leading-snug">{c.procesador?.nombreRaw ?? c.procesador?.nombre ?? '—'}</span>
-              </div>
-              
-              <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
-                <span className="text-xs font-extrabold text-slate-400 block uppercase tracking-wider">Memoria Total</span>
-                <span className="text-2xl font-black text-slate-900 block mt-2">{totalRam != null ? `${totalRam.toFixed(2)} GB` : '—'}</span>
-                <span className="text-xs text-slate-400 block mt-1">{c.modulos?.length ?? 0} módulo(s) físico(s) reportados</span>
-              </div>
-
-              <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
-                <span className="text-xs font-extrabold text-slate-400 block uppercase tracking-wider">Arquitectura</span>
-                <span className="text-2xl font-black text-slate-900 block mt-2">{c.arquitectura ?? '—'}</span>
-                <span className="text-xs text-emerald-600 font-bold block mt-1 flex items-center gap-1 font-mono">
-                  <CheckCircle className="w-4 h-4 inline text-emerald-500" /> Operativo
-                </span>
-              </div>
-            </div>
-
-            {/* Almacenamiento */}
-            {c.discos?.length > 0 && (
-              <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-4">
-                <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-widest flex items-center gap-2">
-                  <HardDrive className="w-5 h-5 text-[#0c66e4]" />
-                  Almacenamiento
-                </h3>
-                <div className="space-y-5 text-sm border-t border-slate-100 pt-5">
-                  {c.discos.map((d, i) => {
-                    const pct = Number(d.porcentajeUsado) || 0;
-                    const progressCls = pct > 85 ? 'bg-red-500' : pct > 65 ? 'bg-amber-500' : 'bg-[#0c66e4]';
-                    return (
-                      <div key={i} className="space-y-2">
-                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center font-bold gap-1 sm:gap-0">
-                          <span className="text-slate-800 font-mono">
-                            {d.letra ?? d.puntoMontaje ?? d.nombre ?? `Disco ${i + 1}`} 
-                            <span className="text-slate-500 ml-2 font-normal">({d.modeloDisco || 'Disco Genérico'}{d.tipoDisco ? ` - ${d.tipoDisco}` : ''})</span>
-                          </span>
-                          <span className="text-slate-700 font-mono text-xs sm:text-sm">{d.libreGB ? `${Number(d.libreGB).toFixed(1)} GB Libres` : ''} de {Number(d.totalGB || 0).toFixed(0)} GB ({pct.toFixed(1)}%)</span>
-                        </div>
-                        <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden border border-slate-200">
-                          <div className={`h-full ${progressCls} transition-all duration-300`} style={{ width: `${Math.min(pct, 100)}%` }} />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-blue-50 text-blue-600 shrink-0">
-                  <SlidersHorizontal className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold text-slate-900">Periféricos & dispositivos vinculados</h4>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    {countMonitores} monitor(es) • {countImpresoras} impresora(s) • {countUsb + countAudio} periférico(s) USB / audio
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSolapa('perifericos')}
-                className="px-3.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs rounded-lg transition-colors shrink-0 self-start sm:self-auto cursor-pointer"
-              >
-                Ver y administrar periféricos →
-              </button>
-            </div>
-
-          </div>
+          <ComputadoraHardwareSection
+            computadora={c}
+            onNavigateToPerifericos={() => setSolapa('perifericos')}
+            countMonitores={countMonitores}
+            countImpresoras={countImpresoras}
+            countPerifericos={countUsb + countAudio}
+          />
         )}
 
         {solapa === 'perifericos' && (
@@ -379,6 +379,11 @@ function ComputadoraDetail() {
         {/* 3. ASIGNACIÓN TAB CONTENTS */}
         {solapa === 'asignacion' && (
           <div className="space-y-8">
+            <EspecificacionEsperadaBlock
+              especificacionEsperada={c.especificacionEsperada}
+              loteOrigenId={c.loteOrigenId}
+            />
+            <BaselineEsperadoBlock baseline={c.baselineEsperado} />
             {/* Datos Generales Grid panel */}
             <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-4">
               <h4 className="text-sm font-extrabold text-slate-800 uppercase tracking-widest flex items-center gap-2 pb-3 border-b border-slate-100">
@@ -392,7 +397,7 @@ function ComputadoraDetail() {
                 </div>
                 <div>
                   <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">Ubicación</span>
-                  <span className="font-semibold text-slate-800 block mt-1">{fmtUbicacion(c.ubicacion)}</span>
+                  <span className="font-semibold text-slate-800 block mt-1">{labelUbicacion(c.ubicacion, ubicCompItems) || 'Sin asignar'}</span>
                 </div>
                 <div>
                   <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">Arquitectura</span>
@@ -409,8 +414,12 @@ function ComputadoraDetail() {
                   <span className="font-extrabold text-[#0c66e4] block mt-1">{c.estadoActual || 'Sin asignar'}</span>
                 </div>
                 <div>
-                  <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">Usuario</span>
-                  <span className="font-semibold text-slate-800 block mt-1">{c.usuarioActual ?? 'SYSTEM'} {c.responsableInventario ? `/ ${c.responsableInventario}` : ''}</span>
+                  <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">Usuario (agente)</span>
+                  <span className="font-semibold text-slate-800 block mt-1">{c.usuarioActual ?? 'SYSTEM'}</span>
+                </div>
+                <div>
+                  <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">Asignado a</span>
+                  <span className="font-semibold text-slate-800 block mt-1">{c.responsableInventario ?? '—'}</span>
                 </div>
                 <div>
                   <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">Sistema Operativo</span>
@@ -424,6 +433,18 @@ function ComputadoraDetail() {
                   <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">Última Sincronización</span>
                   <span className="font-mono text-slate-600 text-xs block mt-1">{fmtUltimaSincronizacion(c.ultimaSincronizacion)}</span>
                 </div>
+                <div>
+                  <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">Tipo de equipo</span>
+                  <span className="font-semibold text-slate-800 block mt-1">
+                    {c.tipoEquipo ? labelDeCatalogo(tiposEquipoItems, c.tipoEquipo) : '—'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">Condición</span>
+                  <span className="font-semibold text-slate-800 block mt-1">
+                    {c.condicion ? labelDeCatalogo(condicionesItems, c.condicion) : '—'}
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -434,8 +455,8 @@ function ComputadoraDetail() {
               {/* ASIGNADO EN INVENTARIO */}
               <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-3">
                 <div>
-                  <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wide block">Asignado en Inventario</h4>
-                  <p className="text-[10px] text-slate-400 mt-0.5">Señale el nombre o clave de la persona que tiene en resguardo físico esta PC.</p>
+                  <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wide block">Asignado a</h4>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Persona o referencia que tiene en resguardo físico esta PC.</p>
                 </div>
                 <form className="flex gap-2 text-xs text-slate-800" onSubmit={guardarResponsableInventario}>
                   <input 
@@ -469,8 +490,8 @@ function ComputadoraDetail() {
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 font-bold text-slate-700 focus:bg-white focus:outline-none cursor-pointer"
                   >
                     <option value="">Seleccionar...</option>
-                    {UBICACIONES_COMPUTADORA.map(u => (
-                      <option key={u} value={u}>{u}</option>
+                    {opcionesEnumCatalogo(ubicCompItems).map(o => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
                     ))}
                   </select>
                   <button 
@@ -502,8 +523,8 @@ function ComputadoraDetail() {
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 font-bold text-slate-700 cursor-pointer focus:bg-white focus:outline-none"
                   >
                     <option value="">Seleccionar estado...</option>
-                    {ESTADOS_OPERATIVOS.map(k => (
-                      <option key={k} value={k}>{ESTADO_OPERATIVO_LABELS[k] ?? k}</option>
+                    {opcionesEnumCatalogo(estadoItems).map(o => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
                     ))}
                   </select>
                 </div>
@@ -572,9 +593,34 @@ function ComputadoraDetail() {
 
           </div>
         )}
+
+        {solapa === 'auditoria' && (
+          <div className="space-y-4">
+            <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+              <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-widest flex items-center gap-1.5 pb-3 border-b border-slate-100 mb-4">
+                <ShieldAlert className="w-4 h-4 text-[#0c66e4]" />
+                Cambios de hardware detectados
+              </h4>
+              <ComputadoraEventosTimeline uuid={uuid} />
+            </div>
+          </div>
+        )}
 </div>
       </div>
     </div>
+
+    {armarComboOpen && (
+      <ArmarComboModal
+        computadora={c}
+        onClose={() => setArmarComboOpen(false)}
+        onSuccess={data => {
+          setC(data);
+          listado?.mergeEnListado?.(data);
+          setSolapa('asignacion');
+        }}
+      />
+    )}
+    </Fragment>
   );
 }
 

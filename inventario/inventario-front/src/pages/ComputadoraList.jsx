@@ -4,7 +4,8 @@ import { Laptop, Monitor, Search, Copy, Cpu, UserCheck } from 'lucide-react';
 import AsignacionesBoard from '../components/AsignacionesBoard';
 import { fetchComputadoras, updateUbicacion, deleteComputadora } from '../api/computadoraApi';
 import { useComputadorasList } from '../context/ComputadorasListContext';
-import { UBICACIONES_COMPUTADORA, labelUbicacionEnum, coincideUbicacionFiltro } from '../constants/ubicaciones';
+import { coincideUbicacionFiltro } from '../constants/ubicaciones';
+import { useCatalogo, opcionesEnumCatalogo, labelDeCatalogo } from '../hooks/useCatalogo';
 import { textoConexionAgente } from '../utils/estadoConexion';
 import {
   nivelActividadSync,
@@ -34,6 +35,13 @@ const ORDEN_OPTS = [
   { value: 'hostname-desc', label: 'Hostname Z-A' },
   { value: 'ubicacion-asc', label: 'Ubicación A-Z' },
 ];
+
+const ORIGEN_ALTA_MAP = {
+  STOCK: { label: 'Stock', cls: 'bg-emerald-50 text-emerald-700 border border-emerald-200' },
+  LEGACY: { label: 'Legacy', cls: 'bg-slate-100 text-slate-500 border border-slate-200' },
+  DETECTADA_POR_AGENTE: { label: 'Agente', cls: 'bg-blue-50 text-blue-700 border border-blue-200' },
+  DETECTADA_VINCULADA_RETRO: { label: 'Vinc. retro', cls: 'bg-purple-50 text-purple-700 border border-purple-200' },
+};
 
 function cmpHostname(a, b, desc) {
   const ha = (a.hostname || '').toLowerCase();
@@ -71,17 +79,19 @@ function anydeskIdDe(c) {
   return s || null;
 }
 
-function esNotebookTipo(c) {
-  return (c.tipoEquipo ?? '').toLowerCase().includes('notebook');
+function codigoTipoNormalizado(val) {
+  return String(val ?? '').trim().toLowerCase();
 }
 
-function coincideFiltroTipoEquipo(c, filtro) {
-  if (!filtro) return true;
-  const t = (c.tipoEquipo ?? '').trim();
+function esNotebookTipo(c) {
+  return codigoTipoNormalizado(c.tipoEquipo) === 'notebook';
+}
+
+function coincideFiltroTipoEquipo(c, filtroCodigo) {
+  if (!filtroCodigo) return true;
+  const t = codigoTipoNormalizado(c.tipoEquipo);
   if (!t) return false;
-  if (filtro === 'notebook') return esNotebookTipo(c);
-  if (filtro === 'pc') return !esNotebookTipo(c);
-  return true;
+  return t === codigoTipoNormalizado(filtroCodigo);
 }
 
 function coincideFiltroActividadSync(c, filtro) {
@@ -96,11 +106,16 @@ function coincideFiltroActividadSync(c, filtro) {
 function ComputadoraList() {
   const { todas, setTodas, cargando, error } = useComputadorasList();
   const { puedeEscribir } = usePermisos();
+  const { items: ubicCompItems } = useCatalogo('ubicaciones_computadora');
+  const { items: tiposEquipoItems } = useCatalogo('tipos_equipo');
+  const { items: condicionesItems } = useCatalogo('condiciones_equipo');
   const [viewPerspective, setViewPerspective] = useState('inventario');
   const [buscar, setBuscar] = useState('');
   const [filtroUbicacion, setFiltroUbicacion] = useState('');
   const [filtroTipoEquipo, setFiltroTipoEquipo] = useState('');
+  const [filtroConciliacion, setFiltroConciliacion] = useState('');
   const [filtroConexion, setFiltroConexion] = useState('');
+  const [incluirLegacy, setIncluirLegacy] = useState(false);
   const [orden, setOrden] = useState('hostname-asc');
   const [seleccion, setSeleccion] = useState(() => new Set());
   const [ubicacionDestino, setUbicacionDestino] = useState('');
@@ -122,34 +137,38 @@ function ComputadoraList() {
   const antesFiltroTipo = useMemo(() => {
     let list = todas.filter(c => coincideUbicacionFiltro(c.ubicacion, filtroUbicacion));
     list = list.filter(c => coincideBusqueda(c, buscar));
+    if (!incluirLegacy) list = list.filter(c => c.origenAlta !== 'LEGACY');
     return list;
-  }, [todas, filtroUbicacion, buscar]);
+  }, [todas, filtroUbicacion, buscar, incluirLegacy]);
 
   const conteosTipo = useMemo(() => {
-    let nb = 0;
-    let pc = 0;
+    const counts = Object.fromEntries(tiposEquipoItems.map(i => [i.codigo, 0]));
     for (const c of antesFiltroTipo) {
-      const t = (c.tipoEquipo ?? '').trim();
+      const t = codigoTipoNormalizado(c.tipoEquipo);
       if (!t) continue;
-      if (esNotebookTipo(c)) nb += 1;
-      else pc += 1;
+      if (Object.hasOwn(counts, t)) counts[t] += 1;
     }
-    return { notebook: nb, pc };
-  }, [antesFiltroTipo]);
+    return counts;
+  }, [antesFiltroTipo, tiposEquipoItems]);
 
   const antesFiltroConexion = useMemo(
     () => antesFiltroTipo.filter(c => coincideFiltroTipoEquipo(c, filtroTipoEquipo)),
     [antesFiltroTipo, filtroTipoEquipo],
   );
 
+  const antesFiltroConciliacion = useMemo(() => {
+    if (!filtroConciliacion) return antesFiltroConexion;
+    return antesFiltroConexion.filter(c => c.estadoConciliacion === filtroConciliacion);
+  }, [antesFiltroConexion, filtroConciliacion]);
+
   const computadoras = useMemo(() => {
-    let list = antesFiltroConexion.filter(c => coincideFiltroActividadSync(c, filtroConexion));
+    let list = antesFiltroConciliacion.filter(c => coincideFiltroActividadSync(c, filtroConexion));
     const copy = [...list];
     if (orden === 'hostname-asc') copy.sort((a, b) => cmpHostname(a, b, false));
     else if (orden === 'hostname-desc') copy.sort((a, b) => cmpHostname(a, b, true));
     else if (orden === 'ubicacion-asc') copy.sort((a, b) => cmpUbicacion(a, b));
     return copy;
-  }, [antesFiltroConexion, filtroConexion, orden]);
+  }, [antesFiltroConciliacion, filtroConexion, orden]);
 
   const uuidsVisibles = useMemo(
     () => computadoras.map(c => c.uuid).filter(Boolean),
@@ -346,8 +365,8 @@ function ComputadoraList() {
                 onChange={setFiltroUbicacion}
               >
                 <option value="">{`Todas (${total})`}</option>
-                {UBICACIONES_COMPUTADORA.map(u => (
-                  <option key={u} value={u}>{labelUbicacionEnum(u)}</option>
+                {opcionesEnumCatalogo(ubicCompItems).map(o => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
               </TableFilters.Select>
               <TableFilters.Select
@@ -357,8 +376,21 @@ function ComputadoraList() {
                 onChange={setFiltroTipoEquipo}
               >
                 <option value="">{`Todos (${antesFiltroTipo.length})`}</option>
-                <option value="notebook">{`Notebook (${conteosTipo.notebook})`}</option>
-                <option value="pc">{`PC (${conteosTipo.pc})`}</option>
+                {tiposEquipoItems.map(item => (
+                  <option key={item.codigo} value={item.codigo}>
+                    {`${item.label} (${conteosTipo[item.codigo] ?? 0})`}
+                  </option>
+                ))}
+              </TableFilters.Select>
+              <TableFilters.Select
+                id="inv-conciliacion"
+                label="Baseline"
+                value={filtroConciliacion}
+                onChange={setFiltroConciliacion}
+              >
+                <option value="">{`Todos (${antesFiltroConexion.length})`}</option>
+                <option value="SIN_BASELINE">Sin baseline</option>
+                <option value="BASELINE_LISTO">Baseline listo</option>
               </TableFilters.Select>
               <TableFilters.Select
                 id="inv-actividad-sync"
@@ -366,7 +398,7 @@ function ComputadoraList() {
                 value={filtroConexion}
                 onChange={setFiltroConexion}
               >
-                <option value="">{`Todos (${antesFiltroConexion.length})`}</option>
+                <option value="">{`Todos (${antesFiltroConciliacion.length})`}</option>
                 <option value="activo">{`Reciente (< ~${MINUTOS_LABEL_UMBRAL_ACTIVO} min)`}</option>
                 <option value="intermedio">Entre ~12 min y 1 h</option>
                 <option value="sin_actividad">Sin actividad (+1 h)</option>
@@ -381,6 +413,19 @@ function ComputadoraList() {
                   <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
               </TableFilters.Select>
+              <label
+                htmlFor="inv-incluir-legacy"
+                className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 whitespace-nowrap cursor-pointer select-none"
+              >
+                <input
+                  id="inv-incluir-legacy"
+                  type="checkbox"
+                  checked={incluirLegacy}
+                  onChange={e => setIncluirLegacy(e.target.checked)}
+                  className="rounded border-slate-300"
+                />
+                Incluir equipos legacy
+              </label>
             </TableFilters>
           </StudioFilterBar>
 
@@ -399,8 +444,8 @@ function ComputadoraList() {
               className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-bold text-slate-800"
             >
               <option value="">Elegir…</option>
-              {UBICACIONES_COMPUTADORA.map(u => (
-                <option key={u} value={u}>{labelUbicacionEnum(u)}</option>
+              {opcionesEnumCatalogo(ubicCompItems).map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
               ))}
             </select>
           </div>
@@ -459,6 +504,8 @@ function ComputadoraList() {
               <th className={studioThClass()}>AnyDesk ID</th>
               <th className={studioThClass()}>Sistema operativo</th>
               <th className={studioThClass()}>Ubicación</th>
+              <th className={studioThClass()}>Tipo</th>
+              <th className={studioThClass()}>Condición</th>
               <th className={studioThClass()}>Conexión</th>
               <th className={studioThClass()}>Estado</th>
             </tr>
@@ -466,7 +513,7 @@ function ComputadoraList() {
           <tbody className="divide-y divide-slate-100">
             {computadoras.length === 0 ? (
               <tr>
-                <td colSpan={8} className={`${studioTdClass()} text-center text-slate-400 py-10`}>
+                <td colSpan={puedeEscribir ? 10 : 9} className={`${studioTdClass()} text-center text-slate-400 py-10`}>
                   {todas.length === 0
                     ? 'Sin registros'
                     : 'Ningún equipo coincide con los filtros'}
@@ -479,7 +526,7 @@ function ComputadoraList() {
                 const conexion = textoConexionAgente(c);
                 const activo = (conexion || '').toLowerCase() === 'activo' || (conexion || '').toLowerCase() === 'activa';
                 const anydesk = anydeskIdDe(c);
-                const esNotebook = (c.tipoEquipo ?? '').toLowerCase().includes('notebook');
+                const esNotebook = esNotebookTipo(c);
                 return (
                   <tr
                     key={c.uuid}
@@ -513,6 +560,11 @@ function ComputadoraList() {
                           <span className="text-xs text-slate-400 font-normal block font-mono">
                             {(c.uuid ?? '').slice(0, 8)}
                           </span>
+                          {c.origenAlta && ORIGEN_ALTA_MAP[c.origenAlta] && (
+                            <span className={`inline-block px-1.5 py-0 rounded text-[10px] font-bold mt-0.5 ${ORIGEN_ALTA_MAP[c.origenAlta].cls}`}>
+                              {ORIGEN_ALTA_MAP[c.origenAlta].label}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </td>
@@ -541,7 +593,17 @@ function ComputadoraList() {
                     </td>
                     <td className={studioTdClass()}>
                       <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">
-                        {c.ubicacion ? labelUbicacionEnum(c.ubicacion) : '—'}
+                        {c.ubicacion ? labelDeCatalogo(ubicCompItems, c.ubicacion) : '—'}
+                      </span>
+                    </td>
+                    <td className={studioTdClass()}>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                        {c.tipoEquipo ? labelDeCatalogo(tiposEquipoItems, c.tipoEquipo) : '—'}
+                      </span>
+                    </td>
+                    <td className={studioTdClass()}>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                        {c.condicion ? labelDeCatalogo(condicionesItems, c.condicion) : '—'}
                       </span>
                     </td>
                     <td className={studioTdClass()}>

@@ -23,11 +23,8 @@ import {
   actualizarProgresoLogisticaMasivo,
 } from '../api/etiquetaQrApi';
 import { useEtiquetasQr, useProgresosLogistica } from '../hooks/useQueries';
-import {
-  UBICACIONES_COMPUTADORA,
-  labelUbicacionEnum,
-  coincideUbicacionFiltro,
-} from '../constants/ubicaciones';
+import { coincideUbicacionFiltro } from '../constants/ubicaciones';
+import { useCatalogo, opcionesEnumCatalogo, labelDeCatalogo } from '../hooks/useCatalogo';
 import { FASES } from '../utils/logisticaProgreso';
 import WriteGate from '../components/WriteGate';
 
@@ -96,6 +93,12 @@ function FasesLogistica({ progreso, cargando }) {
 export default function EtiquetasQrList() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { items: ubicCompItems } = useCatalogo('ubicaciones_computadora');
+  const { items: faseItems } = useCatalogo('fases_etiquetado');
+  const fasesVista = useMemo(() => FASES.map(f => {
+    const cat = faseItems.find(i => i.codigo === f.id);
+    return cat ? { ...f, label: cat.label } : f;
+  }), [faseItems]);
   const etiquetasQuery = useEtiquetasQr();
   const progresosQuery = useProgresosLogistica();
   const lista = useMemo(
@@ -144,7 +147,7 @@ export default function EtiquetasQrList() {
       }
 
       if (!q) return true;
-      return [item.hostname, item.usuarioActual, item.ubicacion, item.uuid, item.tipoEquipo]
+      return [item.hostname, item.responsableInventario, item.ubicacion, item.uuid, item.tipoEquipo]
         .filter(Boolean)
         .some(v => String(v).toLowerCase().includes(q));
     });
@@ -230,8 +233,8 @@ export default function EtiquetasQrList() {
         return {
           qrDataUrl,
           hostname: it.hostname,
-          usuarioActual: it.usuarioActual,
-          ubicacionLabel: labelUbicacionEnum(it.ubicacion),
+          asignadoA: it.responsableInventario,
+          ubicacionLabel: labelDeCatalogo(ubicCompItems, it.ubicacion),
         };
       }));
       await imprimirEtiquetas(etiquetas);
@@ -285,7 +288,7 @@ export default function EtiquetasQrList() {
       const etiquetasMonitor = [];
       for (const f of fichas) {
         if (!f || !f.monitores?.length) continue;
-        const ubicacionLabel = labelUbicacionEnum(f.ubicacion);
+        const ubicacionLabel = labelDeCatalogo(ubicCompItems, f.ubicacion);
         const qrDataUrl = await generarQrDataUrl(urlFichaEtiqueta(f.uuid));
         for (const m of f.monitores) {
           etiquetasMonitor.push({
@@ -328,7 +331,7 @@ export default function EtiquetasQrList() {
       return;
     }
 
-    const nombres = fases.map(id => FASES.find(f => f.id === id)?.label ?? id).join(', ');
+    const nombres = fases.map(id => fasesVista.find(f => f.id === id)?.label ?? id).join(', ');
     const detalle = `${items.length} puesto(s)`;
     const ok = window.confirm(
       completado
@@ -484,7 +487,7 @@ export default function EtiquetasQrList() {
 
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-bold text-slate-400 tracking-wide">Marcar 100%:</span>
-              {FASES.map(fase => {
+              {fasesVista.map(fase => {
                 const Icono = ICONOS_FASE[fase.id];
                 return (
                   <button
@@ -641,7 +644,7 @@ export default function EtiquetasQrList() {
             type="search"
             value={buscar}
             onChange={e => setBuscar(e.target.value)}
-            placeholder="Buscar por hostname, usuario, ubicación o UUID..."
+            placeholder="Buscar por hostname, asignado a, ubicación o UUID..."
             className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-red-500 focus:ring-1 focus:ring-red-500/20 text-slate-900 rounded-lg pl-10 pr-4 py-2.5 text-sm font-mono placeholder:text-slate-400 outline-none transition-all"
           />
         </div>
@@ -668,9 +671,9 @@ export default function EtiquetasQrList() {
               className="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-red-500 cursor-pointer appearance-none pr-8 font-medium focus:bg-white"
             >
               <option value="">Todas las ubicaciones ({lista.length})</option>
-              {UBICACIONES_COMPUTADORA.map(u => (
-                <option key={u} value={u}>
-                  {labelUbicacionEnum(u)}
+              {opcionesEnumCatalogo(ubicCompItems).map(o => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
                 </option>
               ))}
             </select>
@@ -727,7 +730,7 @@ export default function EtiquetasQrList() {
                   </th>
                   <th className="py-3.5 px-4">Hostname / Estación</th>
                   <th className="py-3.5 px-4">Ubicación</th>
-                  <th className="py-3.5 px-4">Usuario asignado</th>
+                  <th className="py-3.5 px-4">Asignado a</th>
                   <th className="py-3.5 px-4 text-center">Fases logística</th>
                   <th className="py-3.5 px-4 text-center"># Mon / Perif</th>
                   <th className="py-3.5 px-4 text-right">Acción</th>
@@ -800,12 +803,12 @@ export default function EtiquetasQrList() {
                         <td className="py-3.5 px-4">
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 border border-slate-200 text-slate-700 font-medium text-xs">
                             <MapPin className="w-3.5 h-3.5 text-red-600 shrink-0" />
-                            {labelUbicacionEnum(item.ubicacion)}
+                            {labelDeCatalogo(ubicCompItems, item.ubicacion)}
                           </span>
                         </td>
 
                         <td className="py-3.5 px-4 text-slate-800 font-medium">
-                          {item.usuarioActual || <span className="text-slate-400 italic">SYSTEM</span>}
+                          {item.responsableInventario || <span className="text-slate-400 italic">Sin asignar</span>}
                         </td>
 
                         <td className="py-3.5 px-4 text-center">

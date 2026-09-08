@@ -152,6 +152,80 @@
         }
       ],
       "density": "SPARSE_ALL"
+    },
+    {
+      "collectionGroup": "eventos_hardware",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "estado_seguimiento",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "timestamp",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "eventos_hardware",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "estado_seguimiento",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "leido",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "eventos_hardware",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "uuid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "timestamp",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "computadoras",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "origen_alta", "order": "ASCENDING" },
+        { "fieldPath": "estado_conciliacion", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "computadoras",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "matching_job_estado", "order": "ASCENDING" },
+        { "fieldPath": "matching_en_proceso_at", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "conciliaciones_stock",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "decision", "order": "ASCENDING" },
+        { "fieldPath": "fecha", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "conciliaciones_stock",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "agente_uuid", "order": "ASCENDING" },
+        { "fieldPath": "snapshot_clave", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [

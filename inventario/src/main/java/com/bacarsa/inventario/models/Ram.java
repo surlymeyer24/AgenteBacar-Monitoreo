@@ -8,6 +8,11 @@ import lombok.Setter;
 @Setter
 public class Ram {
 
+    private boolean ocupado = true;
+    private String slot;
+    private String locator;
+    private String banco;
+    private String canal;
     @Getter(onMethod_ = @PropertyName("capacidad_gb"))
     @Setter(onMethod_ = @PropertyName("capacidad_gb"))
     private int capacidadGB;
@@ -16,6 +21,21 @@ public class Ram {
     private int velocidadMHz;
     private String modelo;
     private String fabricante;
+    private String tecnologia;
+    @Getter(onMethod_ = @PropertyName("numero_serie"))
+    @Setter(onMethod_ = @PropertyName("numero_serie"))
+    private String numeroSerie;
+    @Getter(onMethod_ = @PropertyName("form_factor"))
+    @Setter(onMethod_ = @PropertyName("form_factor"))
+    private String formFactor;
+    /** En Firestore suele venir como número (288); Integer evita que falle {@code toObject} del documento. */
+    private Integer pines;
+    @Getter(onMethod_ = @PropertyName("voltaje_v"))
+    @Setter(onMethod_ = @PropertyName("voltaje_v"))
+    private Double voltajeV;
+    @Getter(onMethod_ = @PropertyName("ancho_datos"))
+    @Setter(onMethod_ = @PropertyName("ancho_datos"))
+    private Integer anchoDatos;
 
     @Override
     public String toString() {

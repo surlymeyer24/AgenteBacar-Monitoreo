@@ -19,11 +19,14 @@ public class PerifericoManualDTO {
     private String fabricante;
     private String conexion;
     private String computadoraHostname;
+    private String computadoraUuid;
     private String ubicacion;
     private String notas;
     private String estado;
     private LocalDate fechaAlta;
     private String comboId;
     private String comboNombre;
+    private EspecificacionStockDTO especificacionStock;
+    private String numeroSerie;
     private List<CambioEstadoDTO> historialEstados;
 }

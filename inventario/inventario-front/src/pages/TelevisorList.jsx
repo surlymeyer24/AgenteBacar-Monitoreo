@@ -9,11 +9,8 @@ import {
   actualizarTelevisor,
   deleteTelevisor,
 } from '../api/televisorApi';
-import {
-  ESTADOS_TELEVISOR,
-  ESTADO_TELEVISOR_LABELS,
-  normalizarEstadoTelevisor,
-} from '../constants/televisores';
+import { normalizarEstadoTelevisor } from '../constants/televisores';
+import { useCatalogo, opcionesCatalogo, labelDeCatalogo } from '../hooks/useCatalogo';
 import {
   StudioPageShell,
   StudioPrimaryButton,
@@ -38,6 +35,7 @@ function estadoBadgeClass(estado) {
 }
 
 export default function TelevisorList() {
+  const { items: estadoDispItems } = useCatalogo('estados_dispositivo');
   const [lista, setLista] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
@@ -248,8 +246,8 @@ export default function TelevisorList() {
             className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs min-w-[140px]"
           >
             <option value="">Todos los estados</option>
-            {ESTADOS_TELEVISOR.map(e => (
-              <option key={e} value={e}>{ESTADO_TELEVISOR_LABELS[e]}</option>
+            {opcionesCatalogo(estadoDispItems).map(i => (
+              <option key={i.codigo} value={i.codigo}>{i.label}</option>
             ))}
           </select>
         </div>
@@ -276,7 +274,7 @@ export default function TelevisorList() {
                   </div>
                 </div>
                 <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-extrabold border ${estadoBadgeClass(tv.estado)}`}>
-                  {ESTADO_TELEVISOR_LABELS[tv.estado] ?? tv.estado}
+                  {labelDeCatalogo(estadoDispItems, tv.estado)}
                 </span>
               </div>
               <div className="text-sm text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-100 space-y-1">
@@ -400,8 +398,8 @@ export default function TelevisorList() {
                       onChange={e => setForm(f => ({ ...f, estado: e.target.value }))}
                       className="w-full p-2 border rounded-lg bg-slate-50 focus:ring-1 focus:ring-blue-600 font-normal"
                     >
-                      {ESTADOS_TELEVISOR.map(e => (
-                        <option key={e} value={e}>{ESTADO_TELEVISOR_LABELS[e]}</option>
+                      {opcionesCatalogo(estadoDispItems, form.estado).map(i => (
+                        <option key={i.codigo} value={i.codigo}>{i.label}</option>
                       ))}
                     </select>
                   </div>

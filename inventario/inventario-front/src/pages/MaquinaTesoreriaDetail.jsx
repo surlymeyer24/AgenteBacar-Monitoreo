@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Banknote } from 'lucide-react';
 import { fetchMaquina, cambiarEstadoMaquina, actualizarMaquina } from '../api/maquinaTesoreriaApi';
-import { ESTADOS_OPERATIVOS, ESTADO_OPERATIVO_LABELS } from '../constants/estados';
+import { useCatalogo, opcionesEnumCatalogo, labelDeCatalogo } from '../hooks/useCatalogo';
 import InfraestructuraModal from '../components/InfraestructuraModal';
 import DetailOverlayShell, { DetailEditButton, DetailSection } from '../components/DetailOverlayShell';
 import {
@@ -11,17 +11,11 @@ import {
   CambiarEstadoForm,
 } from '../components/DetailInfraHelpers';
 
-const TIPO_LABELS = {
-  VALIDADORA: 'Validadora',
-  BOLSILLOS: 'Bolsillos',
-  RECONTADORA: 'Recontadora',
-  ENVASADORA: 'Envasadora',
-  FAJADORA: 'Fajadora',
-};
-
 function MaquinaTesoreriaDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { items: estadoItems } = useCatalogo('estados_operativos');
+  const { items: tipoItems } = useCatalogo('tipos_maquina');
   const [maquina, setMaquina] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
@@ -108,7 +102,7 @@ function MaquinaTesoreriaDetail() {
   }
 
   const historial = maquina.historialEstados ?? [];
-  const titulo = `${TIPO_LABELS[maquina.tipo] ?? maquina.tipo} — ${maquina.modelo}`;
+  const titulo = `${labelDeCatalogo(tipoItems, maquina.tipo)} — ${maquina.modelo}`;
 
   return (
     <>
@@ -134,7 +128,7 @@ function MaquinaTesoreriaDetail() {
           <DetailFieldGrid
             fields={[
               { label: 'ID', value: maquina.id, mono: true },
-              { label: 'Tipo', value: TIPO_LABELS[maquina.tipo] ?? maquina.tipo },
+              { label: 'Tipo', value: labelDeCatalogo(tipoItems, maquina.tipo) },
               { label: 'Modelo', value: maquina.modelo },
               { label: 'Nº serie', value: maquina.nroSerie, mono: true },
               { label: 'Vida / Obs.', value: maquina.vida },
@@ -145,8 +139,7 @@ function MaquinaTesoreriaDetail() {
 
         <CambiarEstadoForm
           idPrefix="maq"
-          estados={ESTADOS_OPERATIVOS}
-          labels={ESTADO_OPERATIVO_LABELS}
+          opciones={opcionesEnumCatalogo(estadoItems)}
           estadoSel={estadoSel}
           setEstadoSel={setEstadoSel}
           motivo={motivoEstado}
@@ -156,7 +149,7 @@ function MaquinaTesoreriaDetail() {
           msg={msgEstado}
         />
 
-        <HistorialEstadosSection historial={historial} />
+        <HistorialEstadosSection historial={historial} estadoItems={estadoItems} />
       </DetailOverlayShell>
 
       <InfraestructuraModal
@@ -169,7 +162,7 @@ function MaquinaTesoreriaDetail() {
         formState={modalForm}
         onChange={(e) => setModalForm({ ...modalForm, [e.target.name]: e.target.value })}
         fields={[
-          { name: 'tipo', label: 'Tipo', type: 'select', options: Object.keys(TIPO_LABELS).map(t => ({ value: t, label: TIPO_LABELS[t] })), required: true },
+          { name: 'tipo', label: 'Tipo', type: 'select', options: opcionesEnumCatalogo(tipoItems), required: true },
           { name: 'modelo', label: 'Modelo', type: 'text', required: true },
           { name: 'nroSerie', label: 'Nro Serie', type: 'text', required: true },
           { name: 'vida', label: 'Vida Útil / Observación', type: 'text' },

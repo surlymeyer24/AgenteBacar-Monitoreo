@@ -25,4 +25,6 @@ public class PerifericoManualCreateDTO {
     private String motivo;
     private String comboId;
     private String comboNombre;
+    private EspecificacionStockDTO especificacionStock;
+    private String numeroSerie;
 }

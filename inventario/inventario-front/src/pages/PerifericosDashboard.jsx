@@ -5,6 +5,8 @@ import {
   Keyboard, Printer, Monitor, Mouse, Webcam, Volume2, Mic, PackageOpen, Puzzle, Tv2, Smartphone,
 } from 'lucide-react';
 import { useDashboardStats, usePerifericosM, useTelevisores, useCelulares, useMonitoresAgente } from '../hooks/useQueries';
+import { fetchImpresorasAgrupadas } from '../api/impresoraApi';
+import { useQuery } from '@tanstack/react-query';
 import {
   StudioPageShell,
   StudioLoading,
@@ -34,6 +36,10 @@ function PerifericosDashboard() {
   const { data: televisores = [] } = useTelevisores();
   const { data: celularesList = [] } = useCelulares();
   const { data: monitores = [] } = useMonitoresAgente();
+  const { data: impresoras = [] } = useQuery({
+    queryKey: ['impresorasAgrupadas'],
+    queryFn: fetchImpresorasAgrupadas,
+  });
 
   const cargando = statsLoading;
   const error = null;
@@ -99,7 +105,9 @@ function PerifericosDashboard() {
             ? televisoresCount
             : link.key === 'Celulares'
               ? celularesCount
-              : Number(stats?.perifericosPorTipo?.[link.key] ?? 0);
+              : link.key === 'Impresoras'
+                ? impresoras.length
+                : Number(stats?.perifericosPorTipo?.[link.key] ?? 0);
           return (
             <StudioMetricCard
               key={link.key}

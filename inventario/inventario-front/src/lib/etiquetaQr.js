@@ -89,6 +89,7 @@ function htmlEtiquetas(etiquetas) {
         <div class="meta">
           <p class="host">${escapeHtml(e.hostname || 'Sin hostname')}</p>
           <p class="loc">${escapeHtml(e.ubicacionLabel || 'Sin ubicación')}</p>
+          <p class="asig">${escapeHtml(e.asignadoA || 'Sin asignar')}</p>
         </div>
       </article>`,
     )
@@ -143,6 +144,14 @@ function htmlEtiquetas(etiquetas) {
       text-transform: uppercase;
       letter-spacing: 0.03em;
       color: #000;
+    }
+    .asig {
+      margin: 1.5mm 0 0;
+      font-size: 8pt;
+      font-weight: 700;
+      line-height: 1.2;
+      word-break: break-word;
+      color: #111;
     }
     @media print {
       body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }

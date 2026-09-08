@@ -1,23 +1,70 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Link, useNavigate, Outlet } from 'react-router-dom';
-import { Package, CheckCircle, Monitor, Search, Filter, Plus, MapPin, X, Check, Edit2, Trash2, Laptop, UserCheck, ChevronDown, Layers } from 'lucide-react';
+import { Link, useNavigate, Outlet, useSearchParams } from 'react-router-dom';
+import { Package, CheckCircle, Monitor, Search, Filter, Plus, MapPin, X, Check, Edit2, Trash2, Laptop, UserCheck, ChevronDown, Layers, ArrowUpRight, Warehouse } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { fetchPerifericosM, actualizarPerifericoM, createPerifericoM, createComboPerifericoM, deletePerifericoM, asignarPerifericoM } from '../api/perifericoManualApi';
-import { fetchComputadoras, updateEstado, createComputadora } from '../api/computadoraApi';
-import { ESTADO_OPERATIVO_LABELS } from '../constants/estados';
-import { labelTipoStock, normalizarTipoStock, opcionesTipoStock } from '../constants/tiposStock';
+import { fetchPerifericosM, fetchPerifericoM, actualizarPerifericoM, createPerifericoM, createComboPerifericoM, deletePerifericoM, asignarPerifericoM, sacarUnidadStockM } from '../api/perifericoManualApi';
+import { fetchComputadoras, fetchComputadora, updateEstado, createComputadora, updateDatosStock, ingresarStock } from '../api/computadoraApi';
+import ArmarComboModal from '../components/ArmarComboModal';
+import ComputadoraStockFormFields from '../components/ComputadoraStockFormFields';
+import StockPcLoteFormFields from '../components/StockPcLoteFormFields';
+import FriendlySelect from '../components/FriendlySelect';
+import {
+  BadgeDisponibilidad,
+  BadgeUnidadTrazable,
+  StockEstadoLeyenda,
+  StockEstadosUnidad,
+  StockInfoBanner,
+} from '../components/StockEstadoBadges';
+import { labelTipoStock, normalizarTipoStock } from '../constants/tiposStock';
+import { useCatalogo, opcionesCatalogo, opcionesEnumCatalogo, labelsEnumCatalogo, labelDeCatalogo } from '../hooks/useCatalogo';
 import { StudioLoading, StudioError, StudioFilterBar } from '../components/studio/StudioUi';
 import TableFilters from '../components/TableFilters';
+import {
+  buildNombreFromSpec,
+  buildDefaultHostname,
+  computadoraDesdeSacarUnidad,
+  descripcionFromItem,
+  etiquetaFromItem,
+  resolveSpecFromItem,
+  specSearchText,
+  specToPayload,
+  normalizeCatalogValue,
+  normalizeUbicacionSede,
+  UBICACION_DEPOSITO_DEFAULT,
+} from '../utils/stockPcHelpers';
+import { filtrarPcsAsignables, opcionesPcAsignable } from '../utils/perifericoPcHelpers';
+
+function resolveTipoEquipoPc(pc) {
+  const te = pc?.tipoEquipo;
+  if (typeof te === 'string' && te.trim()) return te.trim();
+  if (te && typeof te === 'object' && te.tipo) return String(te.tipo).trim();
+  return pc?.especificacionEsperada?.tipoEquipo?.trim() || '';
+}
+
+function resolveCondicionPc(pc) {
+  return pc?.condicion?.trim()
+    || pc?.especificacionEsperada?.condicion?.trim()
+    || '';
+}
 
 export default function PerifericoManualList() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { items: tiposStockCatalogo } = useCatalogo('tipos_stock');
+  const { items: estadoItems } = useCatalogo('estados_operativos');
+  const { items: tiposEquipoItems } = useCatalogo('tipos_equipo');
+  const { items: condicionesItems } = useCatalogo('condiciones_equipo');
+  const { items: ubicCompItems } = useCatalogo('ubicaciones_computadora');
+  const estadoLabels = useMemo(() => labelsEnumCatalogo(estadoItems), [estadoItems]);
   const [activeTab, setActiveTab] = useState('perifericos');
+  const [formModeLotePc, setFormModeLotePc] = useState(false);
 
   const [lista, setLista] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
 
   const [pcsStock, setPcsStock] = useState([]);
+  const [pcsAsignables, setPcsAsignables] = useState([]);
   const [cargandoPcs, setCargandoPcs] = useState(true);
   const [errorPcs, setErrorPcs] = useState(null);
 
@@ -26,6 +73,7 @@ export default function PerifericoManualList() {
 
   // Modals state
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [formCargando, setFormCargando] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [formError, setFormError] = useState('');
 
@@ -34,8 +82,58 @@ export default function PerifericoManualList() {
   const [formTipo, setFormTipo] = useState('teclado');
   const [formFabricante, setFormFabricante] = useState('');
   const [formConexion, setFormConexion] = useState('');
-  const [formUbicacion, setFormUbicacion] = useState('');
+  const [formUbicacion, setFormUbicacion] = useState(UBICACION_DEPOSITO_DEFAULT);
   const [formCantidad, setFormCantidad] = useState('1');
+  const [formCpu, setFormCpu] = useState('');
+  const [formRam, setFormRam] = useState('');
+  const [formDisco, setFormDisco] = useState('');
+  const [formTipoEquipo, setFormTipoEquipo] = useState('');
+  const [formCondicion, setFormCondicion] = useState('');
+  const [formNumeroSerie, setFormNumeroSerie] = useState('');
+
+  const resetFormSpec = () => {
+    setFormCpu('');
+    setFormRam('');
+    setFormDisco('');
+    setFormTipoEquipo('');
+    setFormCondicion('');
+  };
+
+  const populateFormFromItem = (item) => {
+    if (!item) return;
+    const isLotePc = normalizarTipoStock(item.tipo) === 'computadora';
+    const resolvedSpec = isLotePc ? resolveSpecFromItem(item) : null;
+
+    setFormNombre(isLotePc ? descripcionFromItem(item) : (item.nombre || ''));
+    setFormTipo(normalizarTipoStock(item.tipo) || 'teclado');
+    setFormFabricante(item.fabricante || '');
+    setFormConexion(item.conexion || '');
+    setFormUbicacion(item.ubicacion || UBICACION_DEPOSITO_DEFAULT);
+    setFormCantidad(String(item.cantidad ?? 1));
+    setFormNumeroSerie(item.numeroSerie ?? '');
+    if (isLotePc) {
+      const tipoOpts = opcionesEnumCatalogo(tiposEquipoItems);
+      const condOpts = opcionesEnumCatalogo(condicionesItems);
+      setFormCpu(resolvedSpec.cpuModelo);
+      setFormRam(resolvedSpec.ramTotalGb);
+      setFormDisco(resolvedSpec.discoResumen);
+      setFormTipoEquipo(normalizeCatalogValue(resolvedSpec.tipoEquipo, tipoOpts));
+      setFormCondicion(normalizeCatalogValue(resolvedSpec.condicion, condOpts));
+    } else {
+      resetFormSpec();
+    }
+  };
+
+  const formSpecPreview = useMemo(
+    () => buildNombreFromSpec(specToPayload({
+      cpuModelo: formCpu,
+      ramTotalGb: formRam,
+      discoResumen: formDisco,
+      tipoEquipo: formTipoEquipo,
+      condicion: formCondicion,
+    })),
+    [formCpu, formRam, formDisco, formTipoEquipo, formCondicion],
+  );
 
   useEffect(() => {
     let cancel = false;
@@ -53,14 +151,43 @@ export default function PerifericoManualList() {
     fetchComputadoras()
       .then(data => {
         if (!cancel) {
-          const sinAsignar = (data ?? []).filter(pc => pc.estadoActual === 'Sin Asignar');
+          const todas = data ?? [];
+          const sinAsignar = todas.filter(pc => pc.estadoActual === 'Sin Asignar');
           setPcsStock(sinAsignar);
+          setPcsAsignables(filtrarPcsAsignables(todas));
         }
       })
       .catch(() => { if (!cancel) setErrorPcs('No se pudo cargar las computadoras en stock.'); })
       .finally(() => { if (!cancel) setCargandoPcs(false); });
     return () => { cancel = true; };
   }, []);
+
+  useEffect(() => {
+    const uuidEditar = searchParams.get('editarPc');
+    if (!uuidEditar) return undefined;
+
+    const tab = searchParams.get('tab');
+    if (tab === 'perifericos' || tab === 'lotes-pc' || tab === 'unidades') {
+      setActiveTab(tab);
+    }
+
+    let cancel = false;
+    fetchComputadora(uuidEditar)
+      .then((pc) => {
+        if (cancel || !pc) return;
+        handleOpenEditPc(pc);
+        const next = new URLSearchParams(searchParams);
+        next.delete('editarPc');
+        next.delete('tab');
+        setSearchParams(next, { replace: true });
+      })
+      .catch(() => {
+        if (!cancel) setEditPcError('No se pudo abrir la PC para editar.');
+      });
+
+    return () => { cancel = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- abrir solo cuando llega editarPc por URL
+  }, [searchParams.get('editarPc')]);
 
   const pcsNuevasStock = useMemo(() => {
     return lista.filter(c => normalizarTipoStock(c.tipo) === 'computadora');
@@ -69,7 +196,7 @@ export default function PerifericoManualList() {
   const itemsFiltrados = useMemo(() => {
     return lista.filter(c => {
       if (normalizarTipoStock(c.tipo) === 'computadora') return false;
-      const text = `${c.nombre || ''} ${c.fabricante || ''} ${c.id || ''} ${c.computadoraHostname || ''}`.toLowerCase();
+      const text = `${c.nombre || ''} ${c.fabricante || ''} ${c.id || ''} ${c.numeroSerie || ''} ${c.computadoraHostname || ''}`.toLowerCase();
       const matchesSearch = text.includes(buscar.toLowerCase());
       const matchesCategory = selectedCategory === 'All'
         || normalizarTipoStock(c.tipo) === normalizarTipoStock(selectedCategory);
@@ -93,7 +220,7 @@ export default function PerifericoManualList() {
         conexion: p.conexion,
         computadoraHostname: p.computadoraHostname,
         ubicacion: p.ubicacion,
-        notas: p.notas
+        notas: p.notas,
       });
     } catch (err) {
       console.error("Error actualizando stock:", err);
@@ -103,35 +230,66 @@ export default function PerifericoManualList() {
   };
 
   const handleOpenAdd = () => {
+    setFormModeLotePc(false);
     setEditingItem(null);
     setFormNombre('');
     setFormTipo('teclado');
     setFormFabricante('');
     setFormConexion('');
-    setFormUbicacion('');
+    setFormUbicacion(UBICACION_DEPOSITO_DEFAULT);
     setFormCantidad('1');
+    setFormNumeroSerie('');
+    resetFormSpec();
     setFormError('');
     setIsFormOpen(true);
   };
 
-  const handleOpenEdit = (p) => {
+  const handleOpenAddLotePc = () => {
+    setFormModeLotePc(true);
+    setEditingItem(null);
+    setFormNombre('');
+    setFormTipo('computadora');
+    setFormFabricante('');
+    setFormConexion('');
+    setFormUbicacion(UBICACION_DEPOSITO_DEFAULT);
+    setFormCantidad('1');
+    setFormNumeroSerie('');
+    resetFormSpec();
+    setIsFormOpen(true);
+  };
+
+  const handleOpenEdit = async (p) => {
+    const isLotePc = normalizarTipoStock(p.tipo) === 'computadora';
+    setFormModeLotePc(isLotePc);
     setEditingItem(p);
-    setFormNombre(p.nombre || '');
-    setFormTipo(normalizarTipoStock(p.tipo) || 'teclado');
-    setFormFabricante(p.fabricante || '');
-    setFormConexion(p.conexion || '');
-    setFormUbicacion(p.ubicacion || '');
-    setFormCantidad((p.cantidad ?? 1).toString());
     setFormError('');
     setIsFormOpen(true);
+    setFormCargando(true);
+    resetFormSpec();
+    setFormNombre('');
+    setFormFabricante('');
+    setFormConexion('');
+    setFormUbicacion(UBICACION_DEPOSITO_DEFAULT);
+    setFormCantidad('1');
+    setFormNumeroSerie('');
+    populateFormFromItem(p);
+
+    try {
+      const fresh = await fetchPerifericoM(p.id);
+      if (fresh) {
+        setEditingItem(fresh);
+        populateFormFromItem(fresh);
+        setLista(prev => prev.map(item => (item.id === fresh.id ? fresh : item)));
+      }
+    } catch {
+      setFormError('No se pudieron cargar los datos guardados.');
+    } finally {
+      setFormCargando(false);
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formNombre.trim()) {
-      setFormError('Por favor redacta el nombre del componente.');
-      return;
-    }
 
     const qty = parseInt(formCantidad, 10);
     if (isNaN(qty) || qty < 0) {
@@ -139,37 +297,72 @@ export default function PerifericoManualList() {
       return;
     }
 
+    const tipoFinal = formModeLotePc ? 'computadora' : normalizarTipoStock(formTipo);
+    const especificacionStock = formModeLotePc
+      ? specToPayload({
+        cpuModelo: formCpu,
+        ramTotalGb: formRam,
+        discoResumen: formDisco,
+        tipoEquipo: formTipoEquipo,
+        condicion: formCondicion,
+      })
+      : null;
+
+    if (formModeLotePc) {
+      if (!formCpu.trim()) {
+        setFormError('La CPU es obligatoria para stock de PCs.');
+        return;
+      }
+      const ram = parseInt(formRam, 10);
+      if (!Number.isFinite(ram) || ram <= 0) {
+        setFormError('La RAM (GB) es obligatoria y debe ser mayor a 0.');
+        return;
+      }
+    } else if (!formNombre.trim()) {
+      setFormError('Por favor redacta el nombre del componente.');
+      return;
+    }
+
+    const numeroSerieFinal = formNumeroSerie.trim() || undefined;
+
+    const nombreFinal = formModeLotePc
+      ? (formNombre.trim() || undefined)
+      : formNombre.trim();
+
     try {
       if (editingItem) {
-        // Update
         const payload = {
-          nombre: formNombre,
-          tipo: normalizarTipoStock(formTipo),
+          nombre: nombreFinal,
+          tipo: tipoFinal,
           fabricante: formFabricante,
           conexion: formConexion,
           cantidad: qty,
           computadoraHostname: editingItem.computadoraHostname,
           ubicacion: formUbicacion,
-          notas: editingItem.notas
+          notas: editingItem.notas,
+          ...(formModeLotePc ? { especificacionStock } : { numeroSerie: numeroSerieFinal }),
         };
-        await actualizarPerifericoM(editingItem.id, payload);
-        
-        // Optimistic UI update
-        setLista(prev => prev.map(item => item.id === editingItem.id ? { ...item, ...payload } : item));
+        const updated = await actualizarPerifericoM(editingItem.id, payload);
+        if (updated) {
+          setLista(prev => prev.map(item => (item.id === editingItem.id ? updated : item)));
+        }
       } else {
-        // Create
         const payload = {
-          nombre: formNombre,
-          tipo: normalizarTipoStock(formTipo),
+          nombre: nombreFinal,
+          tipo: tipoFinal,
           fabricante: formFabricante,
           conexion: formConexion,
           ubicacion: formUbicacion,
-          cantidad: qty
+          cantidad: qty,
+          ...(formModeLotePc ? { especificacionStock } : { numeroSerie: numeroSerieFinal }),
         };
         const created = await createPerifericoM(payload);
         setLista(prev => [...prev, created]);
+        if (formModeLotePc) setActiveTab('lotes-pc');
       }
       setIsFormOpen(false);
+      setFormModeLotePc(false);
+      resetFormSpec();
     } catch (err) {
       console.error("Error guardando periférico:", err);
       setFormError(err.message || 'Error al guardar el componente.');
@@ -205,7 +398,7 @@ export default function PerifericoManualList() {
       { tipo: 'teclado', nombre: '', fabricante: '', conexion: '', cantidad: '1' },
       { tipo: 'mouse', nombre: '', fabricante: '', conexion: '', cantidad: '1' },
     ]);
-    setComboUbicacion('');
+    setComboUbicacion(UBICACION_DEPOSITO_DEFAULT);
     setComboError('');
     setIsComboOpen(true);
   };
@@ -249,55 +442,83 @@ export default function PerifericoManualList() {
   };
 
   // --- PC Stock: search, assign modal state ---
-  const [buscarPc, setBuscarPc] = useState('');
+  const [buscarLote, setBuscarLote] = useState('');
+  const [buscarUnidad, setBuscarUnidad] = useState('');
+  const [sacarUnidadLote, setSacarUnidadLote] = useState(null);
+  const [sacarUnidadHostname, setSacarUnidadHostname] = useState('');
+  const [sacarUnidadMotivo, setSacarUnidadMotivo] = useState('');
+  const [sacarUnidadError, setSacarUnidadError] = useState('');
+  const [sacandoUnidad, setSacandoUnidad] = useState(false);
   const [asignarPc, setAsignarPc] = useState(null);
   const [asignarA, setAsignarA] = useState('');
   const [asignarMotivo, setAsignarMotivo] = useState('');
   const [asignando, setAsignando] = useState(false);
+  const [armarPc, setArmarPc] = useState(null);
 
   const [pcMenuOpen, setPcMenuOpen] = useState(false);
   const [nuevaPcOpen, setNuevaPcOpen] = useState(false);
   const [nuevaPcHostname, setNuevaPcHostname] = useState('');
   const [nuevaPcSo, setNuevaPcSo] = useState('');
   const [nuevaPcUbicacion, setNuevaPcUbicacion] = useState('');
-  const [nuevaPcUbicacionStock, setNuevaPcUbicacionStock] = useState('');
+  const [nuevaPcUbicacionStock, setNuevaPcUbicacionStock] = useState(UBICACION_DEPOSITO_DEFAULT);
   const [nuevaPcMotivo, setNuevaPcMotivo] = useState('');
+  const [nuevaPcTipoEquipo, setNuevaPcTipoEquipo] = useState('');
+  const [nuevaPcCondicion, setNuevaPcCondicion] = useState('');
   const [creandoPc, setCreandoPc] = useState(false);
+
+  const [editPcOpen, setEditPcOpen] = useState(false);
+  const [editPcCargando, setEditPcCargando] = useState(false);
+  const [editPc, setEditPc] = useState(null);
+  const [editPcSo, setEditPcSo] = useState('');
+  const [editPcUbicacion, setEditPcUbicacion] = useState('');
+  const [editPcUbicacionStock, setEditPcUbicacionStock] = useState('');
+  const [editPcTipoEquipo, setEditPcTipoEquipo] = useState('');
+  const [editPcCondicion, setEditPcCondicion] = useState('');
+  const [guardandoPcEdit, setGuardandoPcEdit] = useState(false);
+  const [ingresandoPcStock, setIngresandoPcStock] = useState(false);
+  const [editPcMotivoIngreso, setEditPcMotivoIngreso] = useState('Ingreso a stock');
+  const [editPcError, setEditPcError] = useState('');
 
   const [asignarDesdeListaOpen, setAsignarDesdeListaOpen] = useState(false);
 
   // --- Periférico: assign modal state ---
   const [asignarPeriferico, setAsignarPeriferico] = useState(null);
-  const [hostnameAsignar, setHostnameAsignar] = useState('');
+  const [pcUuidAsignar, setPcUuidAsignar] = useState('');
   const [motivoAsignarPerif, setMotivoAsignarPerif] = useState('');
   const [asignandoPerif, setAsignandoPerif] = useState(false);
 
-  const todasPcsStock = useMemo(() => {
-    const liberadas = pcsStock.map(pc => ({ ...pc, _origen: 'liberada' }));
-    const nuevas = pcsNuevasStock.map(p => ({
-      _origen: 'nueva',
-      _perifericoId: p.id,
-      hostname: p.nombre || '—',
-      uuid: p.id,
-      tipoEquipo: 'PC',
-      sistemaOperativo: null,
-      ubicacion: null,
-      cantidad: p.cantidad ?? 1,
-      fabricante: p.fabricante || null,
-      estadoActual: p.estado || 'Sin Asignar',
-      _ubicacionStock: p.ubicacion || null,
-    }));
-    return [...liberadas, ...nuevas];
-  }, [pcsStock, pcsNuevasStock]);
+  const opcionesPcAsignacion = useMemo(
+    () => opcionesPcAsignable(pcsAsignables),
+    [pcsAsignables],
+  );
 
-  const pcsFiltradas = useMemo(() => {
-    if (!buscarPc) return todasPcsStock;
-    const q = buscarPc.toLowerCase();
-    return todasPcsStock.filter(pc => {
+  const lotesFiltrados = useMemo(() => {
+    if (!buscarLote) return pcsNuevasStock;
+    const q = buscarLote.toLowerCase();
+    return pcsNuevasStock.filter(p => {
+      const text = `${p.nombre || ''} ${p.fabricante || ''} ${p.id || ''} ${p.ubicacion || ''} ${specSearchText(resolveSpecFromItem(p))}`.toLowerCase();
+      return text.includes(q);
+    });
+  }, [pcsNuevasStock, buscarLote]);
+
+  const unidadesFiltradas = useMemo(() => {
+    if (!buscarUnidad) return pcsStock;
+    const q = buscarUnidad.toLowerCase();
+    return pcsStock.filter(pc => {
       const text = `${pc.hostname || ''} ${pc.uuid || ''} ${pc.sistemaOperativo || ''} ${pc.tipoEquipo || ''} ${pc.ubicacion || ''} ${pc.fabricante || ''}`.toLowerCase();
       return text.includes(q);
     });
-  }, [todasPcsStock, buscarPc]);
+  }, [pcsStock, buscarUnidad]);
+
+  const totalUnidadesLotes = useMemo(
+    () => pcsNuevasStock.reduce((sum, p) => sum + (p.cantidad ?? 1), 0),
+    [pcsNuevasStock],
+  );
+
+  const unidadesConBaseline = useMemo(
+    () => pcsStock.filter(pc => pc.estadoConciliacion === 'BASELINE_LISTO').length,
+    [pcsStock],
+  );
 
   const handleAsignar = async () => {
     if (!asignarA.trim()) return;
@@ -317,23 +538,22 @@ export default function PerifericoManualList() {
   };
 
   const handleAsignarPeriferico = async () => {
-    if (!hostnameAsignar.trim() || !asignarPeriferico) return;
+    if (!pcUuidAsignar.trim() || !asignarPeriferico) return;
     setAsignandoPerif(true);
     try {
       const result = await asignarPerifericoM(
         asignarPeriferico.id,
-        hostnameAsignar.trim(),
+        pcUuidAsignar.trim(),
         motivoAsignarPerif.trim() || 'Asignación desde stock'
       );
       if (!result) {
         alert('No se encontró el periférico.');
         return;
       }
-      // Recargar lista: si cantidad > 1 el backend decrementa el lote y crea un registro nuevo
       const data = await fetchPerifericosM();
       setLista(data ?? []);
       setAsignarPeriferico(null);
-      setHostnameAsignar('');
+      setPcUuidAsignar('');
       setMotivoAsignarPerif('');
     } catch (err) {
       console.error('Error asignando periférico:', err);
@@ -351,6 +571,8 @@ export default function PerifericoManualList() {
         hostname: nuevaPcHostname.trim(),
         sistemaOperativo: nuevaPcSo.trim() || undefined,
         ubicacion: nuevaPcUbicacion || undefined,
+        tipoEquipo: nuevaPcTipoEquipo || undefined,
+        condicion: nuevaPcCondicion || undefined,
         motivo: nuevaPcMotivo.trim() || 'Alta de equipo al stock',
       });
       if (created && nuevaPcUbicacionStock.trim()) {
@@ -365,7 +587,9 @@ export default function PerifericoManualList() {
       setNuevaPcHostname('');
       setNuevaPcSo('');
       setNuevaPcUbicacion('');
-      setNuevaPcUbicacionStock('');
+      setNuevaPcUbicacionStock(UBICACION_DEPOSITO_DEFAULT);
+      setNuevaPcTipoEquipo('');
+      setNuevaPcCondicion('');
       setNuevaPcMotivo('');
     } catch (err) {
       console.error('Error creando PC:', err);
@@ -375,7 +599,152 @@ export default function PerifericoManualList() {
     }
   };
 
+  function handleOpenSacarUnidad(lote) {
+    setSacarUnidadLote(lote);
+    setSacarUnidadHostname(buildDefaultHostname(lote));
+    setSacarUnidadMotivo('');
+    setSacarUnidadError('');
+  }
+
+  async function handleConfirmSacarUnidad() {
+    if (!sacarUnidadLote) return;
+    setSacandoUnidad(true);
+    setSacarUnidadError('');
+    try {
+      const result = await sacarUnidadStockM(sacarUnidadLote.id, {
+        hostname: sacarUnidadHostname.trim() || undefined,
+        motivo: sacarUnidadMotivo.trim() || undefined,
+      });
+      if (result?.lote) {
+        setLista(prev => prev.map(item => (item.id === result.lote.id ? result.lote : item)));
+      }
+      if (result?.computadora) {
+        const pc = computadoraDesdeSacarUnidad(result.computadora, result.lote ?? sacarUnidadLote);
+        if (pc?.uuid) {
+          setPcsStock(prev => [...prev, pc]);
+        }
+      }
+      setSacarUnidadLote(null);
+      setActiveTab('unidades');
+    } catch (err) {
+      setSacarUnidadError(err.message || 'No se pudo sacar la unidad.');
+    } finally {
+      setSacandoUnidad(false);
+    }
+  }
+
   const getUbicacionStock = (pc) => pc.ubicacionStock?.trim() || null;
+
+  const populateEditPcForm = (pc) => {
+    if (!pc) return;
+    setEditPcSo(pc.sistemaOperativo || '');
+    setEditPcUbicacion(normalizeUbicacionSede(pc.ubicacion, ubicCompItems));
+    setEditPcUbicacionStock(getUbicacionStock(pc) || UBICACION_DEPOSITO_DEFAULT);
+    setEditPcTipoEquipo(normalizeCatalogValue(
+      resolveTipoEquipoPc(pc),
+      opcionesEnumCatalogo(tiposEquipoItems),
+    ));
+    setEditPcCondicion(normalizeCatalogValue(
+      resolveCondicionPc(pc),
+      opcionesEnumCatalogo(condicionesItems),
+    ));
+  };
+
+  async function handleOpenEditPc(pc) {
+    setEditPcError('');
+    setEditPcMotivoIngreso('Ingreso a stock');
+    setEditPc(pc);
+    setEditPcOpen(true);
+    setEditPcCargando(true);
+    populateEditPcForm(pc);
+
+    try {
+      const full = await fetchComputadora(pc.uuid);
+      if (full) {
+        setEditPc(full);
+        populateEditPcForm(full);
+        setPcsStock(prev => prev.map(p => (p.uuid === full.uuid ? { ...p, ...full } : p)));
+      }
+    } catch {
+      setEditPcError('No se pudieron cargar los datos de la computadora.');
+    } finally {
+      setEditPcCargando(false);
+    }
+  }
+
+  async function handleGuardarEditPc() {
+    if (!editPc) return;
+    setGuardandoPcEdit(true);
+    setEditPcError('');
+    try {
+      const updated = await updateDatosStock(editPc.uuid, {
+        sistemaOperativo: editPcSo.trim() || '',
+        ubicacion: editPcUbicacion || '',
+        ubicacionStock: editPcUbicacionStock.trim() || '',
+        tipoEquipo: editPcTipoEquipo || '',
+        condicion: editPcCondicion || '',
+      });
+      if (!updated) {
+        setEditPcError('No se encontró la computadora.');
+        return;
+      }
+      setPcsStock(prev => prev.map(p => (
+        p.uuid === editPc.uuid ? { ...p, ...updated } : p
+      )));
+      setEditPcOpen(false);
+      setEditPc(null);
+    } catch (err) {
+      setEditPcError(err.message || 'No se pudo guardar los cambios.');
+    } finally {
+      setGuardandoPcEdit(false);
+    }
+  }
+
+  async function handleIngresarPcStock() {
+    if (!editPc) return;
+    setIngresandoPcStock(true);
+    setEditPcError('');
+    const ubicDeposito = editPcUbicacionStock.trim() || UBICACION_DEPOSITO_DEFAULT;
+    const motivo = editPcMotivoIngreso.trim() || 'Ingreso a stock';
+
+    try {
+      const updated = await ingresarStock(editPc.uuid, {
+        sistemaOperativo: editPcSo.trim() || '',
+        ubicacion: editPcUbicacion || '',
+        ubicacionStock: ubicDeposito,
+        tipoEquipo: editPcTipoEquipo || '',
+        condicion: editPcCondicion || '',
+        motivo,
+      });
+
+      if (!updated) {
+        setEditPcError('No se pudo ingresar la PC al stock.');
+        return;
+      }
+
+      setPcsStock((prev) => {
+        const idx = prev.findIndex(p => p.uuid === updated.uuid);
+        if (idx >= 0) {
+          return prev.map(p => (p.uuid === updated.uuid ? { ...p, ...updated } : p));
+        }
+        return [...prev, updated];
+      });
+
+      setEditPcOpen(false);
+      setEditPc(null);
+      setActiveTab('unidades');
+    } catch (err) {
+      setEditPcError(err.message || 'No se pudo ingresar al stock.');
+    } finally {
+      setIngresandoPcStock(false);
+    }
+  }
+
+  const editPcYaEnDeposito = editPc?.estadoActual === 'Sin Asignar';
+
+  function puedeArmarPcStock(pc) {
+    return pc.origenAlta === 'STOCK' && pc.estadoConciliacion === 'SIN_BASELINE';
+  }
 
   if (activeTab === 'perifericos' && cargando) {
     return (
@@ -393,7 +762,7 @@ export default function PerifericoManualList() {
       </>
     );
   }
-  if (activeTab === 'computadoras' && cargandoPcs) {
+  if (activeTab === 'lotes-pc' && cargando) {
     return (
       <>
         <StudioLoading />
@@ -401,7 +770,23 @@ export default function PerifericoManualList() {
       </>
     );
   }
-  if (activeTab === 'computadoras' && errorPcs) {
+  if (activeTab === 'lotes-pc' && error) {
+    return (
+      <>
+        <StudioError message={error} />
+        <Outlet />
+      </>
+    );
+  }
+  if (activeTab === 'unidades' && cargandoPcs) {
+    return (
+      <>
+        <StudioLoading />
+        <Outlet />
+      </>
+    );
+  }
+  if (activeTab === 'unidades' && errorPcs) {
     return (
       <>
         <StudioError message={errorPcs} />
@@ -413,8 +798,8 @@ export default function PerifericoManualList() {
   // KPIs (excluye tipo "computadora" — esas van en la pestaña Computadoras)
   const listaPerif = lista.filter(p => normalizarTipoStock(p.tipo) !== 'computadora');
   const totalItemsCount = listaPerif.reduce((sum, p) => sum + (p.cantidad ?? 1), 0);
-  const totalAvailableCount = listaPerif.filter(p => p.estado === ESTADO_OPERATIVO_LABELS.SIN_ASIGNAR).reduce((sum, p) => sum + (p.cantidad ?? 1), 0);
-  const totalAssignedCount = listaPerif.filter(p => p.estado === ESTADO_OPERATIVO_LABELS.ASIGNADA).reduce((sum, p) => sum + (p.cantidad ?? 1), 0);
+  const totalAvailableCount = listaPerif.filter(p => p.estado === estadoLabels.SIN_ASIGNAR).reduce((sum, p) => sum + (p.cantidad ?? 1), 0);
+  const totalAssignedCount = listaPerif.filter(p => p.estado === estadoLabels.ASIGNADA).reduce((sum, p) => sum + (p.cantidad ?? 1), 0);
 
   const getCategoryColor = (category) => {
     switch (category?.toLowerCase()) {
@@ -428,14 +813,6 @@ export default function PerifericoManualList() {
     }
   };
 
-  const getEstadoColor = (estado) => {
-    if (estado === ESTADO_OPERATIVO_LABELS.ASIGNADA) return 'text-indigo-600 bg-indigo-50 border-indigo-200';
-    if (estado === ESTADO_OPERATIVO_LABELS.SIN_ASIGNAR) return 'text-emerald-600 bg-emerald-50 border-emerald-200';
-    if (estado === ESTADO_OPERATIVO_LABELS.EN_MANTENIMIENTO) return 'text-amber-600 bg-amber-50 border-amber-200';
-    if (estado === ESTADO_OPERATIVO_LABELS.BAJA) return 'text-red-600 bg-red-50 border-red-200';
-    return 'text-slate-600 bg-slate-50 border-slate-200';
-  }
-
   const uniqueCategories = [...new Set(lista.map(p => normalizarTipoStock(p.tipo)).filter(t => t && t !== 'computadora'))];
 
   return (
@@ -448,7 +825,9 @@ export default function PerifericoManualList() {
             <span>Inventario IT y Control de Suministros</span>
           </h1>
           <p className="text-sm text-slate-500 font-medium mt-1">
-            Registra los componentes de hardware adquiridos y gestiona de manera rápida cuántos están disponibles o ya asignados en resguardo.
+            {activeTab === 'perifericos' && 'Periféricos en depósito: teclados, monitores, mouse y otros componentes con control por cantidad.'}
+            {activeTab === 'lotes-pc' && 'Contás cuántas PCs hay de cada tipo (ej. 3× Ryzen 5600G 8GB). Stock por cantidad — sin hostname ni agente.'}
+            {activeTab === 'unidades' && 'Cada computadora tiene hostname y UUID. Armás el combo, asignás y conciliás con el agente CyberWatch.'}
           </p>
         </div>
 
@@ -471,7 +850,17 @@ export default function PerifericoManualList() {
           </div>
         )}
 
-        {activeTab === 'computadoras' && (
+        {activeTab === 'lotes-pc' && (
+          <button
+            onClick={handleOpenAddLotePc}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-bold text-sm transition-colors shadow-sm whitespace-nowrap ml-auto sm:ml-0"
+          >
+            <Plus className="w-4 h-4" />
+            Cargar al stock
+          </button>
+        )}
+
+        {activeTab === 'unidades' && (
           <div className="relative ml-auto sm:ml-0">
             <button
               onClick={() => setPcMenuOpen(prev => !prev)}
@@ -489,8 +878,8 @@ export default function PerifericoManualList() {
                     onClick={() => { setPcMenuOpen(false); setNuevaPcOpen(true); }}
                     className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 transition-colors"
                   >
-                    <Laptop className="w-4 h-4 text-emerald-600" />
-                    Agregar PC al stock
+                    <Laptop className="w-4 h-4 text-blue-600" />
+                    Nueva computadora
                   </button>
                   <div className="border-t border-slate-100" />
                   <button
@@ -508,7 +897,7 @@ export default function PerifericoManualList() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-slate-100 p-1 rounded-lg w-fit">
+      <div className="flex flex-wrap gap-1 bg-slate-100 p-1 rounded-lg w-fit">
         <button
           onClick={() => setActiveTab('perifericos')}
           className={`px-4 py-2 rounded-md text-sm font-bold transition-all flex items-center gap-2 ${
@@ -521,17 +910,31 @@ export default function PerifericoManualList() {
           Periféricos
         </button>
         <button
-          onClick={() => setActiveTab('computadoras')}
+          onClick={() => setActiveTab('lotes-pc')}
           className={`px-4 py-2 rounded-md text-sm font-bold transition-all flex items-center gap-2 ${
-            activeTab === 'computadoras'
+            activeTab === 'lotes-pc'
+              ? 'bg-white text-slate-900 shadow-sm'
+              : 'text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <Layers className="w-4 h-4" />
+          Stock de PCs
+          {totalUnidadesLotes > 0 && (
+            <span className="px-1.5 py-0.5 text-[10px] font-bold bg-teal-100 text-teal-700 rounded-full">{totalUnidadesLotes}</span>
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab('unidades')}
+          className={`px-4 py-2 rounded-md text-sm font-bold transition-all flex items-center gap-2 ${
+            activeTab === 'unidades'
               ? 'bg-white text-slate-900 shadow-sm'
               : 'text-slate-500 hover:text-slate-700'
           }`}
         >
           <Laptop className="w-4 h-4" />
           Computadoras
-          {todasPcsStock.length > 0 && (
-            <span className="px-1.5 py-0.5 text-[10px] font-bold bg-emerald-100 text-emerald-700 rounded-full">{todasPcsStock.length}</span>
+          {pcsStock.length > 0 && (
+            <span className="px-1.5 py-0.5 text-[10px] font-bold bg-blue-100 text-blue-700 rounded-full">{pcsStock.length}</span>
           )}
         </button>
       </div>
@@ -637,6 +1040,11 @@ export default function PerifericoManualList() {
                             Conexión: {c.conexion}
                           </p>
                         )}
+                        {c.numeroSerie && (
+                          <p className="text-[11px] text-slate-500 font-mono font-normal">
+                            S/N: {c.numeroSerie}
+                          </p>
+                        )}
                         {c.comboNombre && (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-violet-50 text-violet-700 border border-violet-200">
                             <Layers className="w-3 h-3" />
@@ -654,15 +1062,23 @@ export default function PerifericoManualList() {
 
                     <td className="py-4 px-5">
                       <div className="flex flex-col gap-1.5 items-start">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold border uppercase tracking-wide ${getEstadoColor(c.estado)}`}>
-                          {c.estado || 'SIN ESTADO'}
-                        </span>
-                        {(c.computadoraHostname || c.ubicacion) && (
+                        <BadgeDisponibilidad estadoActual={c.estado} estadoLabels={estadoLabels} />
+                        {(c.computadoraUuid || c.computadoraHostname || c.ubicacion) && (
                           <div className="flex items-center gap-1 text-slate-500 text-[11px] font-medium">
                             <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
-                            <span className="truncate max-w-[150px]" title={c.computadoraHostname || c.ubicacion}>
-                              {c.computadoraHostname || c.ubicacion}
-                            </span>
+                            {c.computadoraUuid ? (
+                              <Link
+                                to={`/computadoras/${encodeURIComponent(c.computadoraUuid)}`}
+                                className="truncate max-w-[150px] text-indigo-600 hover:underline"
+                                title={c.computadoraHostname || c.computadoraUuid}
+                              >
+                                {c.computadoraHostname || c.computadoraUuid.slice(0, 8)}
+                              </Link>
+                            ) : (
+                              <span className="truncate max-w-[150px]" title={c.computadoraHostname || c.ubicacion}>
+                                {c.computadoraHostname || c.ubicacion}
+                              </span>
+                            )}
                           </div>
                         )}
                       </div>
@@ -692,7 +1108,7 @@ export default function PerifericoManualList() {
                         <button
                           onClick={() => {
                             setAsignarPeriferico(c);
-                            setHostnameAsignar('');
+                            setPcUuidAsignar('');
                             setMotivoAsignarPerif('');
                           }}
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-xs transition-colors shadow-sm cursor-pointer"
@@ -719,125 +1135,250 @@ export default function PerifericoManualList() {
 
       </>)}
 
-      {activeTab === 'computadoras' && (
+      {activeTab === 'lotes-pc' && (
         <>
-          {/* PC Stock Metrics */}
+          <StockInfoBanner tipo="lotes" />
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="bg-white border border-slate-200 rounded-xl p-5 flex items-center gap-4 shadow-sm">
-              <div className="p-3 bg-emerald-50 text-emerald-600 rounded-lg">
-                <Laptop className="w-6 h-6" />
+              <div className="p-3 bg-teal-50 text-teal-600 rounded-lg">
+                <Layers className="w-6 h-6" />
               </div>
               <div>
-                <span className="text-sm text-slate-400 block font-bold uppercase tracking-wider mb-1">PCs Disponibles</span>
-                <span className="text-3xl font-black font-mono text-emerald-600">
-                  {pcsStock.length + pcsNuevasStock.reduce((sum, p) => sum + (p.cantidad ?? 1), 0)}
-                </span>
+                <span className="text-sm text-slate-400 block font-bold uppercase tracking-wider mb-1">Total unidades</span>
+                <span className="text-3xl font-black font-mono text-teal-600">{totalUnidadesLotes}</span>
               </div>
             </div>
             <div className="bg-white border border-slate-200 rounded-xl p-5 flex items-center gap-4 shadow-sm">
               <div className="p-3 bg-slate-100 text-slate-600 rounded-lg">
-                <MapPin className="w-6 h-6" />
+                <Package className="w-6 h-6" />
               </div>
               <div>
-                <span className="text-sm text-slate-400 block font-bold uppercase tracking-wider mb-1">Ubicaciones</span>
-                <span className="text-3xl font-black font-mono text-slate-900">
-                  {new Set([
-                    ...pcsStock.map(pc => getUbicacionStock(pc)),
-                    ...pcsNuevasStock.map(p => p.ubicacion),
-                  ].filter(Boolean)).size}
-                </span>
+                <span className="text-sm text-slate-400 block font-bold uppercase tracking-wider mb-1">Ítems distintos</span>
+                <span className="text-3xl font-black font-mono text-slate-900">{pcsNuevasStock.length}</span>
               </div>
             </div>
           </div>
 
-          {/* PC Search */}
           <StudioFilterBar>
             <TableFilters>
               <TableFilters.Search
-                value={buscarPc}
-                onChange={setBuscarPc}
+                value={buscarLote}
+                onChange={setBuscarLote}
+                placeholder="Buscar por CPU, RAM, descripción, ubicación..."
+              />
+            </TableFilters>
+          </StudioFilterBar>
+
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex-1 flex flex-col min-h-0">
+            <div className="overflow-x-auto overflow-y-auto flex-1">
+              <table className="w-full text-left border-collapse relative">
+                <thead className="sticky top-0 z-10">
+                  <tr className="bg-slate-50 border-b border-slate-200 text-xs font-extrabold text-slate-500 uppercase tracking-wider">
+                    <th className="py-4 px-5">Etiqueta</th>
+                    <th className="py-4 px-5">Descripción</th>
+                    <th className="py-4 px-5">Tipo de equipo</th>
+                    <th className="py-4 px-5">Condición</th>
+                    <th className="py-4 px-5">Disponibilidad</th>
+                    <th className="py-4 px-5">Ubicación</th>
+                    <th className="py-4 px-5 text-center">Cantidad</th>
+                    <th className="py-4 px-5 text-right">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-sm text-slate-700">
+                  {lotesFiltrados.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="py-12 px-4 text-center text-slate-400 font-medium">
+                        No hay ítems en stock de PCs. Usá &quot;Cargar al stock&quot; para registrar ej. 3× Ryzen 5600G 8GB.
+                      </td>
+                    </tr>
+                  ) : (
+                    lotesFiltrados.map(lote => {
+                      const loteSpec = resolveSpecFromItem(lote);
+                      return (
+                      <tr key={lote.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="py-4 px-5">
+                          <p className="text-xs font-semibold text-teal-800">{etiquetaFromItem(lote) || '—'}</p>
+                        </td>
+                        <td className="py-4 px-5">
+                          <span className="text-xs font-medium text-slate-700">{lote.nombre?.trim() || '—'}</span>
+                        </td>
+                        <td className="py-4 px-5">
+                          <span className="text-xs font-medium text-slate-700">
+                            {loteSpec.tipoEquipo
+                              ? labelDeCatalogo(tiposEquipoItems, loteSpec.tipoEquipo)
+                              : '—'}
+                          </span>
+                        </td>
+                        <td className="py-4 px-5">
+                          <span className="text-xs font-medium text-slate-700">
+                            {loteSpec.condicion
+                              ? labelDeCatalogo(condicionesItems, loteSpec.condicion)
+                              : '—'}
+                          </span>
+                        </td>
+                        <td className="py-4 px-5">
+                          <BadgeDisponibilidad estadoActual={lote.estado} estadoLabels={estadoLabels} />
+                        </td>
+                        <td className="py-4 px-5">
+                          <div className="flex items-center gap-1 text-slate-700 text-xs font-medium">
+                            <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                            <span>{lote.ubicacion || UBICACION_DEPOSITO_DEFAULT}</span>
+                          </div>
+                        </td>
+                        <td className="py-4 px-5 text-center">
+                          <span className="font-bold font-mono text-slate-900 text-base">{lote.cantidad ?? 1}</span>
+                        </td>
+                        <td className="py-4 px-5 text-right">
+                          <div className="inline-flex items-center justify-end gap-2">
+                            {(lote.cantidad ?? 0) > 0 && loteSpec.cpuModelo && (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenSacarUnidad(lote)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-bold text-xs transition-colors shadow-sm cursor-pointer"
+                                title="Crear computadora trazable y restar 1 del lote"
+                              >
+                                <ArrowUpRight className="w-3.5 h-3.5" />
+                                Sacar 1
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEdit(lote)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg font-bold text-xs transition-colors shadow-sm cursor-pointer"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                              Editar
+                            </button>
+                            <div className="inline-flex items-center gap-1 bg-slate-100 border border-slate-200 rounded p-1 shadow-sm">
+                              <button
+                                onClick={() => handleUpdateStock(lote, -1)}
+                                className="w-7 h-7 flex items-center justify-center rounded hover:bg-white hover:text-red-600 hover:shadow-xs text-slate-500 font-bold transition-all cursor-pointer"
+                                title="Restar 1 unidad"
+                              >-</button>
+                              <span className="text-slate-300 mx-0.5 text-xs">|</span>
+                              <button
+                                onClick={() => handleUpdateStock(lote, 1)}
+                                className="w-7 h-7 flex items-center justify-center rounded hover:bg-white hover:text-emerald-600 hover:shadow-xs text-slate-500 font-bold transition-all cursor-pointer"
+                                title="Sumar 1 unidad"
+                              >+</button>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
+
+      {activeTab === 'unidades' && (
+        <>
+          <StockInfoBanner tipo="unidades" />
+          <StockEstadoLeyenda variant="compact" />
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="bg-white border border-slate-200 rounded-xl p-5 flex items-center gap-4 shadow-sm">
+              <div className="p-3 bg-blue-50 text-blue-600 rounded-lg">
+                <Laptop className="w-6 h-6" />
+              </div>
+              <div>
+                <span className="text-sm text-slate-400 block font-bold uppercase tracking-wider mb-1">En depósito</span>
+                <span className="text-3xl font-black font-mono text-blue-600">{pcsStock.length}</span>
+              </div>
+            </div>
+            <div className="bg-white border border-slate-200 rounded-xl p-5 flex items-center gap-4 shadow-sm">
+              <div className="p-3 bg-violet-50 text-violet-600 rounded-lg">
+                <Package className="w-6 h-6" />
+              </div>
+              <div>
+                <span className="text-sm text-slate-400 block font-bold uppercase tracking-wider mb-1">Combo armado</span>
+                <span className="text-3xl font-black font-mono text-violet-600">{unidadesConBaseline}</span>
+              </div>
+            </div>
+          </div>
+
+          <StudioFilterBar>
+            <TableFilters>
+              <TableFilters.Search
+                value={buscarUnidad}
+                onChange={setBuscarUnidad}
                 placeholder="Buscar por hostname, UUID, SO..."
               />
             </TableFilters>
           </StudioFilterBar>
 
-          {/* PC Stock Table */}
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex-1 flex flex-col min-h-0">
             <div className="overflow-x-auto overflow-y-auto flex-1">
               <table className="w-full text-left border-collapse relative">
                 <thead className="sticky top-0 z-10">
                   <tr className="bg-slate-50 border-b border-slate-200 text-xs font-extrabold text-slate-500 uppercase tracking-wider">
                     <th className="py-4 px-5">Equipo</th>
-                    <th className="py-4 px-5">Origen</th>
+                    <th className="py-4 px-5">Estados</th>
                     <th className="py-4 px-5">Tipo / SO</th>
-                    <th className="py-4 px-5">Ubicación de Stock</th>
-                    <th className="py-4 px-5 text-center">Cant.</th>
+                    <th className="py-4 px-5">Ubicación</th>
                     <th className="py-4 px-5 text-right">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-sm text-slate-700">
-                  {pcsFiltradas.length === 0 ? (
+                  {unidadesFiltradas.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="py-12 px-4 text-center text-slate-400 font-medium">
-                        No hay computadoras disponibles en stock.
+                      <td colSpan={5} className="py-12 px-4 text-center text-slate-400 font-medium">
+                        No hay computadoras en depósito. Usá &quot;Nueva computadora&quot; para dar de alta una PC con hostname.
                       </td>
                     </tr>
                   ) : (
-                    pcsFiltradas.map(pc => (
-                      <tr key={pc._origen === 'nueva' ? `pm-${pc._perifericoId}` : pc.uuid} className="hover:bg-slate-50/50 transition-colors">
+                    unidadesFiltradas.map(pc => (
+                      <tr key={pc.uuid} className="hover:bg-slate-50/50 transition-colors">
                         <td className="py-4 px-5">
-                          {pc._origen === 'liberada' ? (
-                            <Link to={`/computadoras/${pc.uuid}`} className="font-mono font-bold text-blue-600 text-xs hover:underline hover:text-blue-800">
-                              {pc.hostname || pc.uuid?.slice(0, 8)}
-                            </Link>
-                          ) : (
-                            <div>
-                              <span className="font-bold text-slate-900 text-xs">{pc.hostname}</span>
-                              {pc.fabricante && <span className="text-[11px] text-slate-400 ml-1.5">{pc.fabricante}</span>}
-                            </div>
-                          )}
+                          <Link to={`/computadoras/${pc.uuid}`} className="font-mono font-bold text-blue-600 text-xs hover:underline hover:text-blue-800">
+                            {pc.hostname || pc.uuid?.slice(0, 8)}
+                          </Link>
+                          <div className="mt-1">
+                            <BadgeUnidadTrazable />
+                          </div>
                         </td>
                         <td className="py-4 px-5">
-                          {pc._origen === 'nueva' ? (
-                            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold border bg-emerald-50 text-emerald-700 border-emerald-200">
-                              Nueva
-                            </span>
-                          ) : (
-                            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold border bg-amber-50 text-amber-700 border-amber-200">
-                              Liberada
-                            </span>
-                          )}
+                          <StockEstadosUnidad pc={pc} estadoLabels={estadoLabels} />
                         </td>
                         <td className="py-4 px-5">
                           <span className="px-2.5 py-1 rounded-full text-[10px] font-bold border capitalize bg-slate-50 text-slate-700 border-slate-100">
-                            {pc._origen === 'liberada' ? (pc.tipoEquipo || 'PC') : 'PC'}
+                            {pc.tipoEquipo || 'PC'}
                           </span>
-                          {pc._origen === 'liberada' && pc.sistemaOperativo && (
+                          {pc.sistemaOperativo && (
                             <span className="text-[11px] text-slate-400 ml-1.5">{pc.sistemaOperativo}</span>
                           )}
                         </td>
                         <td className="py-4 px-5">
-                          {(() => {
-                            const ubStock = pc._origen === 'nueva' ? pc._ubicacionStock : getUbicacionStock(pc);
-                            return ubStock ? (
-                              <div className="flex items-center gap-1 text-slate-700 text-xs font-medium">
-                                <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
-                                <span>{ubStock}</span>
-                              </div>
-                            ) : (
-                              <span className="text-slate-400 text-xs">—</span>
-                            );
-                          })()}
-                        </td>
-                        <td className="py-4 px-5 text-center">
-                          {pc._origen === 'nueva' ? (
-                            <span className="font-bold font-mono text-slate-900 text-base">{pc.cantidad ?? 1}</span>
-                          ) : (
-                            <span className="font-mono text-slate-400 text-sm">1</span>
-                          )}
+                          <div className="flex items-center gap-1 text-slate-700 text-xs font-medium">
+                            <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                            <span>{getUbicacionStock(pc) || UBICACION_DEPOSITO_DEFAULT}</span>
+                          </div>
                         </td>
                         <td className="py-4 px-5 text-right">
-                          {pc._origen === 'liberada' ? (
+                          <div className="inline-flex flex-wrap items-center justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditPc(pc)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg font-bold text-xs transition-colors shadow-sm cursor-pointer"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                              Editar
+                            </button>
+                            {puedeArmarPcStock(pc) && (
+                              <button
+                                type="button"
+                                onClick={() => setArmarPc(pc)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-xs transition-colors shadow-sm cursor-pointer"
+                              >
+                                <Package className="w-3.5 h-3.5" />
+                                Armar
+                              </button>
+                            )}
                             <button
                               onClick={() => { setAsignarPc(pc); setAsignarA(''); setAsignarMotivo(''); }}
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-xs transition-colors shadow-sm cursor-pointer"
@@ -845,21 +1386,7 @@ export default function PerifericoManualList() {
                               <UserCheck className="w-3.5 h-3.5" />
                               Asignar
                             </button>
-                          ) : (
-                            <div className="inline-flex items-center gap-1 bg-slate-100 border border-slate-200 rounded p-1 shadow-sm">
-                              <button
-                                onClick={() => handleUpdateStock(lista.find(p => p.id === pc._perifericoId), -1)}
-                                className="w-7 h-7 flex items-center justify-center rounded hover:bg-white hover:text-red-600 hover:shadow-xs text-slate-500 font-bold transition-all cursor-pointer"
-                                title="Restar 1 unidad"
-                              >-</button>
-                              <span className="text-slate-300 mx-0.5 text-xs">|</span>
-                              <button
-                                onClick={() => handleUpdateStock(lista.find(p => p.id === pc._perifericoId), 1)}
-                                className="w-7 h-7 flex items-center justify-center rounded hover:bg-white hover:text-emerald-600 hover:shadow-xs text-slate-500 font-bold transition-all cursor-pointer"
-                                title="Sumar 1 unidad"
-                              >+</button>
-                            </div>
-                          )}
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -959,19 +1486,21 @@ export default function PerifericoManualList() {
               </div>
               <div className="p-5 space-y-4 text-xs font-bold text-slate-700">
                 <p className="text-slate-500 font-medium">
-                  Asigna 1 unidad del stock a una persona. Si hay más de 1 en stock, se descuenta del lote automáticamente.
+                  Vincula 1 unidad del stock a una PC trazable del inventario. Si hay más de 1 en stock, se descuenta del lote automáticamente.
                 </p>
                 <div>
-                  <label className="text-slate-700 block mb-1">Persona *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ej: Juan Pérez"
-                    value={hostnameAsignar}
-                    onChange={(e) => setHostnameAsignar(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent"
-                    autoComplete="off"
-                  />
+                  <label className="text-slate-700 block mb-1">PC de stock *</label>
+                  {pcsAsignables.length === 0 ? (
+                    <p className="text-amber-700 font-medium">No hay PCs trazables de stock disponibles.</p>
+                  ) : (
+                    <FriendlySelect
+                      name="pcUuidAsignarPerif"
+                      value={pcUuidAsignar}
+                      placeholder="Seleccionar PC…"
+                      options={opcionesPcAsignacion}
+                      onChange={setPcUuidAsignar}
+                    />
+                  )}
                 </div>
                 <div>
                   <label className="text-slate-700 block mb-1">Motivo</label>
@@ -993,7 +1522,7 @@ export default function PerifericoManualList() {
                   </button>
                   <button
                     onClick={handleAsignarPeriferico}
-                    disabled={!hostnameAsignar.trim() || asignandoPerif}
+                    disabled={!pcUuidAsignar.trim() || asignandoPerif || pcsAsignables.length === 0}
                     className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white rounded-lg font-bold shadow-xs flex items-center gap-1.5 cursor-pointer transition-colors"
                   >
                     <Check className="w-4 h-4" />
@@ -1018,74 +1547,40 @@ export default function PerifericoManualList() {
             >
               <div className="px-5 py-4 border-b border-slate-150 flex items-center justify-between bg-slate-50">
                 <span className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
-                  <Laptop className="w-4 h-4 text-emerald-600" />
-                  Agregar Computadora al Stock
+                  <Laptop className="w-4 h-4 text-blue-600" />
+                  Nueva computadora
                 </span>
                 <button onClick={() => setNuevaPcOpen(false)} className="p-1 hover:bg-slate-200 rounded text-slate-500 transition-colors">
                   <X className="w-4 h-4" />
                 </button>
               </div>
               <div className="p-5 space-y-4 text-xs font-bold text-slate-700">
-                <div>
-                  <label className="text-slate-700 block mb-1">Hostname *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ej: PC-ADMIN-01"
-                    value={nuevaPcHostname}
-                    onChange={(e) => setNuevaPcHostname(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent"
-                  />
+                <div className="p-3 bg-blue-50 border border-blue-200 text-blue-900 rounded-lg text-[11px] font-semibold">
+                  Alta de una PC con hostname y UUID. Podés armar combo y conciliar con AgenteBacar.
+                  Para contar stock sin hostname (ej. 3× Ryzen), usá la pestaña <strong>Stock de PCs</strong>.
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-slate-700 block mb-1">Sistema Operativo</label>
-                    <input
-                      type="text"
-                      placeholder="Ej: Windows 11 Pro"
-                      value={nuevaPcSo}
-                      onChange={(e) => setNuevaPcSo(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-slate-700 block mb-1">Ubicación (sede)</label>
-                    <select
-                      value={nuevaPcUbicacion}
-                      onChange={(e) => setNuevaPcUbicacion(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-slate-800 font-bold bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent"
-                    >
-                      <option value="">Sin definir</option>
-                      <option value="ADMINISTRACION">Administración</option>
-                      <option value="MONITOREO">Monitoreo</option>
-                      <option value="TESORERIA">Tesorería</option>
-                      <option value="CAPITAL_HUMANO">Capital Humano</option>
-                      <option value="SISTEMAS">Sistemas</option>
-                      <option value="SEGURIDAD_PRIVADA">Seguridad Privada</option>
-                      <option value="OPERACIONES">Operaciones</option>
-                    </select>
-                  </div>
-                </div>
-                <div>
-                  <label className="text-slate-700 block mb-1">Ubicación de Stock</label>
-                  <input
-                    type="text"
-                    placeholder="Ej: Depósito IT, Rack 3"
-                    value={nuevaPcUbicacionStock}
-                    onChange={(e) => setNuevaPcUbicacionStock(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="text-slate-700 block mb-1">Motivo</label>
-                  <input
-                    type="text"
-                    placeholder="Ej: Compra nueva, donación..."
-                    value={nuevaPcMotivo}
-                    onChange={(e) => setNuevaPcMotivo(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent"
-                  />
-                </div>
+                <ComputadoraStockFormFields
+                  hostname={nuevaPcHostname}
+                  onHostnameChange={setNuevaPcHostname}
+                  hostnameRequired
+                  sistemaOperativo={nuevaPcSo}
+                  onSistemaOperativoChange={setNuevaPcSo}
+                  ubicacionSede={nuevaPcUbicacion}
+                  onUbicacionSedeChange={setNuevaPcUbicacion}
+                  tipoEquipo={nuevaPcTipoEquipo}
+                  onTipoEquipoChange={setNuevaPcTipoEquipo}
+                  condicion={nuevaPcCondicion}
+                  onCondicionChange={setNuevaPcCondicion}
+                  ubicacionDeposito={nuevaPcUbicacionStock}
+                  onUbicacionDepositoChange={setNuevaPcUbicacionStock}
+                  motivo={nuevaPcMotivo}
+                  onMotivoChange={setNuevaPcMotivo}
+                  showMotivo
+                  tiposEquipoItems={tiposEquipoItems}
+                  condicionesItems={condicionesItems}
+                  ubicCompItems={ubicCompItems}
+                  accent="blue"
+                />
                 <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
                   <button
                     type="button"
@@ -1097,11 +1592,121 @@ export default function PerifericoManualList() {
                   <button
                     onClick={handleCrearPcStock}
                     disabled={!nuevaPcHostname.trim() || creandoPc}
-                    className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white rounded-lg font-bold shadow-xs flex items-center gap-1.5 cursor-pointer transition-colors"
+                    className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white rounded-lg font-bold shadow-xs flex items-center gap-1.5 cursor-pointer transition-colors"
                   >
                     <Check className="w-4 h-4" />
                     {creandoPc ? 'Creando...' : 'Agregar al Stock'}
                   </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* POPUP MODAL: Edit PC en stock (liberada) */}
+      <AnimatePresence>
+        {editPcOpen && editPc && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white border border-slate-200 rounded-xl max-w-lg w-full overflow-hidden shadow-xl max-h-[90vh] flex flex-col"
+            >
+              <div className="px-5 py-4 border-b border-slate-150 flex items-center justify-between bg-slate-50 shrink-0">
+                <span className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
+                  <Edit2 className="w-4 h-4 text-blue-600" />
+                  Editar {editPc.hostname || editPc.uuid?.slice(0, 8)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => { setEditPcOpen(false); setEditPc(null); }}
+                  className="p-1 hover:bg-slate-200 rounded text-slate-500 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="p-5 space-y-4 text-xs font-bold text-slate-700 overflow-y-auto flex-1">
+                {editPcCargando && (
+                  <div className="p-3 bg-slate-50 border border-slate-200 text-slate-600 rounded-lg text-[11px] font-semibold">
+                    Cargando datos guardados…
+                  </div>
+                )}
+                {editPcError && (
+                  <div className="p-3 bg-red-50 border border-red-200 text-red-900 rounded-lg text-[11px] font-semibold">
+                    {editPcError}
+                  </div>
+                )}
+
+                <ComputadoraStockFormFields
+                  hostname={editPc.hostname || ''}
+                  hostnameReadonly
+                  especificacionEsperada={editPc.especificacionEsperada}
+                  sistemaOperativo={editPcSo}
+                  onSistemaOperativoChange={setEditPcSo}
+                  ubicacionSede={editPcUbicacion}
+                  onUbicacionSedeChange={setEditPcUbicacion}
+                  tipoEquipo={editPcTipoEquipo}
+                  onTipoEquipoChange={setEditPcTipoEquipo}
+                  condicion={editPcCondicion}
+                  onCondicionChange={setEditPcCondicion}
+                  ubicacionDeposito={editPcUbicacionStock}
+                  onUbicacionDepositoChange={setEditPcUbicacionStock}
+                  tiposEquipoItems={tiposEquipoItems}
+                  condicionesItems={condicionesItems}
+                  ubicCompItems={ubicCompItems}
+                  accent="blue"
+                  disabled={editPcCargando || ingresandoPcStock}
+                />
+
+                {!editPcYaEnDeposito && (
+                  <div>
+                    <label className="text-slate-700 block mb-1">Motivo del ingreso</label>
+                    <input
+                      type="text"
+                      value={editPcMotivoIngreso}
+                      onChange={(e) => setEditPcMotivoIngreso(e.target.value)}
+                      disabled={editPcCargando || ingresandoPcStock}
+                      placeholder="Ej. Devolución desde usuario"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-teal-600 focus:border-transparent"
+                    />
+                  </div>
+                )}
+
+                <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-2">
+                  <div>
+                    {!editPcYaEnDeposito && (
+                      <button
+                        type="button"
+                        onClick={handleIngresarPcStock}
+                        disabled={ingresandoPcStock || editPcCargando || guardandoPcEdit}
+                        className="px-4 py-2 bg-teal-600 hover:bg-teal-700 disabled:bg-slate-300 text-white rounded-lg font-bold shadow-xs flex items-center gap-1.5 cursor-pointer transition-colors"
+                      >
+                        <Warehouse className="w-4 h-4" />
+                        {ingresandoPcStock ? 'Ingresando...' : 'Ingresar a stock'}
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setEditPcOpen(false); setEditPc(null); }}
+                    className="px-4 py-2 border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 font-bold transition-all cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleGuardarEditPc}
+                    disabled={guardandoPcEdit || editPcCargando || ingresandoPcStock}
+                    className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white rounded-lg font-bold shadow-xs flex items-center gap-1.5 cursor-pointer transition-colors"
+                  >
+                    <Check className="w-4 h-4" />
+                    {guardandoPcEdit ? 'Guardando...' : 'Guardar cambios'}
+                  </button>
+                </div>
                 </div>
               </div>
             </motion.div>
@@ -1132,16 +1737,16 @@ export default function PerifericoManualList() {
                 <input
                   type="text"
                   placeholder="Buscar por hostname..."
-                  value={buscarPc}
-                  onChange={(e) => setBuscarPc(e.target.value)}
+                  value={buscarUnidad}
+                  onChange={(e) => setBuscarUnidad(e.target.value)}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent"
                 />
               </div>
               <div className="overflow-y-auto flex-1 divide-y divide-slate-100">
-                {pcsFiltradas.length === 0 ? (
-                  <div className="py-8 text-center text-slate-400 text-sm font-medium">No hay PCs disponibles.</div>
+                {unidadesFiltradas.length === 0 ? (
+                  <div className="py-8 text-center text-slate-400 text-sm font-medium">No hay computadoras disponibles en depósito.</div>
                 ) : (
-                  pcsFiltradas.map(pc => (
+                  unidadesFiltradas.map(pc => (
                     <button
                       key={pc.uuid}
                       onClick={() => {
@@ -1256,8 +1861,8 @@ export default function PerifericoManualList() {
                             onChange={(e) => handleComboItemChange(idx, 'tipo', e.target.value)}
                             className="w-full px-2 py-1.5 border border-slate-200 rounded bg-white text-slate-800 font-semibold text-xs focus:outline-none focus:ring-2 focus:ring-violet-600 focus:border-transparent"
                           >
-                            {opcionesTipoStock(item.tipo).map(t => (
-                              <option key={t} value={t}>{labelTipoStock(t)}</option>
+                            {opcionesCatalogo(tiposStockCatalogo, item.tipo).map(t => (
+                              <option key={t.codigo} value={t.codigo}>{t.label}</option>
                             ))}
                           </select>
                         </div>
@@ -1332,17 +1937,27 @@ export default function PerifericoManualList() {
               <div className="px-5 py-4 border-b border-slate-150 flex items-center justify-between bg-slate-50">
                 <span className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
                   {editingItem ? <Edit2 className="w-4 h-4 text-blue-600" /> : <Package className="w-4 h-4 text-blue-600" />}
-                  <span>{editingItem ? `Modificar Suministro [${editingItem.id}]` : 'Registrar Nueva Adquisición IT'}</span>
+                  <span>
+                    {editingItem
+                      ? (formModeLotePc ? 'Modificar ítem de stock' : 'Modificar suministro')
+                      : (formModeLotePc ? 'Cargar stock de PC' : 'Registrar Nueva Adquisición IT')}
+                  </span>
                 </span>
                 <button 
-                  onClick={() => setIsFormOpen(false)}
+                  onClick={() => { setIsFormOpen(false); setFormModeLotePc(false); }}
                   className="p-1 hover:bg-slate-200 rounded text-slate-500 transition-colors"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <form onSubmit={handleSubmit} className="p-5 space-y-4 text-xs font-bold text-slate-700">
+              <form key={editingItem?.id ?? 'nuevo'} onSubmit={handleSubmit} className="p-5 space-y-4 text-xs font-bold text-slate-700">
+
+                {formCargando && (
+                  <div className="p-3 bg-slate-50 border border-slate-200 text-slate-600 rounded-lg text-[11px] font-semibold">
+                    Cargando datos guardados…
+                  </div>
+                )}
                 
                 {formError && (
                   <div className="p-3 bg-red-50 border border-red-200 text-red-900 rounded-lg text-[11px] font-semibold">
@@ -1350,6 +1965,33 @@ export default function PerifericoManualList() {
                   </div>
                 )}
 
+                {formModeLotePc ? (
+                  <StockPcLoteFormFields
+                    cpu={formCpu}
+                    onCpuChange={setFormCpu}
+                    ram={formRam}
+                    onRamChange={setFormRam}
+                    disco={formDisco}
+                    onDiscoChange={setFormDisco}
+                    tipoEquipo={formTipoEquipo}
+                    onTipoEquipoChange={setFormTipoEquipo}
+                    condicion={formCondicion}
+                    onCondicionChange={setFormCondicion}
+                    descripcion={formNombre}
+                    onDescripcionChange={setFormNombre}
+                    fabricante={formFabricante}
+                    onFabricanteChange={setFormFabricante}
+                    ubicacionDeposito={formUbicacion}
+                    onUbicacionDepositoChange={setFormUbicacion}
+                    cantidad={formCantidad}
+                    onCantidadChange={setFormCantidad}
+                    etiqueta={formSpecPreview}
+                    tiposEquipoItems={tiposEquipoItems}
+                    condicionesItems={condicionesItems}
+                    showIntroBanner={!editingItem}
+                    disabled={formCargando}
+                  />
+                ) : (
                 <div>
                   <label className="text-slate-700 block mb-1">Nombre Comercial de Hardware / Software *</label>
                   <input 
@@ -1361,7 +2003,9 @@ export default function PerifericoManualList() {
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
                   />
                 </div>
+                )}
 
+                {!formModeLotePc && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="text-slate-700 block mb-1">Categoría (Tipo)</label>
@@ -1371,8 +2015,10 @@ export default function PerifericoManualList() {
                       onChange={(e) => setFormTipo(e.target.value)}
                       className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
                     >
-                      {opcionesTipoStock(formTipo).map(t => (
-                        <option key={t} value={t}>{labelTipoStock(t)}</option>
+                      {opcionesCatalogo(tiposStockCatalogo, formTipo)
+                        .filter(t => normalizarTipoStock(t.codigo) !== 'computadora')
+                        .map(t => (
+                        <option key={t.codigo} value={t.codigo}>{t.label}</option>
                       ))}
                     </select>
                   </div>
@@ -1381,14 +2027,16 @@ export default function PerifericoManualList() {
                     <label className="text-slate-700 block mb-1">Fabricante (Marca)</label>
                     <input 
                       type="text"
-                      placeholder="Ej. Logitech, Dell"
+                      placeholder="Ej. Logitech, Dell, AMD"
                       value={formFabricante}
                       onChange={(e) => setFormFabricante(e.target.value)}
                       className="w-full px-3 py-2 border border-slate-200 rounded-lg text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
                     />
                   </div>
                 </div>
+                )}
 
+                {!formModeLotePc && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="text-slate-700 block mb-1">Conexión</label>
@@ -1402,20 +2050,34 @@ export default function PerifericoManualList() {
                   </div>
 
                   <div>
-                    <label className="text-slate-700 block mb-1">Ubicación</label>
+                    <label className="text-slate-700 block mb-1">
+                      Número de serie
+                      {normalizarTipoStock(formTipo) === 'monitor' && (
+                        <span className="text-teal-700 font-normal normal-case"> (recomendado para matching con agente)</span>
+                      )}
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ej. SN123456789"
+                      value={formNumeroSerie}
+                      onChange={(e) => setFormNumeroSerie(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-slate-800 font-mono font-semibold focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-slate-700 block mb-1">Ubicación (depósito)</label>
                     <input 
                       type="text"
-                      placeholder="Ej. Depósito 1"
+                      placeholder={UBICACION_DEPOSITO_DEFAULT}
                       value={formUbicacion}
                       onChange={(e) => setFormUbicacion(e.target.value)}
                       className="w-full px-3 py-2 border border-slate-200 rounded-lg text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
                     />
                   </div>
-                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-slate-700 block mb-1">Cantidad Total Adquirida *</label>
+                    <label className="text-slate-700 block mb-1">Cantidad *</label>
                     <input 
                       type="number"
                       min="1"
@@ -1426,6 +2088,7 @@ export default function PerifericoManualList() {
                     />
                   </div>
                 </div>
+                )}
 
                 <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-2">
                   <div>
@@ -1450,10 +2113,13 @@ export default function PerifericoManualList() {
                     </button>
                     <button 
                       type="submit"
-                      className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-xs flex items-center gap-1.5 cursor-pointer transition-colors"
+                      disabled={formCargando}
+                      className={`px-5 py-2 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg font-bold shadow-xs flex items-center gap-1.5 cursor-pointer transition-colors ${
+                        formModeLotePc ? 'bg-teal-600 hover:bg-teal-700' : 'bg-blue-600 hover:bg-blue-700'
+                      }`}
                     >
                       <Check className="w-4 h-4" />
-                      <span>Confirmar Registro</span>
+                      <span>{editingItem ? 'Guardar cambios' : 'Confirmar Registro'}</span>
                     </button>
                   </div>
                 </div>
@@ -1462,6 +2128,104 @@ export default function PerifericoManualList() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* POPUP MODAL: Sacar unidad del lote → computadora trazable */}
+      <AnimatePresence>
+        {sacarUnidadLote && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white border border-slate-200 rounded-xl max-w-md w-full overflow-hidden shadow-xl"
+            >
+              <div className="px-5 py-4 border-b border-slate-150 flex items-center justify-between bg-slate-50">
+                <span className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
+                  <ArrowUpRight className="w-4 h-4 text-teal-600" />
+                  Sacar 1 unidad del stock
+                </span>
+                <button onClick={() => setSacarUnidadLote(null)} className="p-1 hover:bg-slate-200 rounded text-slate-500 transition-colors">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="p-5 space-y-4 text-xs font-bold text-slate-700">
+                <div className="p-3 bg-teal-50 border border-teal-200 text-teal-900 rounded-lg text-[11px] font-semibold">
+                  Se crea una <strong>computadora trazable</strong> con las specs del lote y se resta 1 unidad del stock.
+                  Quedará en la pestaña <strong>Computadoras</strong> lista para armar combo.
+                </div>
+
+                <div>
+                  <p className="text-slate-500 font-medium mb-1">Lote</p>
+                  <p className="text-slate-900">{sacarUnidadLote.nombre || '—'}</p>
+                  <p className="text-[11px] text-slate-500 mt-1">{etiquetaFromItem(sacarUnidadLote) || '—'}</p>
+                  <p className="text-[11px] text-slate-400 mt-1">Disponibles: {sacarUnidadLote.cantidad ?? 1}</p>
+                </div>
+
+                {sacarUnidadError && (
+                  <div className="p-3 bg-red-50 border border-red-200 text-red-900 rounded-lg text-[11px] font-semibold">
+                    {sacarUnidadError}
+                  </div>
+                )}
+
+                <div>
+                  <label className="text-slate-700 block mb-1">Hostname *</label>
+                  <input
+                    type="text"
+                    required
+                    value={sacarUnidadHostname}
+                    onChange={(e) => setSacarUnidadHostname(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-slate-800 font-mono font-semibold focus:outline-none focus:ring-2 focus:ring-teal-600 focus:border-transparent"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-slate-700 block mb-1">Motivo</label>
+                  <input
+                    type="text"
+                    placeholder="Ej. Preparación de entrega"
+                    value={sacarUnidadMotivo}
+                    onChange={(e) => setSacarUnidadMotivo(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-teal-600 focus:border-transparent"
+                  />
+                </div>
+
+                <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSacarUnidadLote(null)}
+                    className="px-4 py-2 border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 font-bold transition-all cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleConfirmSacarUnidad}
+                    disabled={!sacarUnidadHostname.trim() || sacandoUnidad}
+                    className="px-5 py-2 bg-teal-600 hover:bg-teal-700 disabled:bg-slate-300 text-white rounded-lg font-bold shadow-xs flex items-center gap-1.5 cursor-pointer transition-colors"
+                  >
+                    <Check className="w-4 h-4" />
+                    {sacandoUnidad ? 'Creando…' : 'Sacar unidad'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {armarPc && (
+        <ArmarComboModal
+          computadora={armarPc}
+          onClose={() => setArmarPc(null)}
+          onSuccess={updated => {
+            if (updated?.uuid) {
+              setPcsStock(prev => prev.map(p => (p.uuid === updated.uuid ? { ...p, ...updated } : p)));
+            }
+            setArmarPc(null);
+          }}
+        />
+      )}
+
       <Outlet />
     </div>
   );

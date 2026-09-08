@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, Check, Monitor } from 'lucide-react';
 import { createComputadora } from '../api/computadoraApi';
-import { UBICACIONES_COMPUTADORA } from '../constants/ubicaciones';
+import { useCatalogo, opcionesEnumCatalogo } from '../hooks/useCatalogo';
 import { useComputadorasList } from '../context/ComputadorasListContext';
 import FriendlySelect from '../components/FriendlySelect';
 
@@ -12,12 +12,17 @@ const empty = {
   ubicacion: '',
   sistemaOperativo: '',
   arquitectura: '',
+  tipoEquipo: '',
+  condicion: '',
   motivo: '',
 };
 
 function ComputadoraNueva() {
   const navigate = useNavigate();
   const { mergeEnListado } = useComputadorasList();
+  const { items: ubicCompItems } = useCatalogo('ubicaciones_computadora');
+  const { items: tiposEquipoItems } = useCatalogo('tipos_equipo');
+  const { items: condicionesItems } = useCatalogo('condiciones_equipo');
   const [form, setForm] = useState(empty);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState(null);
@@ -48,6 +53,10 @@ function ComputadoraNueva() {
     if (ub) body.ubicacion = ub;
     if (so) body.sistemaOperativo = so;
     if (ar) body.arquitectura = ar;
+    const te = form.tipoEquipo.trim();
+    const co = form.condicion.trim();
+    if (te) body.tipoEquipo = te;
+    if (co) body.condicion = co;
     const mo = form.motivo.trim();
     if (mo) body.motivo = mo;
 
@@ -143,7 +152,7 @@ function ComputadoraNueva() {
                 placeholder="Sin definir"
                 options={[
                   { value: '', label: 'Sin definir' },
-                  ...UBICACIONES_COMPUTADORA.map(u => ({ value: u, label: u })),
+                  ...opcionesEnumCatalogo(ubicCompItems),
                 ]}
                 onChange={next => onChange({ target: { name: 'ubicacion', value: next } })}
               />
@@ -169,6 +178,36 @@ function ComputadoraNueva() {
                 onChange={onChange}
                 placeholder="Ej. x64"
                 className="inventory-input"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="block text-slate-600 uppercase text-xs tracking-wider">
+                Tipo de equipo
+              </label>
+              <FriendlySelect
+                name="tipoEquipo"
+                value={form.tipoEquipo}
+                placeholder="Sin definir"
+                options={[
+                  { value: '', label: 'Sin definir' },
+                  ...opcionesEnumCatalogo(tiposEquipoItems),
+                ]}
+                onChange={next => onChange({ target: { name: 'tipoEquipo', value: next } })}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="block text-slate-600 uppercase text-xs tracking-wider">
+                Condición
+              </label>
+              <FriendlySelect
+                name="condicion"
+                value={form.condicion}
+                placeholder="Sin definir"
+                options={[
+                  { value: '', label: 'Sin definir' },
+                  ...opcionesEnumCatalogo(condicionesItems),
+                ]}
+                onChange={next => onChange({ target: { name: 'condicion', value: next } })}
               />
             </div>
             <div className="space-y-1 sm:col-span-2">

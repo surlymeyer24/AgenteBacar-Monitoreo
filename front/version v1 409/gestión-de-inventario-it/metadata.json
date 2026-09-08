@@ -1,0 +1,6 @@
+{
+  "name": "Gestión de Inventario IT",
+  "description": "Sistema corporativo Bacarsa para administración de activos IT y módulo integral de trazabilidad stock ↔ agente CyberWatch C# (Fases 1 a 4).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

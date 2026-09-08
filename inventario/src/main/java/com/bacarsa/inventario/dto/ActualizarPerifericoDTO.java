@@ -22,4 +22,6 @@ public class ActualizarPerifericoDTO {
     private LocalDate fechaAlta;
     private String comboId;
     private String comboNombre;
+    private EspecificacionStockDTO especificacionStock;
+    private String numeroSerie;
 }

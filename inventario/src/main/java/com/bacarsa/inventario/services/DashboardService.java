@@ -3,11 +3,9 @@ package com.bacarsa.inventario.services;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
@@ -23,7 +21,6 @@ import com.bacarsa.inventario.models.Computadora;
 import com.bacarsa.inventario.models.DispositivoUsbFirestore;
 import com.bacarsa.inventario.models.Estado;
 import com.bacarsa.inventario.models.EstadoOperativo;
-import com.bacarsa.inventario.models.ImpresoraFirestore;
 import com.bacarsa.inventario.models.PerifericosFirestore;
 import com.bacarsa.inventario.models.Router;
 import com.bacarsa.inventario.models.SwitchRed;
@@ -33,9 +30,9 @@ import com.bacarsa.inventario.repository.AccessPointRepository;
 import com.bacarsa.inventario.repository.CamaraRepository;
 import com.bacarsa.inventario.repository.ComputadoraRepository;
 import com.bacarsa.inventario.repository.InternoIpRepository;
+import com.bacarsa.inventario.repository.NvrRepository;
 import com.bacarsa.inventario.repository.RouterRepository;
 import com.bacarsa.inventario.repository.SwitchRedRepository;
-import com.bacarsa.inventario.util.ImpresoraIpHelper;
 import com.google.cloud.Timestamp;
 
 @Service
@@ -54,19 +51,22 @@ public class DashboardService {
     private final SwitchRedRepository switchRedRepository;
     private final AccessPointRepository accessPointRepository;
     private final InternoIpRepository internoIpRepository;
+    private final NvrRepository nvrRepository;
 
     public DashboardService(ComputadoraRepository computadoraRepository,
             CamaraRepository camaraRepository,
             RouterRepository routerRepository,
             SwitchRedRepository switchRedRepository,
             AccessPointRepository accessPointRepository,
-            InternoIpRepository internoIpRepository) {
+            InternoIpRepository internoIpRepository,
+            NvrRepository nvrRepository) {
         this.computadoraRepository = computadoraRepository;
         this.camaraRepository = camaraRepository;
         this.routerRepository = routerRepository;
         this.switchRedRepository = switchRedRepository;
         this.accessPointRepository = accessPointRepository;
         this.internoIpRepository = internoIpRepository;
+        this.nvrRepository = nvrRepository;
     }
 
     public DashboardStatsDTO getStats() throws ExecutionException, InterruptedException {
@@ -76,8 +76,9 @@ public class DashboardService {
         CompletableFuture<List<SwitchRed>> fSw = supplyAsyncRepo(switchRedRepository::findAll);
         CompletableFuture<List<AccessPoint>> fAp = supplyAsyncRepo(accessPointRepository::findAll);
         CompletableFuture<Integer> fTel = supplyAsyncRepo(() -> internoIpRepository.findAll().size());
+        CompletableFuture<Integer> fNvr = supplyAsyncRepo(() -> nvrRepository.findAll().size());
         try {
-            CompletableFuture.allOf(fPc, fCam, fRou, fSw, fAp, fTel).join();
+            CompletableFuture.allOf(fPc, fCam, fRou, fSw, fAp, fTel, fNvr).join();
         } catch (CompletionException ex) {
             Throwable c = ex.getCause();
             if (c instanceof InterruptedException ie) {
@@ -101,6 +102,7 @@ public class DashboardService {
         // Totales
         stats.setTotalComputadoras(computadoras.size());
         stats.setTotalCamaras(camaras.size());
+        stats.setTotalNvrs(fNvr.join());
         stats.setTotalRouters(routers.size());
         stats.setTotalSwitches(switches.size());
         stats.setTotalAccessPoints(accessPoints.size());
@@ -132,17 +134,20 @@ public class DashboardService {
         stats.setComputadorasDesconectadas(computadoras.size() - conectadas);
 
         int totalPerifericos = 0;
+        int totalMonitores = 0;
         int syncActivoUmbral = 0;
         int syncIntermedio = 0;
         int sinActividad1h = 0;
         for (Computadora c : computadoras) {
             totalPerifericos += contarPerifericos(c);
+            totalMonitores += contarMonitores(c);
             switch (bandaActividadSync(c)) {
                 case ACTIVO -> syncActivoUmbral++;
                 case INTERMEDIO -> syncIntermedio++;
                 case SIN_ACTIVIDAD, SIN_DATOS -> sinActividad1h++;
             }
         }
+        stats.setTotalMonitores(totalMonitores);
         stats.setTotalPerifericos(totalPerifericos);
         stats.setPerifericosPorTipo(acumularPerifericosPorTipo(computadoras));
         stats.setComputadorasSyncMenos10Min(syncActivoUmbral);
@@ -245,13 +250,6 @@ public class DashboardService {
             return 0;
         }
         int n = 0;
-        if (p.getImpresoras() != null) {
-            for (ImpresoraFirestore imp : p.getImpresoras()) {
-                if (esImpresoraFisicaParaConteo(imp)) {
-                    n++;
-                }
-            }
-        }
         if (p.getDispositivosUsb() != null) {
             for (DispositivoUsbFirestore usb : p.getDispositivosUsb()) {
                 if (!debeOcultarUsbParaConteo(usb)) {
@@ -262,44 +260,29 @@ public class DashboardService {
         if (p.getMonitores() != null) {
             n += p.getMonitores().size();
         }
-        if (p.getAudio() != null) {
-            if (p.getAudio().getEntrada() != null) {
-                n += p.getAudio().getEntrada().size();
-            }
-            if (p.getAudio().getSalida() != null) {
-                n += p.getAudio().getSalida().size();
-            }
+        if (p.getAudio() != null && p.getAudio().getSalida() != null) {
+            n += p.getAudio().getSalida().size();
         }
         return n;
     }
 
-    private static int contarImpresorasUnicas(List<Computadora> computadoras) {
-        Set<String> ips = new HashSet<>();
-        for (Computadora c : computadoras) {
-            PerifericosFirestore p = c.getPerifericos();
-            if (p == null || p.getImpresoras() == null) continue;
-            for (ImpresoraFirestore imp : p.getImpresoras()) {
-                if (!esImpresoraFisicaParaConteo(imp)) continue;
-                String ip = ImpresoraIpHelper.extraerIp(imp.getPuerto());
-                if (ip == null) continue;
-                ips.add(ip);
-            }
+    private static int contarMonitores(Computadora c) {
+        PerifericosFirestore p = c.getPerifericos();
+        if (p == null || p.getMonitores() == null) {
+            return 0;
         }
-        return ips.size();
+        return p.getMonitores().size();
     }
 
     private static final List<String> ORDEN_PERIFERICOS_TIPO = List.of(
-            "Impresoras",
             "Monitores",
             "Teclados",
             "Mouse",
             "Webcams",
-            "Parlantes",
-            "Micrófonos");
+            "Parlantes");
 
     private Map<String, Integer> acumularPerifericosPorTipo(List<Computadora> computadoras) {
         Map<String, Integer> raw = new HashMap<>();
-        raw.put("Impresoras", contarImpresorasUnicas(computadoras));
         for (Computadora c : computadoras) {
             acumularPerifericosPorTipoDesdePc(c, raw);
         }
@@ -330,13 +313,8 @@ public class DashboardService {
                 mergeTipo(map, tipoUsb, 1);
             }
         }
-        if (p.getAudio() != null) {
-            if (p.getAudio().getEntrada() != null) {
-                mergeTipo(map, "Micrófonos", p.getAudio().getEntrada().size());
-            }
-            if (p.getAudio().getSalida() != null) {
-                mergeTipo(map, "Parlantes", p.getAudio().getSalida().size());
-            }
+        if (p.getAudio() != null && p.getAudio().getSalida() != null) {
+            mergeTipo(map, "Parlantes", p.getAudio().getSalida().size());
         }
     }
 
@@ -373,44 +351,6 @@ public class DashboardService {
             return "Bluetooth";
         }
         return "USB (otro)";
-    }
-
-    /** Misma idea que {@code esImpresoraFisica} en el front (excluye virtuales / PDF / etc.). */
-    private static boolean esImpresoraFisicaParaConteo(ImpresoraFirestore p) {
-        if (p == null) {
-            return false;
-        }
-        String ti = normLower(p.getTipoImpresora());
-        String t = normLower(p.getTipo());
-        if (ti.contains("virtual") || t.contains("virtual")) {
-            return false;
-        }
-        String nombre = normLower(p.getNombre());
-        String driver = normLower(p.getDriver());
-        String puerto = normLower(p.getPuerto());
-        String blob = nombre + " " + driver + " " + puerto;
-        if (blob.contains("anydesk") || puerto.contains("ad_port")) {
-            return false;
-        }
-        if (nombre.contains("microsoft print to pdf")) {
-            return false;
-        }
-        if (nombre.contains("microsoft xps document writer")) {
-            return false;
-        }
-        if (nombre.contains("onenote") || nombre.contains("send to onenote")) {
-            return false;
-        }
-        if (driver.contains("send to microsoft onenote")) {
-            return false;
-        }
-        if (driver.contains("microsoft shared fax driver")) {
-            return false;
-        }
-        if ("fax".equals(nombre) && driver.contains("fax")) {
-            return false;
-        }
-        return true;
     }
 
     /** Controlador HID genérico (HIDClass): no suma como periférico; alineado al filtro del front. */

@@ -20,12 +20,15 @@ public class PerifericoManualMapper {
         dto.setFabricante(p.getFabricante());
         dto.setConexion(p.getConexion());
         dto.setComputadoraHostname(p.getComputadoraHostname());
+        dto.setComputadoraUuid(p.getComputadoraUuid());
         dto.setUbicacion(p.getUbicacion());
         dto.setNotas(p.getNotas());
         dto.setEstado(p.getEstadoActual() == null ? null : p.getEstadoActual().getNombre());
         dto.setFechaAlta(parseFecha(p.getFechaAlta()));
         dto.setComboId(p.getComboId());
         dto.setComboNombre(p.getComboNombre());
+        dto.setEspecificacionStock(EspecificacionStockMapper.toDTO(p.getEspecificacionStock()));
+        dto.setNumeroSerie(p.getNumeroSerie());
         dto.setHistorialEstados(CambioEstadoMapper.toDTOList(p.getHistorialEstados()));
         return dto;
     }

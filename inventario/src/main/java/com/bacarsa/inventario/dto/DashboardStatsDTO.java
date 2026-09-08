@@ -13,9 +13,12 @@ import lombok.NoArgsConstructor;
 public class DashboardStatsDTO {
     private int totalComputadoras;
     private int totalCamaras;
-    /** Suma de impresoras, USB, monitores y dispositivos de audio (entrada/salida) en todas las PCs. */
+    private int totalNvrs;
+    /** Monitores reportados por el agente en todas las PCs. */
+    private int totalMonitores;
+    /** Suma de USB, monitores y dispositivos de audio (salida) en todas las PCs. Sin micrófonos ni impresoras. */
     private int totalPerifericos;
-    /** Conteos por tipo (Impresoras, Monitores, Teclados, …) alineados al inventario front. */
+    /** Conteos por tipo (Monitores, Teclados, …) alineados al inventario front. Sin impresoras. */
     private Map<String, Integer> perifericosPorTipo;
     /**
      * Equipos con última sync dentro del umbral “activo” (ciclo agente ~5 min + margen; ver DashboardService).

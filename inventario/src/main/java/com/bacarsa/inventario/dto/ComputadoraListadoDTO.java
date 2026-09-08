@@ -24,4 +24,10 @@ public class ComputadoraListadoDTO {
     private String responsableInventario;
     private String anydeskId;
     private String ubicacionStock;
+    private String condicion;
+    private String origenAlta;
+    private String estadoConciliacion;
+    private String comboEsperadoId;
+    private EspecificacionStockDTO especificacionEsperada;
+    private String loteOrigenId;
 }

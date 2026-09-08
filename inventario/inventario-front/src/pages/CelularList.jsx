@@ -9,11 +9,8 @@ import {
   actualizarCelular,
   deleteCelular,
 } from '../api/celularApi';
-import {
-  ESTADOS_CELULAR,
-  ESTADO_CELULAR_LABELS,
-  normalizarEstadoCelular,
-} from '../constants/celulares';
+import { normalizarEstadoCelular } from '../constants/celulares';
+import { useCatalogo, opcionesCatalogo, labelDeCatalogo } from '../hooks/useCatalogo';
 import {
   StudioPageShell,
   StudioPrimaryButton,
@@ -39,6 +36,7 @@ function estadoBadgeClass(estado) {
 }
 
 export default function CelularList() {
+  const { items: estadoDispItems } = useCatalogo('estados_dispositivo');
   const [lista, setLista] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
@@ -252,8 +250,8 @@ export default function CelularList() {
             className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs min-w-[140px]"
           >
             <option value="">Todos los estados</option>
-            {ESTADOS_CELULAR.map(e => (
-              <option key={e} value={e}>{ESTADO_CELULAR_LABELS[e]}</option>
+            {opcionesCatalogo(estadoDispItems).map(i => (
+              <option key={i.codigo} value={i.codigo}>{i.label}</option>
             ))}
           </select>
         </div>
@@ -280,7 +278,7 @@ export default function CelularList() {
                   </div>
                 </div>
                 <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-extrabold border ${estadoBadgeClass(cel.estado)}`}>
-                  {ESTADO_CELULAR_LABELS[cel.estado] ?? cel.estado}
+                  {labelDeCatalogo(estadoDispItems, cel.estado)}
                 </span>
               </div>
               <div className="text-sm text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-100 space-y-1">
@@ -416,8 +414,8 @@ export default function CelularList() {
                     onChange={e => setForm(f => ({ ...f, estado: e.target.value }))}
                     className="w-full p-2 border rounded-lg bg-slate-50 focus:ring-1 focus:ring-blue-600 font-normal"
                   >
-                    {ESTADOS_CELULAR.map(e => (
-                      <option key={e} value={e}>{ESTADO_CELULAR_LABELS[e]}</option>
+                    {opcionesCatalogo(estadoDispItems, form.estado).map(i => (
+                      <option key={i.codigo} value={i.codigo}>{i.label}</option>
                     ))}
                   </select>
                 </div>

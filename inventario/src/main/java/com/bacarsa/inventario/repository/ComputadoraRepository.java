@@ -5,6 +5,8 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.concurrent.ExecutionException;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -19,10 +21,18 @@ import com.bacarsa.inventario.models.Computadora;
 import com.bacarsa.inventario.models.DispositivoAudioFirestore;
 import com.bacarsa.inventario.models.DispositivoUsbFirestore;
 import com.bacarsa.inventario.models.Estado;
+import com.bacarsa.inventario.models.EstadoConciliacion;
+import com.bacarsa.inventario.models.MatchingJobEstado;
+import com.bacarsa.inventario.models.OrigenAlta;
 import com.bacarsa.inventario.models.ImpresoraFirestore;
 import com.bacarsa.inventario.models.MonitorFirestore;
+import com.bacarsa.inventario.models.PerifericosFirestore;
+import com.bacarsa.inventario.models.ProcesadorDetallado;
+import com.bacarsa.inventario.models.Ram;
+import com.bacarsa.inventario.models.RamPlaca;
 import com.bacarsa.inventario.models.Ubicacion;
 import com.bacarsa.inventario.util.AnydeskIdResolver;
+import com.bacarsa.inventario.util.FirestoreComputadoraParser;
 import com.bacarsa.inventario.util.FirestoreJsonHelper;
 import com.google.api.core.ApiFuture;
 import com.google.cloud.Timestamp;
@@ -247,6 +257,53 @@ public class ComputadoraRepository {
         firestore.collection(collectionName).document(uuid).update("ubicacion", ubicacion.name()).get();
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = "pc-listado", allEntries = true),
+            @CacheEvict(value = "pc-detalle", allEntries = true),
+            @CacheEvict(value = "computadoras-gordo", allEntries = true)
+    })
+    public void actualizarDatosStock(String uuid, String sistemaOperativo, String tipoEquipoRaw,
+            String condicion, Ubicacion ubicacion, String ubicacionStock)
+            throws ExecutionException, InterruptedException {
+        DocumentReference docRef = firestore.collection(collectionName).document(uuid);
+        Map<String, Object> updates = new HashMap<>();
+
+        if (sistemaOperativo != null) {
+            updates.put("sistema_operativo",
+                    sistemaOperativo.isBlank() ? FieldValue.delete() : sistemaOperativo);
+        }
+        if (tipoEquipoRaw != null) {
+            if (tipoEquipoRaw.isBlank()) {
+                updates.put("tipo_equipo", FieldValue.delete());
+            } else {
+                Map<String, Object> te = new HashMap<>();
+                te.put("tipo", tipoEquipoRaw);
+                DocumentSnapshot snap = docRef.get().get();
+                if (snap.exists()) {
+                    Object existing = snap.get("tipo_equipo");
+                    if (existing instanceof Map<?, ?> m && m.get("tiene_bateria") != null) {
+                        te.put("tiene_bateria", m.get("tiene_bateria"));
+                    }
+                }
+                updates.put("tipo_equipo", te);
+            }
+        }
+        if (condicion != null) {
+            updates.put("condicion", condicion.isBlank() ? FieldValue.delete() : condicion);
+        }
+        if (ubicacion != null) {
+            updates.put("ubicacion", ubicacion.name());
+        }
+        if (ubicacionStock != null) {
+            updates.put("ubicacion_stock",
+                    ubicacionStock.isBlank() ? FieldValue.delete() : ubicacionStock);
+        }
+
+        if (!updates.isEmpty()) {
+            docRef.update(updates).get();
+        }
+    }
+
     @Cacheable(value = "pc-detalle", key = "'hostname:' + #hostname")
     public Computadora findByHostname(String hostname) throws ExecutionException, InterruptedException {
         DocumentSnapshot doc = firestore.collection(collectionName)
@@ -302,13 +359,19 @@ public class ComputadoraRepository {
     }
 
     private Computadora documentToComputadora(DocumentSnapshot doc) {
-        Computadora c = doc.toObject(Computadora.class);
+        Computadora c;
+        try {
+            c = doc.toObject(Computadora.class);
+        } catch (RuntimeException ex) {
+            c = new Computadora();
+        }
         if (c == null) {
             c = new Computadora();
         }
         if (c.getUuid() == null || c.getUuid().isBlank()) {
             c.setUuid(doc.getId());
         }
+        enriquecerCamposBasicosDesdeDoc(c, doc);
         c.setUbicacion(Ubicacion.normalizar(c.getUbicacion()));
         Map<String, Object> data = doc.getData();
         if (data == null) {
@@ -330,8 +393,78 @@ public class ComputadoraRepository {
             }
         }
 
+        // Campos del agente: parseo manual desde el mapa crudo (tipos Firestore Long/int mixtos).
+        List<Ram> modulosRam = FirestoreComputadoraParser.parseModulosRam(data.get("modulos_ram"));
+        if (!modulosRam.isEmpty()) {
+            c.setModulos(modulosRam);
+        }
+        RamPlaca ramPlaca = FirestoreComputadoraParser.parseRamPlaca(data.get("ram_placa"));
+        if (ramPlaca != null) {
+            c.setRamPlaca(ramPlaca);
+        }
+        ProcesadorDetallado procesadorDetallado =
+                FirestoreComputadoraParser.parseProcesadorDetallado(data.get("procesador_detallado"));
+        if (procesadorDetallado != null) {
+            c.setProcesadorDetallado(procesadorDetallado);
+        }
+        if (c.getProcesadorRaw() == null || c.getProcesadorRaw().isBlank()) {
+            Object proc = data.get("procesador");
+            if (proc != null) {
+                c.setProcesadorRaw(String.valueOf(proc));
+            }
+        }
+        Double ramTotal = FirestoreComputadoraParser.toDouble(data.get("ram_total_gb"));
+        if (ramTotal != null) {
+            c.setRamTotalGb(ramTotal);
+        }
+        Double cpuUso = FirestoreComputadoraParser.toDouble(data.get("cpu_uso_porcentaje"));
+        if (cpuUso != null) {
+            c.setCpuUsoPorcentaje(cpuUso);
+        }
+        Double ramUso = FirestoreComputadoraParser.toDouble(data.get("ram_uso_porcentaje"));
+        if (ramUso != null) {
+            c.setRamUsoPorcentaje(ramUso);
+        }
+
+        if (c.getPerifericos() == null) {
+            PerifericosFirestore perifericos = doc.get("perifericos", PerifericosFirestore.class);
+            if (perifericos != null) {
+                c.setPerifericos(perifericos);
+            }
+        }
+
         return c;
     }
+
+    /** Campos de listado que deben existir aunque {@code toObject} falle parcialmente. */
+    private static void enriquecerCamposBasicosDesdeDoc(Computadora c, DocumentSnapshot doc) {
+        if (c.getHostname() == null || c.getHostname().isBlank()) {
+            c.setHostname(doc.getString("hostname"));
+        }
+        if (c.getSistemaOperativo() == null || c.getSistemaOperativo().isBlank()) {
+            c.setSistemaOperativo(doc.getString("sistema_operativo"));
+        }
+        if (c.getArquitectura() == null || c.getArquitectura().isBlank()) {
+            c.setArquitectura(doc.getString("arquitectura"));
+        }
+        if (c.getUbicacion() == null) {
+            String ubicRaw = doc.getString("ubicacion");
+            if (ubicRaw != null && !ubicRaw.isBlank()) {
+                try {
+                    c.setUbicacion(Ubicacion.normalizar(Ubicacion.valueOf(ubicRaw.trim())));
+                } catch (IllegalArgumentException ignored) {
+                    // valor legacy no enum; se deja null
+                }
+            }
+        }
+        if (c.getEstadoConexion() == null || c.getEstadoConexion().isBlank()) {
+            c.setEstadoConexion(doc.getString("estado_conexion"));
+        }
+        if (c.getResponsableInventario() == null || c.getResponsableInventario().isBlank()) {
+            c.setResponsableInventario(doc.getString("responsable_inventario"));
+        }
+    }
+
     @Caching(evict = {
             @CacheEvict(value = "pc-listado", allEntries = true),
             @CacheEvict(value = "pc-detalle", allEntries = true),
@@ -409,6 +542,100 @@ public class ComputadoraRepository {
             @CacheEvict(value = "pc-detalle", allEntries = true),
             @CacheEvict(value = "computadoras-gordo", allEntries = true)
     })
+    public void ingresarStock(String uuid, String sistemaOperativo, String tipoEquipoRaw,
+                              String condicion, Ubicacion ubicacion, String ubicacionStock,
+                              String motivo)
+            throws ExecutionException, InterruptedException {
+        DocumentReference docRef = firestore.collection(collectionName).document(uuid);
+
+        firestore.runTransaction(transaction -> {
+            DocumentSnapshot doc = transaction.get(docRef).get();
+            if (!doc.exists()) {
+                throw new IllegalArgumentException("Documento no encontrado: " + uuid);
+            }
+
+            Map<String, Object> updates = new HashMap<>();
+
+            // --- datos de stock (replica lógica de actualizarDatosStock) ---
+            if (sistemaOperativo != null) {
+                updates.put("sistema_operativo",
+                        sistemaOperativo.isBlank() ? FieldValue.delete() : sistemaOperativo);
+            }
+            if (tipoEquipoRaw != null) {
+                if (tipoEquipoRaw.isBlank()) {
+                    updates.put("tipo_equipo", FieldValue.delete());
+                } else {
+                    Map<String, Object> te = new HashMap<>();
+                    te.put("tipo", tipoEquipoRaw);
+                    Object existing = doc.get("tipo_equipo");
+                    if (existing instanceof Map<?, ?> m && m.get("tiene_bateria") != null) {
+                        te.put("tiene_bateria", m.get("tiene_bateria"));
+                    }
+                    updates.put("tipo_equipo", te);
+                }
+            }
+            if (condicion != null) {
+                updates.put("condicion", condicion.isBlank() ? FieldValue.delete() : condicion);
+            }
+            if (ubicacion != null) {
+                updates.put("ubicacion", ubicacion.name());
+            }
+            if (ubicacionStock != null) {
+                updates.put("ubicacion_stock",
+                        ubicacionStock.isBlank() ? FieldValue.delete() : ubicacionStock);
+            }
+
+            // --- estado SIN_ASIGNAR + historial (replica lógica de cambiarEstado) ---
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> historial = (List<Map<String, Object>>) doc.get("historialEstados");
+            if (historial == null) {
+                historial = new ArrayList<>();
+            } else {
+                historial = new ArrayList<>(historial);
+            }
+
+            Timestamp ahora = Timestamp.now();
+            for (int i = 0; i < historial.size(); i++) {
+                Map<String, Object> entrada = historial.get(i);
+                if (entrada.get("fechaHoraFin") == null) {
+                    Map<String, Object> copia = new HashMap<>(entrada);
+                    copia.put("fechaHoraFin", ahora);
+                    historial.set(i, copia);
+                }
+            }
+
+            Map<String, Object> estadoMap = new HashMap<>();
+            estadoMap.put("nombre", "Sin Asignar");
+            estadoMap.put("descripcion", "Equipo en inventario sin usuario/responsable asignado");
+
+            Map<String, Object> nuevaEntrada = new HashMap<>();
+            nuevaEntrada.put("estado", estadoMap);
+            nuevaEntrada.put("motivo", motivo != null ? motivo : "Ingreso a stock");
+            nuevaEntrada.put("fechaHoraInicio", ahora);
+            nuevaEntrada.put("fechaHoraFin", null);
+            if (ubicacionStock != null && !ubicacionStock.isBlank()) {
+                nuevaEntrada.put("ubicacion_stock", ubicacionStock);
+            }
+            historial.add(nuevaEntrada);
+
+            updates.put("historialEstados", historial);
+            updates.put("estadoActual", estadoMap);
+            updates.put("responsable_inventario", null);
+
+            if (ubicacionStock != null && !ubicacionStock.isBlank()) {
+                updates.put("ubicacion_stock", ubicacionStock);
+            }
+
+            transaction.update(docRef, updates);
+            return null;
+        }).get();
+    }
+
+    @Caching(evict = {
+            @CacheEvict(value = "pc-listado", allEntries = true),
+            @CacheEvict(value = "pc-detalle", allEntries = true),
+            @CacheEvict(value = "computadoras-gordo", allEntries = true)
+    })
     public void actualizarResponsableInventario(String uuid, String nuevoRI) throws ExecutionException, InterruptedException {
         DocumentReference docRef = firestore.collection(collectionName).document(uuid);
         docRef.update("responsable_inventario", nuevoRI).get();
@@ -445,5 +672,125 @@ public class ComputadoraRepository {
             total += chunk.size();
         }
         return total;
+    }
+
+    /** Sin caché — uso interno del job de matching. */
+    public List<Computadora> findAllSinCache() throws ExecutionException, InterruptedException {
+        List<QueryDocumentSnapshot> documents = firestore.collection(collectionName).get().get().getDocuments();
+        List<Computadora> result = new ArrayList<>();
+        for (QueryDocumentSnapshot doc : documents) {
+            result.add(documentToComputadora(doc));
+        }
+        return result;
+    }
+
+    public List<Computadora> findCandidatosStockBaselineListo(int ventanaDias)
+            throws ExecutionException, InterruptedException {
+        Instant limite = Instant.now().minus(ventanaDias, ChronoUnit.DAYS);
+        QuerySnapshot snap = firestore.collection(collectionName)
+                .whereEqualTo("origen_alta", OrigenAlta.STOCK.name())
+                .whereEqualTo("estado_conciliacion", EstadoConciliacion.BASELINE_LISTO.name())
+                .get().get();
+        List<Computadora> result = new ArrayList<>();
+        for (QueryDocumentSnapshot doc : snap.getDocuments()) {
+            Computadora c = documentToComputadora(doc);
+            if (c.getBaselineEsperado() == null || c.getBaselineEsperado().getArmadoAt() == null) {
+                continue;
+            }
+            if (c.getBaselineEsperado().getArmadoAt().toDate().toInstant().isBefore(limite)) {
+                continue;
+            }
+            result.add(c);
+        }
+        return result;
+    }
+
+    public List<ComputadoraListadoDTO> findStockSinAgente(int ventanaDias)
+            throws ExecutionException, InterruptedException {
+        Instant limite = Instant.now().minus(ventanaDias, ChronoUnit.DAYS);
+        QuerySnapshot snap = firestore.collection(collectionName)
+                .whereEqualTo("origen_alta", OrigenAlta.STOCK.name())
+                .whereEqualTo("estado_conciliacion", EstadoConciliacion.BASELINE_LISTO.name())
+                .get().get();
+        List<ComputadoraListadoDTO> result = new ArrayList<>();
+        for (QueryDocumentSnapshot doc : snap.getDocuments()) {
+            if (doc.getTimestamp("ultima_sincronizacion") != null) {
+                continue;
+            }
+            Timestamp armadoAt = doc.get("baseline_esperado.armado_at", Timestamp.class);
+            if (armadoAt != null && armadoAt.toDate().toInstant().isBefore(limite)) {
+                continue;
+            }
+            ComputadoraListadoDTO dto = ComputadoraListadoMapper.fromSnapshot(doc);
+            if (dto != null) {
+                result.add(dto);
+            }
+        }
+        return result;
+    }
+
+    @Caching(evict = {
+            @CacheEvict(value = "pc-listado", allEntries = true),
+            @CacheEvict(value = "pc-detalle", allEntries = true),
+            @CacheEvict(value = "computadoras-gordo", allEntries = true)
+    })
+    public void updateMatchingFields(String uuid, Map<String, Object> updates)
+            throws ExecutionException, InterruptedException {
+        if (updates == null || updates.isEmpty()) {
+            return;
+        }
+        firestore.collection(collectionName).document(uuid).update(updates).get();
+    }
+
+    @Caching(evict = {
+            @CacheEvict(value = "pc-listado", allEntries = true),
+            @CacheEvict(value = "pc-detalle", allEntries = true),
+            @CacheEvict(value = "computadoras-gordo", allEntries = true)
+    })
+    public void mergeUpdates(String uuid, Map<String, Object> updates)
+            throws ExecutionException, InterruptedException {
+        if (updates == null || updates.isEmpty()) {
+            return;
+        }
+        firestore.collection(collectionName).document(uuid)
+                .set(updates, com.google.cloud.firestore.SetOptions.merge()).get();
+    }
+
+    public DocumentSnapshot getDocumentSnapshot(String uuid) throws ExecutionException, InterruptedException {
+        return firestore.collection(collectionName).document(uuid).get().get();
+    }
+
+    public List<Computadora> findMatchingErrors() throws ExecutionException, InterruptedException {
+        QuerySnapshot snap = firestore.collection(collectionName)
+                .whereEqualTo("matching_job_estado", MatchingJobEstado.MATCHING_ERROR.name())
+                .limit(100)
+                .get().get();
+        List<Computadora> result = new ArrayList<>();
+        for (QueryDocumentSnapshot doc : snap.getDocuments()) {
+            result.add(documentToComputadora(doc));
+        }
+        return result;
+    }
+
+    public List<Computadora> findMatchingEnProcesoStale(long timeoutMinutes)
+            throws ExecutionException, InterruptedException {
+        Instant limite = Instant.now().minus(timeoutMinutes, ChronoUnit.MINUTES);
+        Timestamp tsLimite = Timestamp.ofTimeSecondsAndNanos(limite.getEpochSecond(), 0);
+        QuerySnapshot snap = firestore.collection(collectionName)
+                .whereEqualTo("matching_job_estado", MatchingJobEstado.MATCHING_EN_PROCESO.name())
+                .limit(200)
+                .get().get();
+        List<Computadora> result = new ArrayList<>();
+        for (QueryDocumentSnapshot doc : snap.getDocuments()) {
+            Timestamp enProcesoAt = doc.getTimestamp("matching_en_proceso_at");
+            if (enProcesoAt == null || enProcesoAt.compareTo(tsLimite) >= 0) {
+                continue;
+            }
+            result.add(documentToComputadora(doc));
+            if (result.size() >= 50) {
+                break;
+            }
+        }
+        return result;
     }
 }

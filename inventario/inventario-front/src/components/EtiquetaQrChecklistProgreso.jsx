@@ -10,6 +10,7 @@ import {
 import { labelUbicacionEnum } from '../constants/ubicaciones';
 import { actualizarProgresoLogistica, fetchProgresoLogistica } from '../api/etiquetaQrApi';
 import { FASES, calcularResumenProgreso } from '../utils/logisticaProgreso';
+import { useCatalogo } from '../hooks/useCatalogo';
 import { esPerifericoParaFichaQr } from '../utils/perifericos';
 
 const ESTILOS_FASE = {
@@ -64,6 +65,11 @@ function nombreUsuario(usuario) {
 }
 
 export function EtiquetaQrChecklistProgreso({ ficha }) {
+  const { items: faseItems } = useCatalogo('fases_etiquetado');
+  const fasesVista = useMemo(() => FASES.map(f => {
+    const cat = faseItems.find(i => i.codigo === f.id);
+    return cat ? { ...f, label: cat.label } : f;
+  }), [faseItems]);
   const [faseActiva, setFaseActiva] = useState('etiquetado');
   const [marcas, setMarcas] = useState({});
   const [actualizado, setActualizado] = useState(null);
@@ -182,7 +188,7 @@ export function EtiquetaQrChecklistProgreso({ ficha }) {
   }
 
   const estiloActivo = ESTILOS_FASE[faseActiva];
-  const faseInfo = FASES.find(f => f.id === faseActiva);
+  const faseInfo = fasesVista.find(f => f.id === faseActiva);
   const avanceFase = resumen.porFase[faseActiva];
   const faseCompleta = avanceFase.total > 0 && avanceFase.pct === 100;
   const fechaActualizado = fmtActualizado(actualizado);
@@ -229,17 +235,17 @@ export function EtiquetaQrChecklistProgreso({ ficha }) {
 
         <div className="px-1 sm:px-6 pt-1">
           <div className="flex items-start">
-            {FASES.map((fase, i) => {
+            {fasesVista.map((fase, i) => {
               const avance = resumen.porFase[fase.id];
               const hecha = avance.pct === 100;
               const activa = faseActiva === fase.id;
               const circuloOn = hecha || activa;
-              const lineaPct = i < FASES.length - 1
+              const lineaPct = i < fasesVista.length - 1
                 ? (hecha ? 100 : activa ? 50 : 0)
                 : null;
 
               return (
-                <div key={fase.id} className={`flex items-start ${i < FASES.length - 1 ? 'flex-1' : 'shrink-0'}`}>
+                <div key={fase.id} className={`flex items-start ${i < fasesVista.length - 1 ? 'flex-1' : 'shrink-0'}`}>
                   <button
                     type="button"
                     disabled={guardando}
@@ -332,7 +338,7 @@ export function EtiquetaQrChecklistProgreso({ ficha }) {
                     <span className="text-xs font-mono uppercase font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
                       {it.tipo}
                     </span>
-                    {FASES.filter(f => f.id !== faseActiva && marcas[f.id]?.[it.id]).map(f => (
+                    {fasesVista.filter(f => f.id !== faseActiva && marcas[f.id]?.[it.id]).map(f => (
                       <span
                         key={f.id}
                         className={`text-xs font-bold ${ESTILOS_FASE[f.id].texto}`}

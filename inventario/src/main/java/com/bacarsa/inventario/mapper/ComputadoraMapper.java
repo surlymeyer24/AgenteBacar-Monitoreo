@@ -52,7 +52,12 @@ public class ComputadoraMapper {
         dto.setProcesador(ProcesadorMapper.toDTO(
                 computadora.getProcesadorRaw(),
                 computadora.getNucleosFisicos(),
-                computadora.getArquitectura()));
+                computadora.getArquitectura(),
+                computadora.getProcesadorDetallado()));
+        dto.setRamPlaca(RamPlacaMapper.toDTO(computadora.getRamPlaca()));
+        dto.setRamTotalGb(computadora.getRamTotalGb());
+        dto.setCpuUsoPorcentaje(computadora.getCpuUsoPorcentaje());
+        dto.setRamUsoPorcentaje(computadora.getRamUsoPorcentaje());
         dto.setDiscos(computadora.getDiscos() == null
                 ? List.of()
                 : computadora.getDiscos().stream()
@@ -75,7 +80,33 @@ public class ComputadoraMapper {
         dto.setHistorialEstados(CambioEstadoMapper.toDTOList(computadora.getHistorialEstados()));
         dto.setResponsableInventario(computadora.getResponsableInventario());
         dto.setAnydeskId(computadora.getAnydeskId());
+        dto.setCondicion(computadora.getCondicion());
+        dto.setOrigenAlta(computadora.getOrigenAlta() != null ? computadora.getOrigenAlta().name() : null);
+        dto.setEstadoConciliacion(computadora.getEstadoConciliacion() != null ? computadora.getEstadoConciliacion().name() : null);
+        dto.setBaselineEsperado(BaselineEsperadoMapper.toDTO(computadora.getBaselineEsperado()));
+        dto.setComboEsperadoId(computadora.getComboEsperadoId());
+        dto.setPrimerReporteAgenteAt(formatUltimaSincronizacion(computadora.getPrimerReporteAgenteAt()));
+        dto.setMatchingJobEstado(computadora.getMatchingJobEstado() != null ? computadora.getMatchingJobEstado().name() : null);
+        dto.setScoreConciliacion(computadora.getScoreConciliacion());
+        dto.setFechaConciliacion(formatUltimaSincronizacion(computadora.getFechaConciliacion()));
+        dto.setAgenteUuid(computadora.getAgenteUuid());
+        dto.setLoteOrigenId(computadora.getLoteOrigenId());
+        dto.setEspecificacionEsperada(EspecificacionStockMapper.toDTO(computadora.getEspecificacionEsperada()));
+        dto.setUbicacionStock(extraerUbicacionStockVigente(computadora));
         return dto;
+    }
+
+    private static String extraerUbicacionStockVigente(Computadora computadora) {
+        if (computadora.getHistorialEstados() != null) {
+            for (int i = computadora.getHistorialEstados().size() - 1; i >= 0; i--) {
+                var cambio = computadora.getHistorialEstados().get(i);
+                if (cambio != null && cambio.esEstadoActual() && cambio.getUbicacionStock() != null
+                        && !cambio.getUbicacionStock().isBlank()) {
+                    return cambio.getUbicacionStock();
+                }
+            }
+        }
+        return null;
     }
 
     private static String formatUltimaSincronizacion(Timestamp ts) {

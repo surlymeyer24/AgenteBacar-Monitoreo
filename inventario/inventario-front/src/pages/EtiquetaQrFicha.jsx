@@ -140,7 +140,7 @@ export default function EtiquetaQrFicha() {
   function textoCompartir() {
     const url = urlFichaEtiqueta(ficha.uuid);
     const ubicacion = labelUbicacionEnum(ficha.ubicacion);
-    return `📦 *Ficha de Mudanza IT - Bacar*\n🖥️ *Equipo:* ${ficha.hostname} (${ficha.tipoEquipo})\n📍 *Ubicación:* ${ubicacion}\n👤 *Usuario:* ${ficha.usuarioActual || 'SYSTEM'}\n🔗 *Enlace:* ${url}`;
+    return `📦 *Ficha de Mudanza IT - Bacar*\n🖥️ *Equipo:* ${ficha.hostname} (${ficha.tipoEquipo})\n📍 *Ubicación:* ${ubicacion}\n👤 *Asignado a:* ${ficha.responsableInventario || 'Sin asignar'}\n🔗 *Enlace:* ${url}`;
   }
 
   async function handleCompartir() {
@@ -181,7 +181,7 @@ export default function EtiquetaQrFicha() {
         {
           qrDataUrl: qrUrl,
           hostname: ficha.hostname,
-          usuarioActual: ficha.usuarioActual,
+          asignadoA: ficha.responsableInventario,
           ubicacionLabel: labelUbicacionEnum(ficha.ubicacion),
         },
       ]);
@@ -463,6 +463,15 @@ export default function EtiquetaQrFicha() {
                     </span>
                     <p className="font-semibold text-slate-800 text-sm bg-white px-3 py-2 rounded-xl border border-slate-200">
                       {ficha.tipoEquipo}
+                    </p>
+                  </div>
+
+                  <div className="space-y-1">
+                    <span className="text-xs uppercase font-mono font-bold text-slate-500 block">
+                      Asignado a
+                    </span>
+                    <p className="font-semibold text-slate-800 text-sm bg-white px-3 py-2 rounded-xl border border-slate-200 break-words">
+                      {ficha.responsableInventario || 'Sin asignar'}
                     </p>
                   </div>
 

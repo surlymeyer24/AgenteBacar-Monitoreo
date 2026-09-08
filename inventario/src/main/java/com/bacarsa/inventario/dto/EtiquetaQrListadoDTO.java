@@ -11,6 +11,7 @@ public class EtiquetaQrListadoDTO {
     private String uuid;
     private String hostname;
     private String usuarioActual;
+    private String responsableInventario;
     private String ubicacion;
     private String tipoEquipo;
     private int cantidadMonitores;

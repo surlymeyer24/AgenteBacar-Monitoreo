@@ -32,6 +32,51 @@ service cloud.firestore {
           && (!('email'        in data) || (data.email        is string && data.email.size()        <= 200));
     }
 
+    // Perfil en usuarios/{uid} — get() en reglas no está sujeto a estas mismas reglas.
+    function perfilUsuario() {
+      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid));
+    }
+
+    function esUsuarioInventarioActivo() {
+      return request.auth != null
+          && perfilUsuario().exists
+          && perfilUsuario().data.activo == true;
+    }
+
+    function esAdministrador() {
+      return esUsuarioInventarioActivo()
+          && perfilUsuario().data.rol == 'ADMINISTRADOR';
+    }
+
+    // Alineado con PermisosContext / RoleAuthorizationFilter: USUARIO y ADMINISTRADOR escriben.
+    function puedeEscribirInventario() {
+      return esUsuarioInventarioActivo()
+          && (perfilUsuario().data.rol == 'ADMINISTRADOR'
+              || perfilUsuario().data.rol == 'USUARIO');
+    }
+
+    function camposWorkflowEventoHardware() {
+      return ['estado_seguimiento', 'leido', 'revisado_por', 'revisado_en', 'notas_it'];
+    }
+
+    function eventoHardwareWorkflowValido(data) {
+      return (!('estado_seguimiento' in data)
+              || (data.estado_seguimiento is string
+                  && data.estado_seguimiento in [
+                    'pendiente', 'en_revision', 'autorizado',
+                    'no_autorizado', 'falso_positivo']))
+          && (!('leido' in data) || data.leido is bool)
+          && (!('revisado_por' in data)
+              || data.revisado_por == null
+              || (data.revisado_por is string && data.revisado_por.size() <= 200))
+          && (!('revisado_en' in data)
+              || data.revisado_en == null
+              || data.revisado_en is timestamp)
+          && (!('notas_it' in data)
+              || data.notas_it == null
+              || (data.notas_it is string && data.notas_it.size() <= 4000));
+    }
+
     // -------------------------------------------------------------------------
     // config/ — cerrado salvo la lectura del doc del instalador
     // -------------------------------------------------------------------------
@@ -78,6 +123,27 @@ service cloud.firestore {
     match /logs_debug/{logId} {
       allow read:  if request.auth != null;
       allow write: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // eventos_hardware/ — auditoría de cambios HW (agente crea; IT gestiona workflow)
+    // -------------------------------------------------------------------------
+    // Create: solo Admin SDK del agente (service account). El front usa API REST;
+    // estas reglas defienden acceso directo desde el SDK de Firestore en el cliente.
+    // Read: cualquier usuario inventario activo (VISUALIZADOR incluido).
+    // Update: USUARIO o ADMINISTRADOR; solo campos de seguimiento IT.
+    // Delete: solo ADMINISTRADOR.
+    match /eventos_hardware/{eventoId} {
+      allow read: if esUsuarioInventarioActivo();
+
+      allow create: if false;
+
+      allow update: if puedeEscribirInventario()
+                    && request.resource.data.diff(resource.data)
+                         .affectedKeys().hasOnly(camposWorkflowEventoHardware())
+                    && eventoHardwareWorkflowValido(request.resource.data);
+
+      allow delete: if esAdministrador();
     }
 
     // -------------------------------------------------------------------------

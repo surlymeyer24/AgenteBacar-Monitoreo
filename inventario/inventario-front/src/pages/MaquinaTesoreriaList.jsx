@@ -6,7 +6,7 @@ import { maquinasTesoreriaSchema } from '../lib/importSchemas/maquinasTesoreriaS
 import InfraestructuraGrid from '../components/InfraestructuraGrid';
 import InfraestructuraModal from '../components/InfraestructuraModal';
 import TableFilters from '../components/TableFilters';
-import { ESTADOS_OPERATIVOS, ESTADO_OPERATIVO_LABELS } from '../constants/estados';
+import { useCatalogo, opcionesEnumCatalogo, labelDeCatalogo } from '../hooks/useCatalogo';
 import {
   StudioPageShell,
   StudioLoading,
@@ -21,15 +21,6 @@ import {
   studioTdClass,
 } from '../components/studio/StudioUi';
 
-const TIPOS = ['VALIDADORA', 'BOLSILLOS', 'RECONTADORA', 'ENVASADORA', 'FAJADORA'];
-const TIPO_LABELS = {
-  VALIDADORA: 'Validadora',
-  BOLSILLOS: 'Bolsillos',
-  RECONTADORA: 'Recontadora',
-  ENVASADORA: 'Envasadora',
-  FAJADORA: 'Fajadora',
-};
-
 const emptyForm = {
   tipo: '',
   modelo: '',
@@ -41,6 +32,8 @@ const emptyForm = {
 
 function MaquinaTesoreriaList() {
   const navigate = useNavigate();
+  const { items: estadoItems } = useCatalogo('estados_operativos');
+  const { items: tipoItems } = useCatalogo('tipos_maquina');
   const [lista, setLista] = useState([]);
   const [buscar, setBuscar] = useState('');
 
@@ -269,8 +262,8 @@ function MaquinaTesoreriaList() {
             className="bg-transparent border-none outline-none font-bold text-slate-800 cursor-pointer"
           >
             <option value="">Todos</option>
-            {TIPOS.map(t => (
-              <option key={t} value={t}>{TIPO_LABELS[t]}</option>
+            {opcionesEnumCatalogo(tipoItems).map(o => (
+              <option key={o.value} value={o.value}>{o.label}</option>
             ))}
           </select>
         </div>
@@ -299,8 +292,8 @@ function MaquinaTesoreriaList() {
                 onChange={e => onCampo('tipo', e.target.value)}
               >
                 <option value="">Seleccionar…</option>
-                {TIPOS.map(t => (
-                  <option key={t} value={t}>{TIPO_LABELS[t]}</option>
+                {opcionesEnumCatalogo(tipoItems).map(o => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
               </select>
 
@@ -335,8 +328,8 @@ function MaquinaTesoreriaList() {
                 value={form.estado}
                 onChange={e => onCampo('estado', e.target.value)}
               >
-                {ESTADOS_OPERATIVOS.map(k => (
-                  <option key={k} value={k}>{ESTADO_OPERATIVO_LABELS[k] ?? k}</option>
+                {opcionesEnumCatalogo(estadoItems).map(o => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
               </select>
 
@@ -383,11 +376,11 @@ function MaquinaTesoreriaList() {
         formState={modalForm}
         onChange={(e) => setModalForm({...modalForm, [e.target.name]: e.target.value})}
         fields={[
-          { name: 'tipo', label: 'Tipo', type: 'select', options: TIPOS.map(t => ({ value: t, label: TIPO_LABELS[t] })), required: true },
+          { name: 'tipo', label: 'Tipo', type: 'select', options: opcionesEnumCatalogo(tipoItems), required: true },
           { name: 'modelo', label: 'Modelo', type: 'text', required: true },
           { name: 'nroSerie', label: 'Nro Serie', type: 'text', required: true },
           { name: 'vida', label: 'Vida Útil / Observación', type: 'text' },
-          ...(isEditModal ? [{ name: 'estado', label: 'Estado', type: 'select', options: ESTADOS_OPERATIVOS.map(k => ({ value: k, label: ESTADO_OPERATIVO_LABELS[k] ?? k })) }] : [])
+          ...(isEditModal ? [{ name: 'estado', label: 'Estado', type: 'select', options: opcionesEnumCatalogo(estadoItems) }] : [])
         ]}
       />
 

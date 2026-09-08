@@ -11,6 +11,9 @@ import { fetchTelevisores } from '../api/televisorApi';
 import { fetchMonitoresReportadosAgente } from '../api/monitorApi';
 import { fetchCelulares } from '../api/celularApi';
 import { fetchEtiquetasQr, fetchProgresosLogistica } from '../api/etiquetaQrApi';
+import { fetchEventosHardware, fetchPendientesCount } from '../api/eventosHardwareApi';
+import { fetchConciliacionPendientesCount } from '../api/conciliacionApi';
+import { fetchResponsables, fetchResponsableDetalle } from '../api/responsableApi';
 
 export function useDashboardStats(options) {
   return useQuery({
@@ -132,6 +135,51 @@ export function useProgresosLogistica(options) {
     // al volver desde una ficha donde pudo cambiar el checklist.
     staleTime: 0,
     refetchOnWindowFocus: true,
+    ...options,
+  });
+}
+
+export function useEventosHardware(params = {}, options) {
+  return useQuery({
+    queryKey: ['eventosHardware', params],
+    queryFn: () => fetchEventosHardware(params),
+    ...options,
+  });
+}
+
+export function useEventosHardwarePendientesCount(options) {
+  return useQuery({
+    queryKey: ['eventosHardwarePendientesCount'],
+    queryFn: fetchPendientesCount,
+    staleTime: 60 * 1000,
+    refetchInterval: 2 * 60 * 1000,
+    ...options,
+  });
+}
+
+export function useConciliacionesPendientesCount(options) {
+  return useQuery({
+    queryKey: ['conciliacionesPendientesCount'],
+    queryFn: fetchConciliacionPendientesCount,
+    staleTime: 60 * 1000,
+    refetchInterval: 2 * 60 * 1000,
+    ...options,
+  });
+}
+
+export function useResponsables(options) {
+  return useQuery({
+    queryKey: ['responsables'],
+    queryFn: fetchResponsables,
+    ...options,
+  });
+}
+
+export function useResponsableDetalle(id, options) {
+  return useQuery({
+    queryKey: ['responsables', id],
+    queryFn: () => fetchResponsableDetalle(id),
+    enabled: Boolean(id),
     ...options,
   });
 }

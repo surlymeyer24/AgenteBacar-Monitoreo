@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Network } from 'lucide-react';
 import { fetchSwitch, cambiarEstadoSwitch, actualizarSwitch } from '../api/switchApi';
-import { ESTADOS_OPERATIVOS, ESTADO_OPERATIVO_LABELS } from '../constants/estados';
-import { UBICACIONES_RED, labelUbicacionEnum } from '../constants/ubicaciones';
+import { useCatalogo, labelDeCatalogo, opcionesEnumCatalogo } from '../hooks/useCatalogo';
 import InfraestructuraModal from '../components/InfraestructuraModal';
 import FriendlyDatePicker from '../components/FriendlyDatePicker';
 import FriendlySelect from '../components/FriendlySelect';
@@ -25,6 +24,8 @@ function parseVlans(texto) {
 function SwitchDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { items: ubicRedItems } = useCatalogo('ubicaciones_red');
+  const { items: estadoItems } = useCatalogo('estados_operativos');
   const [sw, setSw] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
@@ -163,7 +164,7 @@ function SwitchDetail() {
               { label: 'Cantidad de puertos', value: sw.cantidadPuertos },
               { label: 'Tipo', value: sw.tipo },
               { label: 'VLANs', value: vlansTxt, fullWidth: true },
-              { label: 'Ubicación', value: sw.ubicacion ? labelUbicacionEnum(sw.ubicacion) : null },
+              { label: 'Ubicación', value: sw.ubicacion ? labelDeCatalogo(ubicRedItems, sw.ubicacion) : null },
               { label: 'Estado (IT)', value: sw.estado },
               { label: 'Fecha alta', value: fmtFechaAlta(sw.fechaAlta) },
             ]}
@@ -172,8 +173,7 @@ function SwitchDetail() {
 
         <CambiarEstadoForm
           idPrefix="switch"
-          estados={ESTADOS_OPERATIVOS}
-          labels={ESTADO_OPERATIVO_LABELS}
+          opciones={opcionesEnumCatalogo(estadoItems)}
           estadoSel={estadoSel}
           setEstadoSel={setEstadoSel}
           motivo={motivoEstado}
@@ -183,7 +183,7 @@ function SwitchDetail() {
           msg={msgEstado}
         />
 
-        <HistorialEstadosSection historial={historial} />
+        <HistorialEstadosSection historial={historial} estadoItems={estadoItems} />
       </DetailOverlayShell>
 
       <InfraestructuraModal
@@ -209,7 +209,7 @@ function SwitchDetail() {
                 placeholder="Seleccionar…"
                 options={[
                   { value: '', label: 'Seleccionar…' },
-                  ...UBICACIONES_RED.map((u) => ({ value: u, label: labelUbicacionEnum(u) })),
+                  ...opcionesEnumCatalogo(ubicRedItems),
                 ]}
                 onChange={(next) => onChangeCampo({ target: { name: 'ubicacion', value: next } })}
               />

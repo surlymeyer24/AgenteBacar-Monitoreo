@@ -13,14 +13,19 @@ import com.bacarsa.inventario.dto.CambiarEstadoDTO;
 import com.bacarsa.inventario.dto.ComputadoraCreateDTO;
 import com.bacarsa.inventario.dto.ComputadoraDTO;
 import com.bacarsa.inventario.dto.ComputadoraListadoDTO;
+import com.bacarsa.inventario.dto.ComputadoraStockUpdateDTO;
+import com.bacarsa.inventario.dto.IngresarStockDTO;
 import com.bacarsa.inventario.mapper.ComputadoraMapper;
 import com.bacarsa.inventario.models.Computadora;
 import com.bacarsa.inventario.models.DispositivoAudioFirestore;
 import com.bacarsa.inventario.models.DispositivoUsbFirestore;
 import com.bacarsa.inventario.models.Estado;
+import com.bacarsa.inventario.models.EstadoConciliacion;
 import com.bacarsa.inventario.models.EstadoOperativo;
 import com.bacarsa.inventario.models.ImpresoraFirestore;
 import com.bacarsa.inventario.models.MonitorFirestore;
+import com.bacarsa.inventario.models.OrigenAlta;
+import com.bacarsa.inventario.models.TipoEquipo;
 import com.bacarsa.inventario.models.Ubicacion;
 import com.bacarsa.inventario.repository.ComputadoraRepository;
 
@@ -28,9 +33,12 @@ import com.bacarsa.inventario.repository.ComputadoraRepository;
 public class ComputadoraService {
 
     private final ComputadoraRepository computadoraRepository;
+    private final ResponsableService responsableService;
 
-    public ComputadoraService(ComputadoraRepository computadoraRepository) {
+    public ComputadoraService(ComputadoraRepository computadoraRepository,
+            ResponsableService responsableService) {
         this.computadoraRepository = computadoraRepository;
+        this.responsableService = responsableService;
     }
 
     public List<ComputadoraListadoDTO> getAllComputadoras() throws ExecutionException, InterruptedException {
@@ -89,6 +97,16 @@ public class ComputadoraService {
             }
         }
 
+        String tipoEquipoRaw = blankToNull(dto.getTipoEquipo());
+        if (tipoEquipoRaw != null) {
+            TipoEquipo te = new TipoEquipo();
+            te.setTipo(tipoEquipoRaw);
+            pc.setTipoEquipo(te);
+        }
+        pc.setCondicion(blankToNull(dto.getCondicion()));
+        pc.setOrigenAlta(OrigenAlta.STOCK);
+        pc.setEstadoConciliacion(EstadoConciliacion.SIN_BASELINE);
+
         computadoraRepository.create(pc);
 
         String motivoAlta = (dto.getMotivo() != null && !dto.getMotivo().isBlank())
@@ -141,6 +159,74 @@ public class ComputadoraService {
         return (s == null || s.isBlank()) ? null : s.trim();
     }
 
+    public ComputadoraDTO actualizarDatosStock(String uuid, ComputadoraStockUpdateDTO dto)
+            throws ExecutionException, InterruptedException {
+        if (computadoraRepository.findByUuid(uuid) == null) {
+            return null;
+        }
+
+        Ubicacion ubicacion = null;
+        if (dto.getUbicacion() != null && !dto.getUbicacion().isBlank()) {
+            try {
+                ubicacion = Ubicacion.valueOf(dto.getUbicacion().trim());
+            } catch (IllegalArgumentException ex) {
+                throw new IllegalArgumentException("Ubicación inválida: " + dto.getUbicacion(), ex);
+            }
+        }
+
+        computadoraRepository.actualizarDatosStock(
+                uuid,
+                dto.getSistemaOperativo(),
+                dto.getTipoEquipo(),
+                dto.getCondicion(),
+                ubicacion,
+                dto.getUbicacionStock());
+        return getByUuid(uuid);
+    }
+
+    public ComputadoraDTO ingresarStock(String uuid, IngresarStockDTO dto)
+            throws ExecutionException, InterruptedException {
+        var pc = computadoraRepository.findByUuid(uuid);
+        if (pc == null) {
+            return null;
+        }
+
+        String riAnterior = pc.getResponsableInventario();
+        String hostname = pc.getHostname();
+        String ubicacionPc = pc.getUbicacion() == null ? null : pc.getUbicacion().name();
+
+        Ubicacion ubicacion = null;
+        if (dto.getUbicacion() != null && !dto.getUbicacion().isBlank()) {
+            try {
+                ubicacion = Ubicacion.valueOf(dto.getUbicacion().trim());
+            } catch (IllegalArgumentException ex) {
+                throw new IllegalArgumentException("Ubicación inválida: " + dto.getUbicacion(), ex);
+            }
+        }
+
+        String motivo = blankToNull(dto.getMotivo());
+        if (motivo == null) {
+            motivo = "Ingreso a stock";
+        }
+
+        computadoraRepository.ingresarStock(uuid,
+                dto.getSistemaOperativo(),
+                dto.getTipoEquipo(),
+                dto.getCondicion(),
+                ubicacion,
+                dto.getUbicacionStock(),
+                motivo);
+
+        ComputadoraDTO result = getByUuid(uuid);
+
+        responsableService.sincronizarAsignacionPc(
+                uuid, riAnterior,
+                result != null ? result.getResponsableInventario() : null,
+                hostname, ubicacionPc);
+
+        return result;
+    }
+
     public ComputadoraDTO actualizarUbicacion(String uuid, String ubicacionRaw)
             throws ExecutionException, InterruptedException {
         Ubicacion ubicacion;
@@ -174,6 +260,10 @@ public class ComputadoraService {
             }
         }
 
+        String riAnterior = pc.getResponsableInventario();
+        String hostname = pc.getHostname();
+        String ubicacionPc = pc.getUbicacion() == null ? null : pc.getUbicacion().name();
+
         String ubicacionStock = null;
         String responsableInventario = null;
         boolean limpiarResponsable = false;
@@ -192,25 +282,49 @@ public class ComputadoraService {
         String riParaRepo = limpiarResponsable ? "" : responsableInventario;
         computadoraRepository.cambiarEstado(uuid, estado, dto.getMotivo(),
                 ubicacionStock, riParaRepo);
-        return getByUuid(uuid);
+        ComputadoraDTO result = getByUuid(uuid);
+        if (!"DERIVAR_ASIGNACION".equalsIgnoreCase(trimmed)) {
+            responsableService.sincronizarAsignacionPc(
+                    uuid,
+                    riAnterior,
+                    result != null ? result.getResponsableInventario() : null,
+                    hostname,
+                    ubicacionPc);
+        }
+        return result;
     }
 
     public boolean eliminar(String uuid) throws ExecutionException, InterruptedException {
-        return computadoraRepository.deleteByUuid(uuid);
+        Computadora pc = computadoraRepository.findByUuid(uuid);
+        if (pc == null) {
+            return false;
+        }
+        String riAnterior = pc.getResponsableInventario();
+        boolean ok = computadoraRepository.deleteByUuid(uuid);
+        if (ok) {
+            responsableService.quitarPcDeIndice(uuid, riAnterior);
+        }
+        return ok;
     }
 
     public ComputadoraDTO actualizarResponsableInventario(String uuid, String nuevoRIRaw)
             throws ExecutionException, InterruptedException {
-                if (computadoraRepository.findByUuid(uuid) == null) {
-                    return null;
-                }
-                String nuevoRI = blankToNull(nuevoRIRaw);
-                computadoraRepository.actualizarResponsableInventario(uuid, nuevoRI);
-                CambiarEstadoDTO dto = new CambiarEstadoDTO();
-                dto.setEstado("DERIVAR_ASIGNACION");
-                dto.setMotivo("Cambio de responsable de inventario a: " + nuevoRI);
-                return cambiarEstado(uuid, dto);
-            }
+        Computadora pc = computadoraRepository.findByUuid(uuid);
+        if (pc == null) {
+            return null;
+        }
+        String riAnterior = pc.getResponsableInventario();
+        String hostname = pc.getHostname();
+        String ubicacionPc = pc.getUbicacion() == null ? null : pc.getUbicacion().name();
+        String nuevoRI = blankToNull(nuevoRIRaw);
+        computadoraRepository.actualizarResponsableInventario(uuid, nuevoRI);
+        CambiarEstadoDTO dto = new CambiarEstadoDTO();
+        dto.setEstado("DERIVAR_ASIGNACION");
+        dto.setMotivo("Cambio de responsable de inventario a: " + nuevoRI);
+        ComputadoraDTO result = cambiarEstado(uuid, dto);
+        responsableService.sincronizarAsignacionPc(uuid, riAnterior, nuevoRI, hostname, ubicacionPc);
+        return result;
+    }
 
     /**
      * Envía un comando a una PC por su UUID. Retorna false si la PC no existe.

@@ -12,6 +12,12 @@ public class ProcesadorDTO {
 
     private String nombreRaw;
     private int nucleosFisicos;
+    private int nucleosLogicos;
     private String arquitectura;
     private FabricanteProcesador fabricante;
+    private String gama;
+    private String modelo;
+    private Integer generacion;
+    private Integer frecuenciaMaxMhz;
+    private ProcesadorDetalladoDTO detallado;
 }

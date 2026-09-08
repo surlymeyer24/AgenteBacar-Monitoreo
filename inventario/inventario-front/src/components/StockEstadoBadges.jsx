@@ -1,0 +1,190 @@
+import { Info } from 'lucide-react';
+import { useState } from 'react';
+
+/** Mapeo estado operativo → etiqueta de disponibilidad en depósito. */
+export function labelDisponibilidad(estadoActual, estadoLabels = {}) {
+  const e = (estadoActual ?? '').trim();
+  if (e === estadoLabels.ASIGNADA || e === 'Asignada') return 'Asignada';
+  if (e === estadoLabels.EN_MANTENIMIENTO || e === 'En mantenimiento') return 'En mantenimiento';
+  if (e === estadoLabels.BAJA || e === 'Baja') return 'Baja';
+  if (e === estadoLabels.SIN_ASIGNAR || e === 'Sin Asignar') return 'En depósito';
+  if (e === estadoLabels.ACTIVA || e === 'Activa') return 'Activa';
+  if (e === estadoLabels.INACTIVA || e === 'Inactiva') return 'Inactiva';
+  return e || 'Sin estado';
+}
+
+const DISPONIBILIDAD_CLS = {
+  'En depósito': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  Asignada: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+  'En mantenimiento': 'bg-amber-50 text-amber-700 border-amber-200',
+  Baja: 'bg-red-50 text-red-700 border-red-200',
+  Activa: 'bg-blue-50 text-blue-700 border-blue-200',
+  Inactiva: 'bg-slate-100 text-slate-600 border-slate-200',
+};
+
+const PREPARACION_MAP = {
+  SIN_BASELINE: { label: 'Sin armar', cls: 'bg-slate-100 text-slate-600 border-slate-200' },
+  NO_APLICA: { label: 'Sin armar', cls: 'bg-slate-100 text-slate-600 border-slate-200' },
+  BASELINE_LISTO: { label: 'Combo armado', cls: 'bg-violet-50 text-violet-700 border-violet-200' },
+  PENDIENTE: { label: 'Combo armado', cls: 'bg-violet-50 text-violet-700 border-violet-200' },
+  COINCIDE: { label: 'Combo armado', cls: 'bg-violet-50 text-violet-700 border-violet-200' },
+  DISCREPANCIA: { label: 'Combo armado', cls: 'bg-violet-50 text-violet-700 border-violet-200' },
+};
+
+const AGENTE_MAP = {
+  SIN_BASELINE: { label: 'Sin reporte', cls: 'bg-slate-100 text-slate-500 border-slate-200' },
+  NO_APLICA: { label: 'No aplica', cls: 'bg-slate-100 text-slate-400 border-slate-200' },
+  BASELINE_LISTO: { label: 'Sin reporte', cls: 'bg-slate-100 text-slate-500 border-slate-200' },
+  PENDIENTE: { label: 'Match sugerido', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+  COINCIDE: { label: 'Confirmada', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  DISCREPANCIA: { label: 'Discrepancia', cls: 'bg-red-50 text-red-700 border-red-200' },
+};
+
+function Badge({ label, cls, title }) {
+  return (
+    <span
+      title={title}
+      className={`px-2 py-0.5 rounded-full text-[10px] font-bold border whitespace-nowrap ${cls}`}
+    >
+      {label}
+    </span>
+  );
+}
+
+export function BadgeDisponibilidad({ estadoActual, estadoLabels }) {
+  const label = labelDisponibilidad(estadoActual, estadoLabels);
+  const cls = DISPONIBILIDAD_CLS[label] ?? 'bg-slate-100 text-slate-600 border-slate-200';
+  return <Badge label={label} cls={cls} title="Disponibilidad: ¿dónde está el ítem?" />;
+}
+
+export function BadgePreparacion({ estadoConciliacion }) {
+  const cfg = PREPARACION_MAP[estadoConciliacion] ?? PREPARACION_MAP.SIN_BASELINE;
+  return <Badge label={cfg.label} cls={cfg.cls} title="Preparación: ¿tiene combo/baseline armado?" />;
+}
+
+export function BadgeAgente({ estadoConciliacion }) {
+  const cfg = AGENTE_MAP[estadoConciliacion] ?? AGENTE_MAP.SIN_BASELINE;
+  return <Badge label={cfg.label} cls={cfg.cls} title="Agente: ¿ya reportó CyberWatch?" />;
+}
+
+export function BadgeLoteInventario() {
+  return (
+    <Badge
+      label="Por cantidad"
+      cls="bg-teal-50 text-teal-700 border-teal-200"
+      title="Inventario por cantidad — sin hostname ni agente"
+    />
+  );
+}
+
+export function BadgeUnidadTrazable({ reingreso = false }) {
+  return (
+    <Badge
+      label={reingreso ? 'Individual · Reingreso' : 'Individual'}
+      cls={reingreso ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-blue-50 text-blue-700 border-blue-200'}
+      title="Computadora con hostname y UUID — puede armar combo y conciliar con el agente"
+    />
+  );
+}
+
+/** Tres badges ortogonales para una computadora trazable en stock. */
+export function StockEstadosUnidad({ pc, estadoLabels }) {
+  return (
+    <div className="flex flex-wrap gap-1 mt-1.5">
+      <BadgeDisponibilidad estadoActual={pc.estadoActual} estadoLabels={estadoLabels} />
+      <BadgePreparacion estadoConciliacion={pc.estadoConciliacion} />
+      <BadgeAgente estadoConciliacion={pc.estadoConciliacion} />
+    </div>
+  );
+}
+
+/** Panel explicativo de las dimensiones de estado del stock. */
+export function StockEstadoLeyenda({ variant = 'full' }) {
+  const [abierta, setAbierta] = useState(variant === 'full');
+
+  if (variant === 'compact') {
+    return (
+      <p className="text-xs text-slate-500 font-medium">
+        Los estados se leen en tres ejes independientes:{' '}
+        <span className="text-emerald-700 font-bold">Disponibilidad</span>,{' '}
+        <span className="text-violet-700 font-bold">Preparación</span> y{' '}
+        <span className="text-blue-700 font-bold">Agente</span>.
+        {' '}
+        <button
+          type="button"
+          onClick={() => setAbierta(v => !v)}
+          className="text-blue-600 hover:underline font-bold"
+        >
+          {abierta ? 'Ocultar leyenda' : 'Ver leyenda'}
+        </button>
+        {abierta && <LeyendaDetalle className="mt-3" />}
+      </p>
+    );
+  }
+
+  return (
+    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+      <div className="flex items-start gap-2 mb-3">
+        <Info className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+        <div>
+          <p className="text-sm font-bold text-slate-800">Cómo leer los estados del stock</p>
+          <p className="text-xs text-slate-500 font-medium mt-0.5">
+            Cada dimensión responde una pregunta distinta. No mezclan significados.
+          </p>
+        </div>
+      </div>
+      <LeyendaDetalle />
+    </div>
+  );
+}
+
+function LeyendaDetalle({ className = '' }) {
+  return (
+    <div className={`grid grid-cols-1 md:grid-cols-3 gap-4 text-xs ${className}`}>
+      <div>
+        <p className="font-bold text-emerald-700 uppercase tracking-wide mb-2">Disponibilidad</p>
+        <ul className="space-y-1 text-slate-600 font-medium">
+          <li><strong>En depósito</strong> — sin responsable asignado</li>
+          <li><strong>Asignada</strong> — entregada a una persona</li>
+          <li><strong>En mantenimiento / Baja</strong> — fuera de circulación</li>
+        </ul>
+      </div>
+      <div>
+        <p className="font-bold text-violet-700 uppercase tracking-wide mb-2">Preparación</p>
+        <ul className="space-y-1 text-slate-600 font-medium">
+          <li><strong>Sin armar</strong> — falta armar combo/baseline</li>
+          <li><strong>Combo armado</strong> — baseline listo para el agente</li>
+        </ul>
+      </div>
+      <div>
+        <p className="font-bold text-blue-700 uppercase tracking-wide mb-2">Agente</p>
+        <ul className="space-y-1 text-slate-600 font-medium">
+          <li><strong>Sin reporte</strong> — CyberWatch aún no sincronizó</li>
+          <li><strong>Match sugerido</strong> — revisar en Conciliaciones</li>
+          <li><strong>Confirmada / Discrepancia</strong> — conciliación cerrada</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+export function StockInfoBanner({ tipo }) {
+  if (tipo === 'lotes') {
+    return (
+      <div className="bg-teal-50 border border-teal-200 rounded-xl px-4 py-3 text-xs text-teal-900 font-medium">
+        <strong>Stock de PCs</strong> — contás cuántas hay de cada tipo (ej. 3× Ryzen 5600G 8GB).
+        Sin hostname ni agente. Para preparar una entrega, dala de alta en la pestaña{' '}
+        <strong>Computadoras</strong>.
+      </div>
+    );
+  }
+  if (tipo === 'unidades') {
+    return (
+      <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-xs text-blue-900 font-medium">
+        <strong>Computadoras</strong> — cada fila es una PC con hostname y UUID.
+        Armá el combo, asigná si corresponde e instalá el agente para conciliar con CyberWatch.
+      </div>
+    );
+  }
+  return null;
+}

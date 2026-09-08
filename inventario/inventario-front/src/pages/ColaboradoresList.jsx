@@ -5,28 +5,28 @@ import {
 } from 'lucide-react';
 import { fetchUsuarios, crearUsuario, actualizarUsuario, eliminarUsuario } from '../api/usuarioApi';
 import { StudioLoading, StudioError } from '../components/studio/StudioUi';
-
-const DEPARTAMENTOS = [
-  'Ingeniería',
-  'Diseño UX/UI',
-  'Recursos Humanos',
-  'Ventas & Marketing',
-  'Finanzas',
-  'Soporte e IT',
-  'Operaciones',
-  'Gerencia',
-];
+import { useCatalogo } from '../hooks/useCatalogo';
 
 const FORM_INICIAL = {
   nombre: '',
   email: '',
   cargo: '',
-  departamento: 'Ingeniería',
+  departamento: 'Administración',
   ubicacion: '',
   avatarUrl: '',
 };
 
+const AREAS_FALLBACK = [
+  'Administración', 'Monitoreo', 'Tesorería', 'Capital Humano',
+  'Sistemas', 'Seguridad Privada', 'Operaciones',
+];
+
 export default function ColaboradoresList() {
+  const { items: areasCatalogo } = useCatalogo('ubicaciones_computadora');
+  const departamentos = areasCatalogo.length > 0
+    ? areasCatalogo.map(d => d.label)
+    : AREAS_FALLBACK;
+
   const [lista, setLista] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
@@ -183,7 +183,7 @@ export default function ColaboradoresList() {
             className="bg-transparent border-none outline-none font-bold text-slate-800 cursor-pointer"
           >
             <option value="Todos">Todos</option>
-            {DEPARTAMENTOS.map(d => <option key={d} value={d}>{d}</option>)}
+            {departamentos.map(d => <option key={d} value={d}>{d}</option>)}
           </select>
         </div>
         <div className="text-slate-500 text-xs font-semibold self-center">
@@ -349,7 +349,7 @@ export default function ColaboradoresList() {
                     onChange={onChangeCampo}
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg text-slate-800 font-medium text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue-600"
                   >
-                    {DEPARTAMENTOS.map(d => <option key={d} value={d}>{d}</option>)}
+                    {departamentos.map(d => <option key={d} value={d}>{d}</option>)}
                   </select>
                 </div>
                 <div>

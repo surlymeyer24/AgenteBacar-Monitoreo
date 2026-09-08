@@ -6,7 +6,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from 'recharts';
 import { useDashboardStats, useComputadoras, usePerifericosM, useNvrs, useCamaras, useMaquinas } from '../hooks/useQueries';
-import { ESTADO_OPERATIVO_LABELS } from '../constants/estados';
+import { useCatalogo, labelsEnumCatalogo } from '../hooks/useCatalogo';
 import {
   StudioPageShell,
   StudioLoading,
@@ -82,6 +82,10 @@ export default function Reportes() {
   const { data: nvrs = [] } = useNvrs();
   const { data: camaras = [] } = useCamaras();
   const { data: maquinasTesoreria = [] } = useMaquinas();
+  const { items: estadoItems } = useCatalogo('estados_operativos');
+  const estadoLabels = useMemo(() => labelsEnumCatalogo(estadoItems), [estadoItems]);
+  const { items: tipoMaqItems } = useCatalogo('tipos_maquina');
+  const tipoMaquinaLabels = useMemo(() => labelsEnumCatalogo(tipoMaqItems), [tipoMaqItems]);
 
   const queryClient = useQueryClient();
   const cargando = statsLoading || pcsLoading;
@@ -96,7 +100,7 @@ export default function Reportes() {
     queryClient.invalidateQueries({ queryKey: ['maquinas'] });
   }, [queryClient]);
 
-  const raw = stats ? { stats, computadoras, perifericosManual, nvrs, camaras, maquinasTesoreria } : null;
+  const raw = stats ? { stats, computadoras, perifericosManual, nvrs, camaras, maquinasTesoreria, estadoLabels, tipoMaquinaLabels } : null;
 
   const reporte = useMemo(() => {
     if (!raw) return null;
@@ -295,7 +299,7 @@ export default function Reportes() {
                 </div>
               </div>
               <p className="text-[10px] text-slate-400 m-0 pt-2">
-                Excluye ítems categoría computadora. Estados: «{ESTADO_OPERATIVO_LABELS.SIN_ASIGNAR}» / «{ESTADO_OPERATIVO_LABELS.ASIGNADA}».
+                Excluye ítems categoría computadora. Estados: «{estadoLabels.SIN_ASIGNAR ?? 'Sin Asignar'}» / «{estadoLabels.ASIGNADA ?? 'Asignada'}».
               </p>
             </ChartCard>
           </div>

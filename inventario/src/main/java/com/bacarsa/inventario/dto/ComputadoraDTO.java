@@ -27,6 +27,10 @@ public class ComputadoraDTO {
     /** ISO-8601 generado en el mapper desde `Timestamp` de Firestore. */
     private String ultimaSincronizacion;
     private ProcesadorDTO procesador;
+    private RamPlacaDTO ramPlaca;
+    private Double ramTotalGb;
+    private Double cpuUsoPorcentaje;
+    private Double ramUsoPorcentaje;
     private List<DiscoDTO> discos;
     private List<RamDTO> modulos;
     private PerifericoAgenteDTO perifericos;
@@ -38,5 +42,18 @@ public class ComputadoraDTO {
     private String responsableInventario;
     /** ID numérico de AnyDesk reportado por el agente (Firestore {@code anydesk_id}). */
     private String anydeskId;
+    private String condicion;
+    private String origenAlta;
+    private String estadoConciliacion;
+    private BaselineEsperadoDTO baselineEsperado;
+    private String comboEsperadoId;
+    private String primerReporteAgenteAt;
+    private String matchingJobEstado;
+    private Integer scoreConciliacion;
+    private String fechaConciliacion;
+    private String agenteUuid;
+    private String loteOrigenId;
+    private EspecificacionStockDTO especificacionEsperada;
+    private String ubicacionStock;
 
 }

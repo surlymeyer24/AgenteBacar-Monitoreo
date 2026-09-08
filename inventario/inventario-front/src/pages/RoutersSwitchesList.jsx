@@ -21,21 +21,13 @@ import {
   StudioSecondaryButton,
   StudioFilterBar,
 } from '../components/studio/StudioUi';
-import { UBICACIONES_RED, labelUbicacionEnum } from '../constants/ubicaciones';
+import { useCatalogo, opcionesEnumCatalogo } from '../hooks/useCatalogo';
 
 const TIPO_OPTS = [
   { value: 'router', label: 'Router' },
   { value: 'switch', label: 'Switch' },
   { value: 'access-point', label: 'Punto de acceso (EAP)' },
 ];
-
-const UBICACION_FIELD = {
-  name: 'ubicacion',
-  label: 'Ubicación',
-  type: 'select',
-  required: true,
-  options: UBICACIONES_RED.map(u => ({ value: u, label: labelUbicacionEnum(u) })),
-};
 
 const FECHA_ALTA_FIELD = { name: 'fechaAlta', label: 'Fecha alta', type: 'date' };
 
@@ -279,6 +271,14 @@ function fusionarListadoSinDuplicados(arrRouters, arrSwitches, arrAps) {
 
 export default function RoutersSwitchesList({ defaultTab = 'all' }) {
   const navigate = useNavigate();
+  const { items: ubicRedItems } = useCatalogo('ubicaciones_red');
+  const UBICACION_FIELD = useMemo(() => ({
+    name: 'ubicacion',
+    label: 'Ubicación',
+    type: 'select',
+    required: true,
+    options: opcionesEnumCatalogo(ubicRedItems),
+  }), [ubicRedItems]);
   const [lista, setLista] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);

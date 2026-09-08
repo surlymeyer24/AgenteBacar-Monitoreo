@@ -1,11 +1,15 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { X, Monitor, ExternalLink, Package } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { esSyncActivo, normalizarUltimaSincronizacion } from '../utils/syncActividad';
-import { labelUbicacionEnum } from '../constants/ubicaciones';
+import { labelUbicacion } from '../constants/ubicaciones';
 import { useComputadoras, usePerifericosM } from '../hooks/useQueries';
+import { useCatalogo } from '../hooks/useCatalogo';
+import { updateResponsableInventario } from '../api/computadoraApi';
 import { normalizarTipoStock } from '../constants/tiposStock';
+import { usePermisos } from '../hooks/usePermisos';
 
 const TABS = [
   { id: 'activas', label: 'Activas' },
@@ -21,8 +25,19 @@ function fmtSync(c) {
   return Number.isNaN(d.getTime()) ? '—' : d.toLocaleString('es-AR');
 }
 
+function valorAsignadoDraft(c, draft) {
+  if (draft[c.uuid] !== undefined) return draft[c.uuid];
+  return c.responsableInventario ?? '';
+}
+
 export default function ComputadorasEstadoModal({ isOpen, onClose }) {
   const [tab, setTab] = useState('todas');
+  const [asignadoDraft, setAsignadoDraft] = useState({});
+  const [savingAsignado, setSavingAsignado] = useState(null);
+  const [msgAsignado, setMsgAsignado] = useState(null);
+  const { puedeEscribir } = usePermisos();
+  const queryClient = useQueryClient();
+  const { items: ubicCompItems } = useCatalogo('ubicaciones_computadora');
   const { data: computadoras = [] } = useComputadoras({}, { enabled: isOpen });
   const { data: perifM = [] } = usePerifericosM({ enabled: isOpen });
   const stockManualPcs = useMemo(
@@ -47,7 +62,6 @@ export default function ComputadorasEstadoModal({ isOpen, onClose }) {
     const manuales = stockManualPcs.map(p => ({
       uuid: p.id,
       hostname: p.nombre || p.fabricante || 'PC Stock',
-      usuarioActual: '—',
       ubicacion: p.ubicacion,
       estadoActual: 'Nueva (stock)',
       cantidad: p.cantidad ?? 1,
@@ -62,6 +76,38 @@ export default function ComputadorasEstadoModal({ isOpen, onClose }) {
     if (tab === 'stock') return stockRows;
     return [...computadoras, ...stockRows.filter(r => r._origen === 'manual')];
   }, [computadoras, stockRows, tab]);
+
+  function setAsignado(uuid, texto) {
+    setAsignadoDraft(prev => ({ ...prev, [uuid]: texto }));
+  }
+
+  async function guardarAsignado(uuid) {
+    const raw = asignadoDraft[uuid] !== undefined
+      ? asignadoDraft[uuid]
+      : (computadoras.find(x => x.uuid === uuid)?.responsableInventario ?? '');
+    setSavingAsignado(uuid);
+    setMsgAsignado(null);
+    try {
+      const dto = await updateResponsableInventario(uuid, raw.trim() || null);
+      if (!dto) {
+        setMsgAsignado('No se encontró la computadora.');
+        return;
+      }
+      queryClient.setQueryData(['computadoras', {}], (prev) => {
+        if (!Array.isArray(prev)) return prev;
+        return prev.map(p => (p.uuid === uuid ? { ...p, ...dto } : p));
+      });
+      setAsignadoDraft(prev => {
+        const next = { ...prev };
+        delete next[uuid];
+        return next;
+      });
+    } catch {
+      setMsgAsignado('No se pudo guardar el asignado.');
+    } finally {
+      setSavingAsignado(null);
+    }
+  }
 
   if (!isOpen) return null;
 
@@ -79,7 +125,7 @@ export default function ComputadorasEstadoModal({ isOpen, onClose }) {
               <span className="w-1.5 h-6 rounded-full bg-accent shrink-0" aria-hidden />
               <Monitor className="w-5 h-5 text-blue-600 shrink-0" />
               <span className="font-extrabold text-sm text-slate-900 uppercase tracking-wide truncate">
-                Computadoras — {conteos.todas} equipos
+                Equipamiento Asignado — {conteos.todas} equipos
               </span>
             </div>
             <button type="button" onClick={onClose} className="p-1 hover:bg-slate-200 rounded text-slate-500">
@@ -105,12 +151,15 @@ export default function ComputadorasEstadoModal({ isOpen, onClose }) {
           </div>
 
           <div className="p-6 overflow-y-auto flex-1 min-h-0">
+            {msgAsignado && (
+              <p className="mb-3 text-sm text-red-600 font-medium" role="status">{msgAsignado}</p>
+            )}
             <div className="border border-slate-200 rounded-lg overflow-hidden">
               <table className="w-full text-left text-sm">
                 <thead className="bg-slate-50 text-slate-500 text-xs uppercase sticky top-0">
                   <tr>
                     <th className="px-4 py-3">Hostname</th>
-                    <th className="px-4 py-3">Usuario</th>
+                    <th className="px-4 py-3 min-w-[200px]">Asignado a</th>
                     <th className="px-4 py-3">Área</th>
                     <th className="px-4 py-3">Estado</th>
                     <th className="px-4 py-3 hidden sm:table-cell">Última sync</th>
@@ -140,9 +189,38 @@ export default function ComputadorasEstadoModal({ isOpen, onClose }) {
                               )}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-slate-600">{c.usuarioActual ?? '—'}</td>
                           <td className="px-4 py-3 text-slate-600">
-                            {c.ubicacion ? labelUbicacionEnum(c.ubicacion) : '—'}
+                            {esManual ? (
+                              '—'
+                            ) : (
+                              <div
+                                className="flex flex-wrap items-center gap-1.5 max-w-[220px]"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <input
+                                  type="text"
+                                  value={valorAsignadoDraft(c, asignadoDraft)}
+                                  onChange={(e) => setAsignado(c.uuid, e.target.value)}
+                                  placeholder="Nombre o referencia"
+                                  aria-label={`Asignado a para ${c.hostname ?? c.uuid}`}
+                                  disabled={!puedeEscribir || savingAsignado === c.uuid}
+                                  className="min-w-[8rem] flex-1 bg-slate-50 border border-slate-200 rounded-md px-2 py-1 text-sm focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#0c66e4] disabled:opacity-60"
+                                />
+                                {puedeEscribir && (
+                                  <button
+                                    type="button"
+                                    disabled={savingAsignado === c.uuid}
+                                    onClick={() => guardarAsignado(c.uuid)}
+                                    className="px-2.5 py-1 text-xs font-bold bg-[#0c66e4] hover:bg-[#0055cc] text-white rounded-md disabled:opacity-50 shrink-0"
+                                  >
+                                    {savingAsignado === c.uuid ? '…' : 'Guardar'}
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-slate-600">
+                            {c.ubicacion ? labelUbicacion(c.ubicacion, ubicCompItems) : '—'}
                           </td>
                           <td className="px-4 py-3">
                             {esStock ? (

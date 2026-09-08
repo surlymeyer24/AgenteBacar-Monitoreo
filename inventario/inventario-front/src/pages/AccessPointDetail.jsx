@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Wifi } from 'lucide-react';
 import { fetchAccessPoint, actualizarAccessPoint } from '../api/accessPointApi';
-import { UBICACIONES_RED, labelUbicacionEnum } from '../constants/ubicaciones';
+import { useCatalogo, labelDeCatalogo, opcionesEnumCatalogo } from '../hooks/useCatalogo';
 import InfraestructuraModal from '../components/InfraestructuraModal';
 import DetailOverlayShell, { DetailEditButton, DetailSection } from '../components/DetailOverlayShell';
 import { DetailFieldGrid } from '../components/DetailInfraHelpers';
@@ -10,6 +10,7 @@ import { DetailFieldGrid } from '../components/DetailInfraHelpers';
 function AccessPointDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { items: ubicRedItems } = useCatalogo('ubicaciones_red');
   const [ap, setAp] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
@@ -116,7 +117,7 @@ function AccessPointDetail() {
               { label: 'IP', value: ap.ip, mono: true },
               { label: 'MAC', value: ap.mac, mono: true },
               { label: 'Switch uplink', value: ap.switchUplink },
-              { label: 'Ubicación', value: ap.ubicacion ? labelUbicacionEnum(ap.ubicacion) : null },
+              { label: 'Ubicación', value: ap.ubicacion ? labelDeCatalogo(ubicRedItems, ap.ubicacion) : null },
               { label: 'Estado', value: ap.estado },
             ]}
           />
@@ -153,7 +154,7 @@ function AccessPointDetail() {
             label: 'Ubicación',
             type: 'select',
             required: true,
-            options: UBICACIONES_RED.map(u => ({ value: u, label: labelUbicacionEnum(u) })),
+            options: opcionesEnumCatalogo(ubicRedItems),
           },
         ]}
       />

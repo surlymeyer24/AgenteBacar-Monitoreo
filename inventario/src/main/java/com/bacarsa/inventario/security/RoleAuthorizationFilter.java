@@ -78,7 +78,7 @@ public class RoleAuthorizationFilter extends OncePerRequestFilter {
 
         if (rol == Rol.USUARIO) {
             if (isAdminPath(path) || isUsuarioManagementPath(path) || isInfraAdminMutation(path, method)
-                    || isCacheMutation(path, method)) {
+                    || isCacheMutation(path, method) || isCatalogoMutation(path, method)) {
                 response.sendError(HttpServletResponse.SC_FORBIDDEN, "Requiere rol de administrador");
                 return;
             }
@@ -112,6 +112,10 @@ public class RoleAuthorizationFilter extends OncePerRequestFilter {
 
     private static boolean isCacheMutation(String path, String method) {
         return path.startsWith("/api/cache") && !isReadMethod(method);
+    }
+
+    private static boolean isCatalogoMutation(String path, String method) {
+        return path.startsWith("/api/catalogos") && !isReadMethod(method);
     }
 
     private static boolean isInfraAdminMutation(String path, String method) {

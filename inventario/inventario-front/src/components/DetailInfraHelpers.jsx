@@ -1,6 +1,6 @@
 import WriteGate from './WriteGate';
 import { DetailSection } from './DetailOverlayShell';
-import { ESTADO_OPERATIVO_LABELS } from '../constants/estados';
+import { labelDeCatalogo } from '../hooks/useCatalogo';
 
 export function fmtFechaIso(s) {
   if (s == null || s === '') return '—';
@@ -28,10 +28,9 @@ export function toFechaAltaIso(v) {
   return '';
 }
 
-function labelEstado(raw) {
+function labelEstado(estadoItems, raw) {
   if (raw == null || raw === '') return '—';
-  const key = String(raw).trim();
-  return ESTADO_OPERATIVO_LABELS[key] ?? key;
+  return labelDeCatalogo(estadoItems, String(raw).trim());
 }
 
 function badgeEstadoClass(raw, activo) {
@@ -69,7 +68,7 @@ export function DetailFieldGrid({ fields }) {
   );
 }
 
-export function HistorialEstadosSection({ historial = [] }) {
+export function HistorialEstadosSection({ historial = [], estadoItems = [] }) {
   return (
     <DetailSection title="Historial de estados (IT)">
       {historial.length === 0 ? (
@@ -99,7 +98,7 @@ export function HistorialEstadosSection({ historial = [] }) {
                         <span
                           className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wide border ${badgeEstadoClass(h.estado, activo)}`}
                         >
-                          {labelEstado(h.estado)}
+                          {labelEstado(estadoItems, h.estado)}
                         </span>
                       </td>
                       <td className="py-3.5 px-4 align-middle text-sm text-slate-700 font-medium max-w-[18rem]">
@@ -145,8 +144,7 @@ export function HistorialEstadosSection({ historial = [] }) {
 
 export function CambiarEstadoForm({
   idPrefix,
-  estados,
-  labels,
+  opciones,
   estadoSel,
   setEstadoSel,
   motivo,
@@ -173,8 +171,8 @@ export function CambiarEstadoForm({
               className="inventory-input"
             >
               <option value="">Seleccionar…</option>
-              {estados.map(k => (
-                <option key={k} value={k}>{labels[k] ?? k}</option>
+              {opciones.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
               ))}
             </select>
           </div>

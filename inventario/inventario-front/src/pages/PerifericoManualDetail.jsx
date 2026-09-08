@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Package, Trash2, UserCheck } from 'lucide-react';
 import {
   fetchPerifericoM,
@@ -8,9 +8,11 @@ import {
   asignarPerifericoM,
   deletePerifericoM,
 } from '../api/perifericoManualApi';
-import { ESTADOS_OPERATIVOS, ESTADO_OPERATIVO_LABELS } from '../constants/estados';
-import { labelTipoStock, normalizarTipoStock, opcionesTipoStock } from '../constants/tiposStock';
+import { fetchComputadoras } from '../api/computadoraApi';
+import { labelTipoStock, normalizarTipoStock } from '../constants/tiposStock';
+import { useCatalogo, opcionesCatalogo, opcionesEnumCatalogo } from '../hooks/useCatalogo';
 import InfraestructuraModal from '../components/InfraestructuraModal';
+import FriendlySelect from '../components/FriendlySelect';
 import DetailOverlayShell, {
   DetailEditButton,
   DetailDangerButton,
@@ -22,8 +24,8 @@ import {
   CambiarEstadoForm,
 } from '../components/DetailInfraHelpers';
 import WriteGate from '../components/WriteGate';
-
-const CONEXIONES = ['usb', 'inalambrico_usb', 'bluetooth', 'hdmi', 'otro'];
+import { descripcionFromItem, etiquetaFromItem, resolveSpecFromItem } from '../utils/stockPcHelpers';
+import { filtrarPcsAsignables, opcionesPcAsignable } from '../utils/perifericoPcHelpers';
 
 function formDesdeP(p) {
   return {
@@ -32,7 +34,7 @@ function formDesdeP(p) {
     nombre: p.nombre ?? '',
     fabricante: p.fabricante ?? '',
     conexion: p.conexion ?? '',
-    computadoraHostname: p.computadoraHostname ?? '',
+    numeroSerie: p.numeroSerie ?? '',
     ubicacion: p.ubicacion ?? '',
     notas: p.notas ?? '',
     fechaAlta: p.fechaAlta ? String(p.fechaAlta) : '',
@@ -42,6 +44,9 @@ function formDesdeP(p) {
 function PerifericoManualDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { items: tiposStockCatalogo } = useCatalogo('tipos_stock');
+  const { items: estadoItems } = useCatalogo('estados_operativos');
+  const { items: conexionItems } = useCatalogo('conexiones_periferico');
   const asignarRef = useRef(null);
   const [p, setP] = useState(null);
   const [cargando, setCargando] = useState(true);
@@ -59,10 +64,24 @@ function PerifericoManualDetail() {
   const [guardandoEstado, setGuardandoEstado] = useState(false);
   const [msgEstado, setMsgEstado] = useState(null);
 
-  const [hostnameAsignar, setHostnameAsignar] = useState('');
+  const [pcUuidAsignar, setPcUuidAsignar] = useState('');
   const [motivoAsignar, setMotivoAsignar] = useState('');
   const [asignando, setAsignando] = useState(false);
   const [msgAsignar, setMsgAsignar] = useState(null);
+  const [pcsAsignables, setPcsAsignables] = useState([]);
+  const [cargandoPcs, setCargandoPcs] = useState(true);
+
+  useEffect(() => {
+    let cancel = false;
+    setCargandoPcs(true);
+    fetchComputadoras()
+      .then(data => { if (!cancel) setPcsAsignables(filtrarPcsAsignables(data)); })
+      .catch(() => { if (!cancel) setPcsAsignables([]); })
+      .finally(() => { if (!cancel) setCargandoPcs(false); });
+    return () => { cancel = true; };
+  }, []);
+
+  const opcionesPc = useMemo(() => opcionesPcAsignable(pcsAsignables), [pcsAsignables]);
 
   useEffect(() => {
     let cancel = false;
@@ -100,7 +119,7 @@ function PerifericoManualDetail() {
       nombre: modalForm.nombre?.trim() || undefined,
       fabricante: modalForm.fabricante?.trim() || undefined,
       conexion: modalForm.conexion || undefined,
-      computadoraHostname: modalForm.computadoraHostname?.trim() || undefined,
+      numeroSerie: modalForm.numeroSerie?.trim() || undefined,
       ubicacion: modalForm.ubicacion?.trim() || undefined,
       notas: modalForm.notas?.trim() || undefined,
       fechaAlta: modalForm.fechaAlta || undefined,
@@ -117,13 +136,13 @@ function PerifericoManualDetail() {
 
   function hacerAsignar(e) {
     e?.preventDefault();
-    if (!hostnameAsignar.trim()) return;
+    if (!pcUuidAsignar.trim()) return;
     setAsignando(true);
     setMsgAsignar(null);
-    asignarPerifericoM(id, hostnameAsignar.trim(), motivoAsignar.trim() || undefined)
+    asignarPerifericoM(id, pcUuidAsignar.trim(), motivoAsignar.trim() || undefined)
       .then(data => {
         if (!data) { setMsgAsignar('No se encontró el periférico.'); return; }
-        setHostnameAsignar('');
+        setPcUuidAsignar('');
         setMotivoAsignar('');
         if (data.id && data.id !== id) {
           navigate(`/perifericos/stock/${encodeURIComponent(data.id)}`);
@@ -226,10 +245,30 @@ function PerifericoManualDetail() {
             fields={[
               { label: 'Tipo', value: labelTipoStock(p.tipo) || p.tipo },
               { label: 'Unidades', value: p.cantidad ?? 1 },
-              { label: 'Nombre', value: p.nombre },
+              ...(normalizarTipoStock(p.tipo) === 'computadora'
+                ? [
+                    { label: 'Etiqueta', value: etiquetaFromItem(p) || null, fullWidth: true },
+                    {
+                      label: 'Descripción',
+                      value: descripcionFromItem(p) || null,
+                      fullWidth: true,
+                    },
+                  ]
+                : [{ label: 'Nombre', value: p.nombre }]),
               { label: 'Fabricante', value: p.fabricante },
+              { label: 'Número de serie', value: p.numeroSerie },
               { label: 'Conexión', value: p.conexion },
-              { label: 'Asignado a', value: p.computadoraHostname || 'Sin asignar' },
+              {
+                label: 'PC vinculada',
+                value: p.computadoraUuid ? (
+                  <Link
+                    to={`/computadoras/${encodeURIComponent(p.computadoraUuid)}`}
+                    className="text-indigo-600 hover:underline font-semibold"
+                  >
+                    {p.computadoraHostname || p.computadoraUuid}
+                  </Link>
+                ) : (p.computadoraHostname || 'Sin asignar'),
+              },
               { label: 'Ubicación', value: p.ubicacion },
               { label: 'Estado actual', value: p.estado },
               ...(p.comboNombre ? [{ label: 'Combo', value: p.comboNombre }] : []),
@@ -239,24 +278,49 @@ function PerifericoManualDetail() {
           />
         </DetailSection>
 
+        {normalizarTipoStock(p.tipo) === 'computadora' && (() => {
+          const spec = resolveSpecFromItem(p);
+          const tieneSpec = spec.cpuModelo || spec.ramTotalGb || spec.discoResumen;
+          if (!tieneSpec) return null;
+          return (
+          <DetailSection title="Especificación de hardware">
+            <DetailFieldGrid
+              fields={[
+                { label: 'CPU', value: spec.cpuModelo },
+                { label: 'RAM (GB)', value: spec.ramTotalGb },
+                { label: 'Disco', value: spec.discoResumen },
+                { label: 'Tipo de equipo', value: spec.tipoEquipo },
+                { label: 'Condición', value: spec.condicion },
+              ]}
+            />
+          </DetailSection>
+          );
+        })()}
+
         <div ref={asignarRef}>
-          <DetailSection title="Asignar stock a una persona">
+          <DetailSection title="Asignar a PC de stock">
             <p className="text-sm text-slate-500 mb-3">
-              Asigna 1 unidad del stock a una persona. Si hay más de 1 en stock, se descuenta automáticamente y se crea un registro separado para la unidad asignada.
+              Vincula 1 unidad del stock a una PC trazable del inventario (por UUID). Si hay más de 1 en stock, se descuenta automáticamente y se crea un registro separado. No requiere que el agente AgenteBacar haya reportado aún.
             </p>
             <WriteGate fallback={<p className="text-sm text-slate-500">Sin permiso de escritura.</p>}>
               <form onSubmit={hacerAsignar} className="space-y-3 max-w-xl">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
-                    Persona *
+                    PC de stock *
                   </label>
-                  <input
-                    className="inventory-input"
-                    placeholder="Ej. Juan Pérez"
-                    value={hostnameAsignar}
-                    onChange={e => setHostnameAsignar(e.target.value)}
-                    autoComplete="off"
-                  />
+                  {cargandoPcs ? (
+                    <p className="text-sm text-slate-500 font-medium">Cargando PCs…</p>
+                  ) : pcsAsignables.length === 0 ? (
+                    <p className="text-sm text-amber-700 font-medium">No hay PCs trazables de stock. Usá &quot;Sacar 1&quot; en un lote primero.</p>
+                  ) : (
+                    <FriendlySelect
+                      name="pcUuidAsignar"
+                      value={pcUuidAsignar}
+                      placeholder="Seleccionar PC…"
+                      options={opcionesPc}
+                      onChange={setPcUuidAsignar}
+                    />
+                  )}
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
@@ -271,7 +335,7 @@ function PerifericoManualDetail() {
                 </div>
                 <button
                   type="submit"
-                  disabled={asignando || !hostnameAsignar.trim()}
+                  disabled={asignando || !pcUuidAsignar.trim() || cargandoPcs || pcsAsignables.length === 0}
                   className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-lg font-bold text-sm cursor-pointer transition-colors inline-flex items-center gap-2"
                 >
                   <UserCheck className="w-4 h-4" />
@@ -285,8 +349,7 @@ function PerifericoManualDetail() {
 
         <CambiarEstadoForm
           idPrefix="perif"
-          estados={ESTADOS_OPERATIVOS}
-          labels={ESTADO_OPERATIVO_LABELS}
+          opciones={opcionesEnumCatalogo(estadoItems)}
           estadoSel={estadoSel}
           setEstadoSel={setEstadoSel}
           motivo={motivoEstado}
@@ -296,7 +359,7 @@ function PerifericoManualDetail() {
           msg={msgEstado}
         />
 
-        <HistorialEstadosSection historial={p.historialEstados ?? []} />
+        <HistorialEstadosSection historial={p.historialEstados ?? []} estadoItems={estadoItems} />
       </DetailOverlayShell>
 
       <InfraestructuraModal
@@ -313,18 +376,18 @@ function PerifericoManualDetail() {
             name: 'tipo',
             label: 'Tipo',
             type: 'select',
-            options: opcionesTipoStock(modalForm.tipo).map(t => ({ value: t, label: labelTipoStock(t) })),
+            options: opcionesCatalogo(tiposStockCatalogo, modalForm.tipo).map(t => ({ value: t.codigo, label: t.label })),
           },
           { name: 'cantidad', label: 'Unidades', type: 'number' },
           { name: 'nombre', label: 'Nombre / descripción', type: 'text' },
           { name: 'fabricante', label: 'Fabricante', type: 'text' },
+          { name: 'numeroSerie', label: 'Número de serie', type: 'text' },
           {
             name: 'conexion',
             label: 'Conexión',
             type: 'select',
-            options: CONEXIONES.map(c => ({ value: c, label: c })),
+            options: opcionesCatalogo(conexionItems, modalForm.conexion),
           },
-          { name: 'computadoraHostname', label: 'Asignado a (persona)', type: 'text' },
           { name: 'ubicacion', label: 'Ubicación', type: 'text' },
           { name: 'fechaAlta', label: 'Fecha de alta', type: 'date' },
           { name: 'notas', label: 'Notas', type: 'textarea', fullWidth: true },

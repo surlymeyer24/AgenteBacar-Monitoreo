@@ -57,7 +57,7 @@ export default function ComputadoraPerifericosSection({ computadora, uuid, onAct
   const audioEntrada = filtrarAudioParaInventario(computadora.perifericos?.audio?.entrada ?? []);
   const audioSalida = filtrarAudioParaInventario(computadora.perifericos?.audio?.salida ?? []);
   const dispositivosUsbCount = usbFiltrados.length + audioEntrada.length + audioSalida.length;
-  const totalPerifericosCount = monitores.length + impresoras.length + dispositivosUsbCount;
+  const totalPerifericosCount = monitores.length + dispositivosUsbCount;
 
   const copyToClipboard = (text) => {
     if (!text) return;

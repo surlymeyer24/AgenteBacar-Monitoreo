@@ -10,6 +10,7 @@ import {
   ChevronRight,
   BarChart3,
   UserCog,
+  UserRound,
   FileText,
   Monitor,
   Printer,
@@ -27,13 +28,21 @@ import {
   Banknote,
   Phone,
   QrCode,
+  BookOpen,
+  ShieldAlert,
+  GitCompare,
 } from 'lucide-react';
 import AdminGate from './AdminGate';
+import { useEventosHardwarePendientesCount, useConciliacionesPendientesCount } from '../hooks/useQueries';
 
 export default function SidebarNav({ sidebarCollapsed, onMobileClose }) {
   const [hardwareExpanded, setHardwareExpanded] = useState(true);
   const [perifericosExpanded, setPerifericosExpanded] = useState(true);
   const [infraestructuraExpanded, setInfraestructuraExpanded] = useState(true);
+  const { data: pendientesData } = useEventosHardwarePendientesCount();
+  const pendientesCount = pendientesData?.count ?? 0;
+  const { data: conciliacionesData } = useConciliacionesPendientesCount();
+  const conciliacionesCount = conciliacionesData?.count ?? 0;
 
   const navLinkClass = ({ isActive }) => `nav-link w-full text-left ${isActive ? 'active' : ''}`;
 
@@ -54,6 +63,26 @@ export default function SidebarNav({ sidebarCollapsed, onMobileClose }) {
       <NavLink onClick={onMobileClose} to="/etiquetas-qr" className={navLinkClass}>
         <QrCode className="w-4 h-4" />
         <span className="nav-link-text">Etiquetas QR</span>
+      </NavLink>
+
+      <NavLink onClick={onMobileClose} to="/conciliaciones" className={navLinkClass}>
+        <GitCompare className="w-4 h-4" />
+        <span className="nav-link-text">Conciliaciones</span>
+        {conciliacionesCount > 0 && (
+          <span className="ml-auto px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500 text-white leading-none">
+            {conciliacionesCount}
+          </span>
+        )}
+      </NavLink>
+
+      <NavLink onClick={onMobileClose} to="/eventos-hardware" className={navLinkClass}>
+        <ShieldAlert className="w-4 h-4" />
+        <span className="nav-link-text">Auditoría HW</span>
+        {pendientesCount > 0 && (
+          <span className="ml-auto px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-white leading-none">
+            {pendientesCount}
+          </span>
+        )}
       </NavLink>
 
       <div className="nav-group">
@@ -227,10 +256,19 @@ export default function SidebarNav({ sidebarCollapsed, onMobileClose }) {
         <span className="nav-link-text">Mi Perfil</span>
       </NavLink>
 
+      <NavLink onClick={onMobileClose} to="/responsables" className={navLinkClass}>
+        <UserRound className="w-4 h-4" />
+        <span className="nav-link-text">Responsables</span>
+      </NavLink>
+
       <AdminGate>
         <NavLink onClick={onMobileClose} to="/admin/usuarios" className={navLinkClass}>
           <UserCog className="w-4 h-4" />
           <span className="nav-link-text">Usuarios</span>
+        </NavLink>
+        <NavLink onClick={onMobileClose} to="/admin/catalogos" className={navLinkClass}>
+          <BookOpen className="w-4 h-4" />
+          <span className="nav-link-text">Catálogos</span>
         </NavLink>
         <NavLink onClick={onMobileClose} to="/system" className={navLinkClass}>
           <Terminal className="w-4 h-4" />
