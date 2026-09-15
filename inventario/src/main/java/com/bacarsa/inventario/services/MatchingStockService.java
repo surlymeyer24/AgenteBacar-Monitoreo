@@ -18,6 +18,7 @@ import com.bacarsa.inventario.models.Computadora;
 import com.bacarsa.inventario.models.ConciliacionStock;
 import com.bacarsa.inventario.models.DecisionConciliacion;
 import com.bacarsa.inventario.models.EstadoConciliacion;
+import com.bacarsa.inventario.models.EstadoReporteAgente;
 import com.bacarsa.inventario.models.MatchingJobEstado;
 import com.bacarsa.inventario.models.OrigenAlta;
 import com.bacarsa.inventario.models.OrigenConciliacion;
@@ -133,6 +134,7 @@ public class MatchingStockService {
             if (!agenteUuid.equals(mejor.stock.getUuid())) {
                 Map<String, Object> stockUpdates = new HashMap<>();
                 stockUpdates.put("estado_conciliacion", EstadoConciliacion.PENDIENTE.name());
+                stockUpdates.put("estado_reporte_agente", EstadoReporteAgente.MATCH_SUGERIDO.name());
                 computadoraRepository.updateMatchingFields(mejor.stock.getUuid(), stockUpdates);
             }
 

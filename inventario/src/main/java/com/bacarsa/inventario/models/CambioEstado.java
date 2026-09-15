@@ -27,6 +27,10 @@ public class CambioEstado {
     @Setter(onMethod_ = @PropertyName("responsable_inventario"))
     private String responsableInventario;
 
+    @Getter(onMethod_ = @PropertyName("origen_cambio"))
+    @Setter(onMethod_ = @PropertyName("origen_cambio"))
+    private String origenCambio;
+
     public boolean esEstadoActual() {
         return fechaHoraFin == null;
     }

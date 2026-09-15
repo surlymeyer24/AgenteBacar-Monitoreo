@@ -1,5 +1,6 @@
 import { labelUbicacionEnum } from '../constants/ubicaciones';
 import { nivelActividadSync } from './syncActividad';
+import { filtrarPcsInventarioOperativo } from './pipelinePcHelpers';
 
 const ESTADOS_PC = ['ASIGNADA', 'SIN_ASIGNAR', 'EN_MANTENIMIENTO', 'BAJA', 'ACTIVA', 'INACTIVA'];
 
@@ -206,7 +207,7 @@ export function construirReporteInventario({
   estadoLabels = {},
   tipoMaquinaLabels = {},
 }) {
-  const pcs = Array.isArray(computadoras) ? computadoras : [];
+  const pcs = filtrarPcsInventarioOperativo(Array.isArray(computadoras) ? computadoras : []);
   const manual = Array.isArray(perifericosManual) ? perifericosManual : [];
   const maquinas = Array.isArray(maquinasTesoreria) ? maquinasTesoreria : [];
   const s = stats ?? {};
@@ -242,6 +243,7 @@ export function construirReporteInventario({
   const perifericosConPc = Number(s.totalPerifericos ?? 0);
   const perifericosPorTipoAgente = {};
   for (const [k, v] of Object.entries(s.perifericosPorTipo ?? {})) {
+    if (k === 'Parlantes') continue;
     if (Number(v) > 0) perifericosPorTipoAgente[k] = Number(v);
   }
 

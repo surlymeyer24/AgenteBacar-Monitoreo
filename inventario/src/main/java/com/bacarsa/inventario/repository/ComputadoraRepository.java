@@ -262,10 +262,31 @@ public class ComputadoraRepository {
             @CacheEvict(value = "pc-detalle", allEntries = true),
             @CacheEvict(value = "computadoras-gordo", allEntries = true)
     })
-    public void actualizarDatosStock(String uuid, String sistemaOperativo, String tipoEquipoRaw,
-            String condicion, Ubicacion ubicacion, String ubicacionStock)
+    public Computadora actualizarDatosStock(String uuid, com.bacarsa.inventario.dto.ComputadoraStockUpdateDTO dto,
+            Ubicacion ubicacion)
             throws ExecutionException, InterruptedException {
+        if (dto == null) {
+            return null;
+        }
         DocumentReference docRef = firestore.collection(collectionName).document(uuid);
+        DocumentSnapshot snap = docRef.get().get();
+        if (!snap.exists()) {
+            return null;
+        }
+        Map<String, Object> updates = buildStockFieldUpdates(snap, dto.getSistemaOperativo(),
+                dto.getTipoEquipo(), dto.getCondicion(), ubicacion, dto.getUbicacionStock(),
+                dto.getEspecificacionEsperada(), dto.getDescripcionStock(), dto.getHostname());
+
+        if (!updates.isEmpty()) {
+            docRef.update(updates).get();
+        }
+        return documentToComputadora(docRef.get().get());
+    }
+
+    private Map<String, Object> buildStockFieldUpdates(DocumentSnapshot existingDoc, String sistemaOperativo,
+            String tipoEquipoRaw, String condicion, Ubicacion ubicacion, String ubicacionStock,
+            com.bacarsa.inventario.dto.EspecificacionStockDTO especificacionEsperada,
+            String descripcionStock, String hostname) {
         Map<String, Object> updates = new HashMap<>();
 
         if (sistemaOperativo != null) {
@@ -278,9 +299,8 @@ public class ComputadoraRepository {
             } else {
                 Map<String, Object> te = new HashMap<>();
                 te.put("tipo", tipoEquipoRaw);
-                DocumentSnapshot snap = docRef.get().get();
-                if (snap.exists()) {
-                    Object existing = snap.get("tipo_equipo");
+                if (existingDoc != null && existingDoc.exists()) {
+                    Object existing = existingDoc.get("tipo_equipo");
                     if (existing instanceof Map<?, ?> m && m.get("tiene_bateria") != null) {
                         te.put("tiene_bateria", m.get("tiene_bateria"));
                     }
@@ -298,10 +318,23 @@ public class ComputadoraRepository {
             updates.put("ubicacion_stock",
                     ubicacionStock.isBlank() ? FieldValue.delete() : ubicacionStock);
         }
-
-        if (!updates.isEmpty()) {
-            docRef.update(updates).get();
+        if (especificacionEsperada != null) {
+            var spec = com.bacarsa.inventario.mapper.EspecificacionStockMapper.fromDTO(especificacionEsperada);
+            if (spec == null) {
+                updates.put("especificacion_esperada", FieldValue.delete());
+            } else {
+                updates.put("especificacion_esperada",
+                        com.bacarsa.inventario.mapper.EspecificacionStockMapper.toFirestoreMap(spec));
+            }
         }
+        if (descripcionStock != null) {
+            updates.put("descripcion_stock",
+                    descripcionStock.isBlank() ? FieldValue.delete() : descripcionStock.trim());
+        }
+        if (hostname != null && !hostname.isBlank()) {
+            updates.put("hostname", hostname.trim());
+        }
+        return updates;
     }
 
     @Cacheable(value = "pc-detalle", key = "'hostname:' + #hostname")
@@ -463,6 +496,17 @@ public class ComputadoraRepository {
         if (c.getResponsableInventario() == null || c.getResponsableInventario().isBlank()) {
             c.setResponsableInventario(doc.getString("responsable_inventario"));
         }
+        if (c.getCondicion() == null || c.getCondicion().isBlank()) {
+            c.setCondicion(doc.getString("condicion"));
+        }
+        if (c.getDescripcionStock() == null || c.getDescripcionStock().isBlank()) {
+            c.setDescripcionStock(doc.getString("descripcion_stock"));
+        }
+        if (c.getEspecificacionEsperada() == null) {
+            c.setEspecificacionEsperada(
+                    com.bacarsa.inventario.mapper.EspecificacionStockMapper.fromFirestoreMap(
+                            doc.get("especificacion_esperada")));
+        }
     }
 
     @Caching(evict = {
@@ -542,9 +586,8 @@ public class ComputadoraRepository {
             @CacheEvict(value = "pc-detalle", allEntries = true),
             @CacheEvict(value = "computadoras-gordo", allEntries = true)
     })
-    public void ingresarStock(String uuid, String sistemaOperativo, String tipoEquipoRaw,
-                              String condicion, Ubicacion ubicacion, String ubicacionStock,
-                              String motivo)
+    public void ingresarStock(String uuid, com.bacarsa.inventario.dto.IngresarStockDTO dto,
+                              Ubicacion ubicacion, String motivo)
             throws ExecutionException, InterruptedException {
         DocumentReference docRef = firestore.collection(collectionName).document(uuid);
 
@@ -555,35 +598,9 @@ public class ComputadoraRepository {
             }
 
             Map<String, Object> updates = new HashMap<>();
-
-            // --- datos de stock (replica lógica de actualizarDatosStock) ---
-            if (sistemaOperativo != null) {
-                updates.put("sistema_operativo",
-                        sistemaOperativo.isBlank() ? FieldValue.delete() : sistemaOperativo);
-            }
-            if (tipoEquipoRaw != null) {
-                if (tipoEquipoRaw.isBlank()) {
-                    updates.put("tipo_equipo", FieldValue.delete());
-                } else {
-                    Map<String, Object> te = new HashMap<>();
-                    te.put("tipo", tipoEquipoRaw);
-                    Object existing = doc.get("tipo_equipo");
-                    if (existing instanceof Map<?, ?> m && m.get("tiene_bateria") != null) {
-                        te.put("tiene_bateria", m.get("tiene_bateria"));
-                    }
-                    updates.put("tipo_equipo", te);
-                }
-            }
-            if (condicion != null) {
-                updates.put("condicion", condicion.isBlank() ? FieldValue.delete() : condicion);
-            }
-            if (ubicacion != null) {
-                updates.put("ubicacion", ubicacion.name());
-            }
-            if (ubicacionStock != null) {
-                updates.put("ubicacion_stock",
-                        ubicacionStock.isBlank() ? FieldValue.delete() : ubicacionStock);
-            }
+            updates.putAll(buildStockFieldUpdates(doc, dto.getSistemaOperativo(),
+                    dto.getTipoEquipo(), dto.getCondicion(), ubicacion, dto.getUbicacionStock(),
+                    dto.getEspecificacionEsperada(), dto.getDescripcionStock(), null));
 
             // --- estado SIN_ASIGNAR + historial (replica lógica de cambiarEstado) ---
             @SuppressWarnings("unchecked")
@@ -613,6 +630,7 @@ public class ComputadoraRepository {
             nuevaEntrada.put("motivo", motivo != null ? motivo : "Ingreso a stock");
             nuevaEntrada.put("fechaHoraInicio", ahora);
             nuevaEntrada.put("fechaHoraFin", null);
+            String ubicacionStock = dto.getUbicacionStock();
             if (ubicacionStock != null && !ubicacionStock.isBlank()) {
                 nuevaEntrada.put("ubicacion_stock", ubicacionStock);
             }

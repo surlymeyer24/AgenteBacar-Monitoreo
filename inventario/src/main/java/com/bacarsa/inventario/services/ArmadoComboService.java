@@ -27,6 +27,7 @@ import com.bacarsa.inventario.models.BaselinePerifericoEsperado;
 import com.bacarsa.inventario.models.Computadora;
 import com.bacarsa.inventario.models.EspecificacionStock;
 import com.bacarsa.inventario.models.EstadoConciliacion;
+import com.bacarsa.inventario.models.EstadoPreparacion;
 import com.bacarsa.inventario.models.EstadoOperativo;
 import com.bacarsa.inventario.models.OrigenAlta;
 import com.bacarsa.inventario.repository.ComputadoraRepository;
@@ -113,6 +114,7 @@ public class ArmadoComboService {
             pcUpdates.put("baseline_esperado", baselineToMap(baseline));
             pcUpdates.put("combo_esperado_id", comboId);
             pcUpdates.put("estado_conciliacion", EstadoConciliacion.BASELINE_LISTO.name());
+            pcUpdates.put("estado_preparacion", EstadoPreparacion.ARMADO.name());
             pcUpdates.put("historialEstados", appendHistorialPc(transaction, pcDoc, motivoHistorial));
             transaction.update(pcRef, pcUpdates);
             return null;
@@ -228,7 +230,8 @@ public class ArmadoComboService {
         if (uuidAsignado != null && !uuidAsignado.isBlank()) {
             throw new ApiConflictException("Periférico ya vinculado a otra PC: " + perifRef.getId());
         }
-        String hostnameAsignado = perifDoc.getString("computadoraHostname");
+        String hostnameAsignado = perifDoc.getString("computadora_hostname");
+        if (hostnameAsignado == null) hostnameAsignado = perifDoc.getString("computadoraHostname");
         if (hostnameAsignado != null && !hostnameAsignado.isBlank()) {
             throw new ApiConflictException("Periférico ya asignado: " + perifRef.getId());
         }
@@ -252,7 +255,7 @@ public class ArmadoComboService {
             idStockFinal = perifRef.getId();
             Map<String, Object> updates = new HashMap<>();
             updates.put("computadora_uuid", computadoraUuid);
-            updates.put("computadoraHostname", hostname);
+            updates.put("computadora_hostname", hostname);
             updates.put("comboId", comboId);
             updates.put("historialEstados", cerrarYAgregarHistorial(perifDoc, motivo, true));
             updates.put("estadoActual", estadoMapAsignada());
@@ -354,8 +357,11 @@ public class ArmadoComboService {
         copiarSiPresente(src, doc, "fechaAlta");
         copiarSiPresente(src, doc, "comboNombre");
         copiarSiPresente(src, doc, "numero_serie");
+        copiarSiPresente(src, doc, "especificacion_stock");
+        copiarSiPresente(src, doc, "lote_origen_id");
+        doc.putIfAbsent("lote_origen_id", src.getId());
         doc.put("computadora_uuid", uuid);
-        doc.put("computadoraHostname", hostname);
+        doc.put("computadora_hostname", hostname);
         doc.put("comboId", comboId);
         return doc;
     }

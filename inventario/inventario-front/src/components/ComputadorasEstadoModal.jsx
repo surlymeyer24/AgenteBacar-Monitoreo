@@ -10,6 +10,7 @@ import { useCatalogo } from '../hooks/useCatalogo';
 import { updateResponsableInventario } from '../api/computadoraApi';
 import { normalizarTipoStock } from '../constants/tiposStock';
 import { usePermisos } from '../hooks/usePermisos';
+import { esUnidadStockEnDeposito, filtrarPcsInventarioOperativo } from '../utils/pipelinePcHelpers';
 
 const TABS = [
   { id: 'activas', label: 'Activas' },
@@ -45,20 +46,32 @@ export default function ComputadorasEstadoModal({ isOpen, onClose }) {
     [perifM],
   );
 
-  const pcsLiberadas = useMemo(() => computadoras.filter(c => c.estadoActual === 'Sin Asignar'), [computadoras]);
+  const pcsOperativas = useMemo(
+    () => filtrarPcsInventarioOperativo(computadoras),
+    [computadoras],
+  );
+  const pcsStockDeposito = useMemo(
+    () => computadoras.filter(esUnidadStockEnDeposito),
+    [computadoras],
+  );
 
   const conteos = useMemo(() => {
     let activas = 0;
-    for (const c of computadoras) {
+    for (const c of pcsOperativas) {
       if (esSyncActivo(c)) activas += 1;
     }
     const stockManualCount = stockManualPcs.reduce((sum, p) => sum + (p.cantidad ?? 1), 0);
-    const stock = pcsLiberadas.length + stockManualCount;
-    return { activas, inactivas: computadoras.length - activas, stock, todas: computadoras.length + stockManualCount };
-  }, [computadoras, pcsLiberadas, stockManualPcs]);
+    const stock = pcsStockDeposito.length + stockManualCount;
+    return {
+      activas,
+      inactivas: pcsOperativas.length - activas,
+      stock,
+      todas: pcsOperativas.length + stock,
+    };
+  }, [pcsOperativas, pcsStockDeposito, stockManualPcs]);
 
   const stockRows = useMemo(() => {
-    const liberadas = pcsLiberadas.map(c => ({ ...c, _origen: 'liberada' }));
+    const liberadas = pcsStockDeposito.map(c => ({ ...c, _origen: 'liberada' }));
     const manuales = stockManualPcs.map(p => ({
       uuid: p.id,
       hostname: p.nombre || p.fabricante || 'PC Stock',
@@ -68,14 +81,14 @@ export default function ComputadorasEstadoModal({ isOpen, onClose }) {
       _origen: 'manual',
     }));
     return [...liberadas, ...manuales];
-  }, [pcsLiberadas, stockManualPcs]);
+  }, [pcsStockDeposito, stockManualPcs]);
 
   const filtradas = useMemo(() => {
-    if (tab === 'activas') return computadoras.filter(c => esSyncActivo(c));
-    if (tab === 'inactivas') return computadoras.filter(c => !esSyncActivo(c));
+    if (tab === 'activas') return pcsOperativas.filter(c => esSyncActivo(c));
+    if (tab === 'inactivas') return pcsOperativas.filter(c => !esSyncActivo(c));
     if (tab === 'stock') return stockRows;
-    return [...computadoras, ...stockRows.filter(r => r._origen === 'manual')];
-  }, [computadoras, stockRows, tab]);
+    return [...pcsOperativas, ...stockRows.filter(r => r._origen === 'manual')];
+  }, [pcsOperativas, stockRows, tab]);
 
   function setAsignado(uuid, texto) {
     setAsignadoDraft(prev => ({ ...prev, [uuid]: texto }));

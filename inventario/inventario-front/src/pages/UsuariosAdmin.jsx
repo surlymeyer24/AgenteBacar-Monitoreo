@@ -235,7 +235,9 @@ export default function UsuariosAdmin() {
           >
             <option value="">Todos</option>
             <option value="SIN_ROL">Sin rol</option>
-            {opcionesEnumCatalogo(rolItems)}
+            {opcionesEnumCatalogo(rolItems).map(o => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
           </TableFilters.Select>
         </TableFilters>
       </StudioFilterBar>
@@ -400,7 +402,9 @@ export default function UsuariosAdmin() {
                   onChange={e => setForm(f => ({ ...f, rol: e.target.value }))}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-slate-800 bg-white"
                 >
-                  {opcionesEnumCatalogo(rolItems)}
+                  {opcionesEnumCatalogo(rolItems).map(o => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
                 </select>
                 <p className="text-[10px] text-slate-500 mt-1">
                   {ROLES_SISTEMA.find(r => r.value === form.rol)?.descripcion}

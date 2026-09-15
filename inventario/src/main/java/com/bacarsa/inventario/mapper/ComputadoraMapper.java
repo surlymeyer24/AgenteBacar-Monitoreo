@@ -6,7 +6,10 @@ import java.util.stream.Collectors;
 
 import com.bacarsa.inventario.dto.ComputadoraDTO;
 import com.bacarsa.inventario.models.Computadora;
+import com.bacarsa.inventario.models.EstadoConciliacion;
 import com.bacarsa.inventario.models.EstadoOperativo;
+import com.bacarsa.inventario.models.EstadoPreparacion;
+import com.bacarsa.inventario.models.EstadoReporteAgente;
 import com.bacarsa.inventario.util.FirestoreJsonHelper;
 import com.google.cloud.Timestamp;
 
@@ -83,6 +86,7 @@ public class ComputadoraMapper {
         dto.setCondicion(computadora.getCondicion());
         dto.setOrigenAlta(computadora.getOrigenAlta() != null ? computadora.getOrigenAlta().name() : null);
         dto.setEstadoConciliacion(computadora.getEstadoConciliacion() != null ? computadora.getEstadoConciliacion().name() : null);
+        mapEstadosSeparados(dto, computadora);
         dto.setBaselineEsperado(BaselineEsperadoMapper.toDTO(computadora.getBaselineEsperado()));
         dto.setComboEsperadoId(computadora.getComboEsperadoId());
         dto.setPrimerReporteAgenteAt(formatUltimaSincronizacion(computadora.getPrimerReporteAgenteAt()));
@@ -92,6 +96,7 @@ public class ComputadoraMapper {
         dto.setAgenteUuid(computadora.getAgenteUuid());
         dto.setLoteOrigenId(computadora.getLoteOrigenId());
         dto.setEspecificacionEsperada(EspecificacionStockMapper.toDTO(computadora.getEspecificacionEsperada()));
+        dto.setDescripcionStock(computadora.getDescripcionStock());
         dto.setUbicacionStock(extraerUbicacionStockVigente(computadora));
         return dto;
     }
@@ -122,6 +127,36 @@ public class ComputadoraMapper {
         }
         return "ONLINE".equalsIgnoreCase(estadoConexion.trim()) ? "Activo" : "Desconectado";
     }
-    
 
+    private static void mapEstadosSeparados(ComputadoraDTO dto, Computadora pc) {
+        if (pc.getEstadoPreparacion() != null) {
+            dto.setEstadoPreparacion(pc.getEstadoPreparacion().name());
+        }
+        if (pc.getEstadoReporteAgente() != null) {
+            dto.setEstadoReporteAgente(pc.getEstadoReporteAgente().name());
+        }
+        if (dto.getEstadoPreparacion() == null || dto.getEstadoReporteAgente() == null) {
+            derivarDesdeEstadoConciliacion(dto, pc.getEstadoConciliacion());
+        }
+    }
+
+    private static void derivarDesdeEstadoConciliacion(ComputadoraDTO dto, EstadoConciliacion ec) {
+        if (ec == null) return;
+        if (dto.getEstadoPreparacion() == null) {
+            dto.setEstadoPreparacion(switch (ec) {
+                case SIN_BASELINE -> EstadoPreparacion.SIN_ARMAR.name();
+                case NO_APLICA -> EstadoPreparacion.NO_APLICA.name();
+                default -> EstadoPreparacion.ARMADO.name();
+            });
+        }
+        if (dto.getEstadoReporteAgente() == null) {
+            dto.setEstadoReporteAgente(switch (ec) {
+                case SIN_BASELINE, BASELINE_LISTO -> EstadoReporteAgente.SIN_REPORTE.name();
+                case PENDIENTE -> EstadoReporteAgente.MATCH_SUGERIDO.name();
+                case COINCIDE -> EstadoReporteAgente.CONFIRMADA.name();
+                case DISCREPANCIA -> EstadoReporteAgente.DISCREPANCIA.name();
+                case NO_APLICA -> EstadoReporteAgente.NO_APLICA.name();
+            });
+        }
+    }
 }

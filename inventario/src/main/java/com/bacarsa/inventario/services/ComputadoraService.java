@@ -22,6 +22,8 @@ import com.bacarsa.inventario.models.DispositivoUsbFirestore;
 import com.bacarsa.inventario.models.Estado;
 import com.bacarsa.inventario.models.EstadoConciliacion;
 import com.bacarsa.inventario.models.EstadoOperativo;
+import com.bacarsa.inventario.models.EstadoPreparacion;
+import com.bacarsa.inventario.models.EstadoReporteAgente;
 import com.bacarsa.inventario.models.ImpresoraFirestore;
 import com.bacarsa.inventario.models.MonitorFirestore;
 import com.bacarsa.inventario.models.OrigenAlta;
@@ -106,6 +108,8 @@ public class ComputadoraService {
         pc.setCondicion(blankToNull(dto.getCondicion()));
         pc.setOrigenAlta(OrigenAlta.STOCK);
         pc.setEstadoConciliacion(EstadoConciliacion.SIN_BASELINE);
+        pc.setEstadoPreparacion(EstadoPreparacion.SIN_ARMAR);
+        pc.setEstadoReporteAgente(EstadoReporteAgente.SIN_REPORTE);
 
         computadoraRepository.create(pc);
 
@@ -174,14 +178,11 @@ public class ComputadoraService {
             }
         }
 
-        computadoraRepository.actualizarDatosStock(
-                uuid,
-                dto.getSistemaOperativo(),
-                dto.getTipoEquipo(),
-                dto.getCondicion(),
-                ubicacion,
-                dto.getUbicacionStock());
-        return getByUuid(uuid);
+        Computadora actualizada = computadoraRepository.actualizarDatosStock(uuid, dto, ubicacion);
+        if (actualizada == null) {
+            return null;
+        }
+        return ComputadoraMapper.toDTO(actualizada);
     }
 
     public ComputadoraDTO ingresarStock(String uuid, IngresarStockDTO dto)
@@ -209,13 +210,7 @@ public class ComputadoraService {
             motivo = "Ingreso a stock";
         }
 
-        computadoraRepository.ingresarStock(uuid,
-                dto.getSistemaOperativo(),
-                dto.getTipoEquipo(),
-                dto.getCondicion(),
-                ubicacion,
-                dto.getUbicacionStock(),
-                motivo);
+        computadoraRepository.ingresarStock(uuid, dto, ubicacion, motivo);
 
         ComputadoraDTO result = getByUuid(uuid);
 

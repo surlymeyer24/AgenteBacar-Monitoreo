@@ -21,6 +21,8 @@ public class PerifericoManual {
     private String nombre;
     private String fabricante;
     private String conexion;
+    @Getter(onMethod_ = @PropertyName("computadora_hostname"))
+    @Setter(onMethod_ = @PropertyName("computadora_hostname"))
     private String computadoraHostname;
 
     @Getter(onMethod_ = @PropertyName("computadora_uuid"))
@@ -41,6 +43,10 @@ public class PerifericoManual {
     @Getter(onMethod_ = @PropertyName("numero_serie"))
     @Setter(onMethod_ = @PropertyName("numero_serie"))
     private String numeroSerie;
+
+    @Getter(onMethod_ = @PropertyName("lote_origen_id"))
+    @Setter(onMethod_ = @PropertyName("lote_origen_id"))
+    private String loteOrigenId;
 
     private Estado estadoActual;
     private List<CambioEstado> historialEstados;

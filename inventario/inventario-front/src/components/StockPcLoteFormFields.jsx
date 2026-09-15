@@ -31,6 +31,8 @@ export default function StockPcLoteFormFields({
   tiposEquipoItems,
   condicionesItems,
   showIntroBanner = false,
+  hideFabricante = false,
+  cantidadReadonly = false,
   disabled = false,
 }) {
   const inputCls = stockInputClass(ACCENT);
@@ -136,17 +138,19 @@ export default function StockPcLoteFormFields({
         </div>
       </div>
 
-      <div>
-        <label className="text-slate-700 block mb-1">Fabricante (Marca)</label>
-        <input
-          type="text"
-          disabled={disabled}
-          placeholder="Ej. AMD, Intel, Dell"
-          value={fabricante}
-          onChange={(e) => onFabricanteChange(e.target.value)}
-          className={inputCls}
-        />
-      </div>
+      {!hideFabricante && (
+        <div>
+          <label className="text-slate-700 block mb-1">Fabricante (Marca)</label>
+          <input
+            type="text"
+            disabled={disabled}
+            placeholder="Ej. AMD, Intel, Dell"
+            value={fabricante}
+            onChange={(e) => onFabricanteChange(e.target.value)}
+            className={inputCls}
+          />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
@@ -166,10 +170,13 @@ export default function StockPcLoteFormFields({
             type="number"
             min="1"
             required
-            disabled={disabled}
+            readOnly={cantidadReadonly}
+            disabled={disabled || cantidadReadonly}
             value={cantidad}
             onChange={(e) => onCantidadChange(e.target.value)}
-            className={stockInputClass(ACCENT, { mono: true })}
+            className={cantidadReadonly
+              ? stockInputClass(ACCENT, { readonly: true, mono: true })
+              : stockInputClass(ACCENT, { mono: true })}
           />
         </div>
       </div>

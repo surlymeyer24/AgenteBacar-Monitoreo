@@ -2,13 +2,24 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState, Children, isV
 import { createPortal } from 'react-dom';
 import { Check, ChevronDown } from 'lucide-react';
 
+function labelText(label) {
+  if (label == null || label === false) return '';
+  if (typeof label === 'string' || typeof label === 'number') return String(label);
+  if (Array.isArray(label)) return label.map(labelText).filter(Boolean).join('');
+  if (typeof label === 'object') {
+    if (label.label != null) return labelText(label.label);
+    if (label.value != null) return String(label.value);
+  }
+  return String(label);
+}
+
 function optionsFromChildren(children) {
   return Children.toArray(children)
     .filter(isValidElement)
     .filter((child) => child.type === 'option')
     .map((child) => ({
       value: child.props.value == null ? '' : String(child.props.value),
-      label: child.props.children,
+      label: labelText(child.props.children),
       disabled: Boolean(child.props.disabled),
     }));
 }
@@ -17,7 +28,7 @@ function normalizeOptions(options, children) {
   if (Array.isArray(options) && options.length > 0) {
     return options.map((opt) => ({
       value: opt.value == null ? '' : String(opt.value),
-      label: opt.label ?? String(opt.value ?? ''),
+      label: labelText(opt.label ?? opt.value ?? ''),
       disabled: Boolean(opt.disabled),
     }));
   }

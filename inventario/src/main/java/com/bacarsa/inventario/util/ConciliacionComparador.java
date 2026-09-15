@@ -9,6 +9,7 @@ import com.bacarsa.inventario.models.BaselineEsperado;
 import com.bacarsa.inventario.models.BaselinePerifericoEsperado;
 import com.bacarsa.inventario.models.Computadora;
 import com.bacarsa.inventario.models.EstadoConciliacion;
+import com.bacarsa.inventario.models.EstadoReporteAgente;
 import com.bacarsa.inventario.models.MonitorFirestore;
 
 import lombok.Getter;
@@ -20,12 +21,15 @@ public final class ConciliacionComparador {
 
     @Getter
     public static final class ComparacionResult {
+        private final EstadoReporteAgente estadoReporte;
+        @Deprecated
         private final EstadoConciliacion estado;
         private final List<String> camposDiferentes;
         private final Map<String, Object> detalle;
 
-        public ComparacionResult(EstadoConciliacion estado, List<String> camposDiferentes,
-                Map<String, Object> detalle) {
+        public ComparacionResult(EstadoReporteAgente estadoReporte, EstadoConciliacion estado,
+                List<String> camposDiferentes, Map<String, Object> detalle) {
+            this.estadoReporte = estadoReporte;
             this.estado = estado;
             this.camposDiferentes = camposDiferentes;
             this.detalle = detalle;
@@ -38,7 +42,7 @@ public final class ConciliacionComparador {
 
         if (baseline == null) {
             detalle.put("error", "Sin baseline en stock");
-            return new ComparacionResult(EstadoConciliacion.DISCREPANCIA, List.of("baseline"), detalle);
+            return new ComparacionResult(EstadoReporteAgente.DISCREPANCIA, EstadoConciliacion.DISCREPANCIA, List.of("baseline"), detalle);
         }
 
         String cpuAgente = extraerCpu(agente);
@@ -73,8 +77,9 @@ public final class ConciliacionComparador {
 
         compararMonitor(agente, baseline, diffs, detalle);
 
+        EstadoReporteAgente reporte = diffs.isEmpty() ? EstadoReporteAgente.CONFIRMADA : EstadoReporteAgente.DISCREPANCIA;
         EstadoConciliacion estado = diffs.isEmpty() ? EstadoConciliacion.COINCIDE : EstadoConciliacion.DISCREPANCIA;
-        return new ComparacionResult(estado, diffs, detalle);
+        return new ComparacionResult(reporte, estado, diffs, detalle);
     }
 
     private static void compararMonitor(Computadora agente, BaselineEsperado baseline,

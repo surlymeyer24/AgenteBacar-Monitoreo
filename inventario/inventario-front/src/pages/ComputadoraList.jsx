@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, Outlet } from 'react-router-dom';
-import { Laptop, Monitor, Search, Copy, Cpu, UserCheck } from 'lucide-react';
+import { Laptop, Monitor, Search, Copy, Cpu, UserCheck, Edit2 } from 'lucide-react';
 import AsignacionesBoard from '../components/AsignacionesBoard';
 import { fetchComputadoras, updateUbicacion, deleteComputadora } from '../api/computadoraApi';
 import { useComputadorasList } from '../context/ComputadorasListContext';
@@ -29,6 +29,7 @@ import {
 import TableFilters from '../components/TableFilters';
 import WriteGate from '../components/WriteGate';
 import { usePermisos } from '../hooks/usePermisos';
+import { esPcVisibleEnInventario } from '../utils/pipelinePcHelpers';
 
 const ORDEN_OPTS = [
   { value: 'hostname-asc', label: 'Hostname A-Z' },
@@ -104,7 +105,7 @@ function coincideFiltroActividadSync(c, filtro) {
 }
 
 function ComputadoraList() {
-  const { todas, setTodas, cargando, error } = useComputadorasList();
+  const { todas, setTodas, cargando, error, openEditPc } = useComputadorasList();
   const { puedeEscribir } = usePermisos();
   const { items: ubicCompItems } = useCatalogo('ubicaciones_computadora');
   const { items: tiposEquipoItems } = useCatalogo('tipos_equipo');
@@ -113,7 +114,7 @@ function ComputadoraList() {
   const [buscar, setBuscar] = useState('');
   const [filtroUbicacion, setFiltroUbicacion] = useState('');
   const [filtroTipoEquipo, setFiltroTipoEquipo] = useState('');
-  const [filtroConciliacion, setFiltroConciliacion] = useState('');
+  const [filtroPreparacion, setFiltroPreparacion] = useState('');
   const [filtroConexion, setFiltroConexion] = useState('');
   const [incluirLegacy, setIncluirLegacy] = useState(false);
   const [orden, setOrden] = useState('hostname-asc');
@@ -134,12 +135,17 @@ function ComputadoraList() {
     setTimeout(() => setCopiedAnydesk(null), 1500);
   }
 
+  const inventarioOperativo = useMemo(
+    () => todas.filter(esPcVisibleEnInventario),
+    [todas],
+  );
+
   const antesFiltroTipo = useMemo(() => {
-    let list = todas.filter(c => coincideUbicacionFiltro(c.ubicacion, filtroUbicacion));
+    let list = inventarioOperativo.filter(c => coincideUbicacionFiltro(c.ubicacion, filtroUbicacion));
     list = list.filter(c => coincideBusqueda(c, buscar));
     if (!incluirLegacy) list = list.filter(c => c.origenAlta !== 'LEGACY');
     return list;
-  }, [todas, filtroUbicacion, buscar, incluirLegacy]);
+  }, [inventarioOperativo, filtroUbicacion, buscar, incluirLegacy]);
 
   const conteosTipo = useMemo(() => {
     const counts = Object.fromEntries(tiposEquipoItems.map(i => [i.codigo, 0]));
@@ -156,19 +162,19 @@ function ComputadoraList() {
     [antesFiltroTipo, filtroTipoEquipo],
   );
 
-  const antesFiltroConciliacion = useMemo(() => {
-    if (!filtroConciliacion) return antesFiltroConexion;
-    return antesFiltroConexion.filter(c => c.estadoConciliacion === filtroConciliacion);
-  }, [antesFiltroConexion, filtroConciliacion]);
+  const antesFiltroPrepacion = useMemo(() => {
+    if (!filtroPreparacion) return antesFiltroConexion;
+    return antesFiltroConexion.filter(c => (c.estadoPreparacion ?? c.estadoConciliacion) === filtroPreparacion);
+  }, [antesFiltroConexion, filtroPreparacion]);
 
   const computadoras = useMemo(() => {
-    let list = antesFiltroConciliacion.filter(c => coincideFiltroActividadSync(c, filtroConexion));
+    let list = antesFiltroPrepacion.filter(c => coincideFiltroActividadSync(c, filtroConexion));
     const copy = [...list];
     if (orden === 'hostname-asc') copy.sort((a, b) => cmpHostname(a, b, false));
     else if (orden === 'hostname-desc') copy.sort((a, b) => cmpHostname(a, b, true));
     else if (orden === 'ubicacion-asc') copy.sort((a, b) => cmpUbicacion(a, b));
     return copy;
-  }, [antesFiltroConciliacion, filtroConexion, orden]);
+  }, [antesFiltroPrepacion, filtroConexion, orden]);
 
   const uuidsVisibles = useMemo(
     () => computadoras.map(c => c.uuid).filter(Boolean),
@@ -290,7 +296,7 @@ function ComputadoraList() {
   if (cargando) return <StudioLoading />;
   if (error) return <StudioError message={error} />;
 
-  const total = todas.length;
+  const total = inventarioOperativo.length;
   const visibles = computadoras.length;
   const subt =
     visibles === total
@@ -383,14 +389,15 @@ function ComputadoraList() {
                 ))}
               </TableFilters.Select>
               <TableFilters.Select
-                id="inv-conciliacion"
-                label="Baseline"
-                value={filtroConciliacion}
-                onChange={setFiltroConciliacion}
+                id="inv-preparacion"
+                label="Preparación"
+                value={filtroPreparacion}
+                onChange={setFiltroPreparacion}
               >
                 <option value="">{`Todos (${antesFiltroConexion.length})`}</option>
-                <option value="SIN_BASELINE">Sin baseline</option>
-                <option value="BASELINE_LISTO">Baseline listo</option>
+                <option value="SIN_ARMAR">Sin armar</option>
+                <option value="ARMADO">Combo armado</option>
+                <option value="NO_APLICA">No aplica</option>
               </TableFilters.Select>
               <TableFilters.Select
                 id="inv-actividad-sync"
@@ -398,7 +405,7 @@ function ComputadoraList() {
                 value={filtroConexion}
                 onChange={setFiltroConexion}
               >
-                <option value="">{`Todos (${antesFiltroConciliacion.length})`}</option>
+                <option value="">{`Todos (${antesFiltroPrepacion.length})`}</option>
                 <option value="activo">{`Reciente (< ~${MINUTOS_LABEL_UMBRAL_ACTIVO} min)`}</option>
                 <option value="intermedio">Entre ~12 min y 1 h</option>
                 <option value="sin_actividad">Sin actividad (+1 h)</option>
@@ -508,12 +515,15 @@ function ComputadoraList() {
               <th className={studioThClass()}>Condición</th>
               <th className={studioThClass()}>Conexión</th>
               <th className={studioThClass()}>Estado</th>
+              {puedeEscribir ? (
+                <th className={`${studioThClass()} text-right w-24`}>Acciones</th>
+              ) : null}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {computadoras.length === 0 ? (
               <tr>
-                <td colSpan={puedeEscribir ? 10 : 9} className={`${studioTdClass()} text-center text-slate-400 py-10`}>
+                <td colSpan={puedeEscribir ? 11 : 9} className={`${studioTdClass()} text-center text-slate-400 py-10`}>
                   {todas.length === 0
                     ? 'Sin registros'
                     : 'Ningún equipo coincide con los filtros'}
@@ -618,6 +628,19 @@ function ComputadoraList() {
                         {c.estadoActual ?? '—'}
                       </span>
                     </td>
+                    {puedeEscribir ? (
+                      <td className={`${studioTdClass()} text-right`} onClick={e => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={() => openEditPc?.(c)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-blue-700 transition-colors"
+                          title="Editar datos de stock"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                          Editar
+                        </button>
+                      </td>
+                    ) : null}
                   </tr>
                 );
               })

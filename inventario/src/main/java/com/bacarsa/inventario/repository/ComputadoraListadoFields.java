@@ -25,8 +25,11 @@ public final class ComputadoraListadoFields {
             "condicion",
             "origen_alta",
             "estado_conciliacion",
+            "estado_preparacion",
+            "estado_reporte_agente",
             "combo_esperado_id",
             "especificacion_esperada",
+            "descripcion_stock",
             "lote_origen_id"
     );
 }

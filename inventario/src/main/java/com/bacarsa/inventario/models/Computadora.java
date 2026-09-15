@@ -87,9 +87,18 @@ public class Computadora {
     @Setter(onMethod_ = @PropertyName("origen_alta"))
     private OrigenAlta origenAlta;
 
+    @Deprecated
     @Getter(onMethod_ = @PropertyName("estado_conciliacion"))
     @Setter(onMethod_ = @PropertyName("estado_conciliacion"))
     private EstadoConciliacion estadoConciliacion;
+
+    @Getter(onMethod_ = @PropertyName("estado_preparacion"))
+    @Setter(onMethod_ = @PropertyName("estado_preparacion"))
+    private EstadoPreparacion estadoPreparacion;
+
+    @Getter(onMethod_ = @PropertyName("estado_reporte_agente"))
+    @Setter(onMethod_ = @PropertyName("estado_reporte_agente"))
+    private EstadoReporteAgente estadoReporteAgente;
 
     @Getter(onMethod_ = @PropertyName("baseline_esperado"))
     @Setter(onMethod_ = @PropertyName("baseline_esperado"))
@@ -134,6 +143,10 @@ public class Computadora {
     @Getter(onMethod_ = @PropertyName("especificacion_esperada"))
     @Setter(onMethod_ = @PropertyName("especificacion_esperada"))
     private EspecificacionStock especificacionEsperada;
+
+    @Getter(onMethod_ = @PropertyName("descripcion_stock"))
+    @Setter(onMethod_ = @PropertyName("descripcion_stock"))
+    private String descripcionStock;
 
     @Getter(onMethod_ = @PropertyName("serial_equipo"))
     @Setter(onMethod_ = @PropertyName("serial_equipo"))

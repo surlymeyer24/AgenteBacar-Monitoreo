@@ -13,4 +13,7 @@ public class ComputadoraStockUpdateDTO {
     private String condicion;
     private String ubicacion;
     private String ubicacionStock;
+    private EspecificacionStockDTO especificacionEsperada;
+    private String descripcionStock;
+    private String hostname;
 }

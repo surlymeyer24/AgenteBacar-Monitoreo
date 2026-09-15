@@ -14,6 +14,8 @@ import org.springframework.stereotype.Service;
 
 import com.bacarsa.inventario.dto.MigracionTrazabilidadResultDTO;
 import com.bacarsa.inventario.models.EstadoConciliacion;
+import com.bacarsa.inventario.models.EstadoPreparacion;
+import com.bacarsa.inventario.models.EstadoReporteAgente;
 import com.bacarsa.inventario.models.OrigenAlta;
 import com.google.cloud.firestore.Firestore;
 import com.google.cloud.firestore.QueryDocumentSnapshot;
@@ -66,10 +68,14 @@ public class MigracionTrazabilidadService {
                 if (!tieneSincronizacion && "Sin Asignar".equalsIgnoreCase(estadoActualNombre)) {
                     updates.put("origen_alta", OrigenAlta.STOCK.name());
                     updates.put("estado_conciliacion", EstadoConciliacion.SIN_BASELINE.name());
+                    updates.put("estado_preparacion", EstadoPreparacion.SIN_ARMAR.name());
+                    updates.put("estado_reporte_agente", EstadoReporteAgente.SIN_REPORTE.name());
                     result.setStockRetroactivo(result.getStockRetroactivo() + 1);
                 } else {
                     updates.put("origen_alta", OrigenAlta.LEGACY.name());
                     updates.put("estado_conciliacion", EstadoConciliacion.NO_APLICA.name());
+                    updates.put("estado_preparacion", EstadoPreparacion.NO_APLICA.name());
+                    updates.put("estado_reporte_agente", EstadoReporteAgente.NO_APLICA.name());
                     result.setLegacy(result.getLegacy() + 1);
                 }
 

@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef, Fragment } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   fetchComputadora,
   updateUbicacion,
   updateEstado,
   updateResponsableInventario,
   deleteComputadora,
+  sacarDePipeline,
 } from '../api/computadoraApi';
 import { useOptionalComputadorasList } from '../context/ComputadorasListContext';
 import { useCatalogo, opcionesEnumCatalogo, labelDeCatalogo } from '../hooks/useCatalogo';
@@ -14,15 +16,19 @@ import { textoConexionAgente } from '../utils/estadoConexion';
 import { filtrarUsbParaInventario, filtrarAudioParaInventario } from '../utils/perifericos';
 import WriteGate from '../components/WriteGate';
 import ComputadoraPerifericosSection from '../components/ComputadoraPerifericosSection';
+import ComputadoraStockPerifericosBlock from '../components/ComputadoraStockPerifericosBlock';
 import ComputadoraSoftwareSection from '../components/ComputadoraSoftwareSection';
 import ComputadoraHardwareSection from '../components/ComputadoraHardwareSection';
-import ComputadoraEventosTimeline from '../components/ComputadoraEventosTimeline';
+import ComputadoraTimelineUnificada from '../components/ComputadoraTimelineUnificada';
+import { StockEstadosUnidad, StockEstadoLeyenda } from '../components/StockEstadoBadges';
+import { labelsEnumCatalogo } from '../hooks/useCatalogo';
 import { getComputerRamDetails } from '../utils/ramHelpers';
 import {
-  Trash2, Info, Monitor, CheckCircle, Clock, User, ChevronLeft, Laptop, SlidersHorizontal, ShieldCheck, ShieldAlert, Package
+  Trash2, Info, Monitor, CheckCircle, Clock, User, ChevronLeft, Laptop, SlidersHorizontal, ShieldCheck, Package, Edit2
 } from 'lucide-react';
 import { StudioLoading, StudioError } from '../components/studio/StudioUi';
 import ArmarComboModal, { BaselineEsperadoBlock, EspecificacionEsperadaBlock } from '../components/ArmarComboModal';
+import { puedeSacarDePipeline } from '../utils/pipelinePcHelpers';
 
 function fmtFechaIso(s) {
   if (s == null || s === '') return '—';
@@ -65,21 +71,14 @@ const ORIGEN_ALTA_MAP = {
   DETECTADA_VINCULADA_RETRO: { label: 'Vinc. retro', cls: 'bg-purple-900/40 text-purple-300 border border-purple-700/50' },
 };
 
-const ESTADO_CONCILIACION_MAP = {
-  SIN_BASELINE: { label: 'Sin baseline', cls: 'bg-slate-700/50 text-slate-300 border border-slate-600' },
-  NO_APLICA: { label: 'No aplica', cls: 'bg-slate-700/50 text-slate-400 border border-slate-600' },
-  BASELINE_LISTO: { label: 'Baseline listo', cls: 'bg-cyan-900/40 text-cyan-300 border border-cyan-700/50' },
-  PENDIENTE: { label: 'Pendiente', cls: 'bg-amber-900/40 text-amber-300 border border-amber-700/50' },
-  COINCIDE: { label: 'Coincide', cls: 'bg-emerald-900/40 text-emerald-300 border border-emerald-700/50' },
-  DISCREPANCIA: { label: 'Discrepancia', cls: 'bg-red-900/40 text-red-300 border border-red-700/50' },
-};
-
 function ComputadoraDetail() {
   const { uuid } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const listado = useOptionalComputadorasList();
   const { items: ubicCompItems } = useCatalogo('ubicaciones_computadora');
   const { items: estadoItems } = useCatalogo('estados_operativos');
+  const estadoLabels = labelsEnumCatalogo(estadoItems);
   const { items: tiposEquipoItems } = useCatalogo('tipos_equipo');
   const { items: condicionesItems } = useCatalogo('condiciones_equipo');
   const mergeEnListadoRef = useRef(listado?.mergeEnListado);
@@ -102,6 +101,7 @@ function ComputadoraDetail() {
   const [msgEliminar, setMsgEliminar] = useState(null);
   const [copiedAnydesk, setCopiedAnydesk] = useState(false);
   const [armarComboOpen, setArmarComboOpen] = useState(false);
+  const [sacandoPipeline, setSacandoPipeline] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -126,11 +126,34 @@ function ComputadoraDetail() {
   if (error) return <StudioError message={error} />;
   if (!c) return <StudioError message="Computadora no encontrada" />;
 
+  const prepSinArmar = c.estadoPreparacion === 'SIN_ARMAR' || (!c.estadoPreparacion && c.estadoConciliacion === 'SIN_BASELINE');
   const puedeArmarCombo = c.origenAlta === 'STOCK'
-    && c.estadoConciliacion === 'SIN_BASELINE'
+    && prepSinArmar
     && (c.estadoActual ?? '').toLowerCase() === 'sin asignar';
   const puedeIngresarStock = c.origenAlta === 'STOCK'
     && (c.estadoActual ?? '').toLowerCase() !== 'sin asignar';
+  const mostrarSacarPipeline = puedeSacarDePipeline(c);
+
+  function solicitarSacarDePipeline() {
+    const nombre = (c.hostname && String(c.hostname).trim()) ? c.hostname : 'esta PC';
+    if (!window.confirm(`¿Devolver "${nombre}" al lote de Stock de PCs? Se elimina esta unidad de computadoras y suma 1 al lote.`)) return;
+    setSacandoPipeline(true);
+    sacarDePipeline(uuid)
+      .then(data => {
+        if (data) {
+          listado?.removeEnListado?.(uuid);
+          queryClient.invalidateQueries({ queryKey: ['computadoras'] });
+          queryClient.invalidateQueries({ queryKey: ['dashboardStats'] });
+          queryClient.invalidateQueries({ queryKey: ['perifericosM'] });
+          alert('La PC volvió a Stock de PCs.');
+          navigate('/perifericos/stock');
+        } else {
+          alert('No se encontró la computadora');
+        }
+      })
+      .catch((err) => alert(err?.message || 'No se pudo sacar del pipeline'))
+      .finally(() => setSacandoPipeline(false));
+  }
 
   function guardarUbicacion(e) {
     e?.preventDefault();
@@ -235,20 +258,14 @@ function ComputadoraDetail() {
             <p className="text-sm text-slate-400 mt-1">
               UUID: <span className="font-mono text-slate-300">{c.uuid}</span> <span className="text-slate-600 mx-1.5">•</span> <span className="font-bold text-slate-200">{labelUbicacion(c.ubicacion, ubicCompItems) || 'Sin asignar'}</span>
             </p>
-            {(c.origenAlta || c.estadoConciliacion) && (
-              <div className="flex flex-wrap gap-2 mt-2">
-                {c.origenAlta && ORIGEN_ALTA_MAP[c.origenAlta] && (
-                  <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-bold ${ORIGEN_ALTA_MAP[c.origenAlta].cls}`}>
-                    {ORIGEN_ALTA_MAP[c.origenAlta].label}
-                  </span>
-                )}
-                {c.estadoConciliacion && ESTADO_CONCILIACION_MAP[c.estadoConciliacion] && (
-                  <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-bold ${ESTADO_CONCILIACION_MAP[c.estadoConciliacion].cls}`}>
-                    {ESTADO_CONCILIACION_MAP[c.estadoConciliacion].label}
-                  </span>
-                )}
-              </div>
-            )}
+            <div className="flex flex-wrap items-center gap-2 mt-2">
+              {c.origenAlta && ORIGEN_ALTA_MAP[c.origenAlta] && (
+                <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-bold ${ORIGEN_ALTA_MAP[c.origenAlta].cls}`}>
+                  {ORIGEN_ALTA_MAP[c.origenAlta].label}
+                </span>
+              )}
+              <StockEstadosUnidad pc={c} estadoLabels={estadoLabels} variant="dark" className="!mt-0 gap-2" />
+            </div>
           </div>
         </div>
 
@@ -273,14 +290,23 @@ function ComputadoraDetail() {
           )}
 
           <WriteGate>
+          <button
+            type="button"
+            onClick={() => listado?.openEditPc?.(c, { onSaved: setC })}
+            className="px-4 py-2 border border-blue-700/50 bg-blue-950/40 text-blue-200 hover:bg-blue-900/50 font-bold text-base rounded-lg flex items-center gap-2 transition-colors shrink-0"
+          >
+            <Edit2 className="w-4 h-4" />
+            Editar datos stock
+          </button>
           {puedeIngresarStock && (
-            <Link
-              to={`/perifericos/stock?tab=unidades&editarPc=${encodeURIComponent(c.uuid)}`}
+            <button
+              type="button"
+              onClick={() => listado?.openEditPc?.(c, { onSaved: setC })}
               className="px-4 py-2 border border-teal-700/50 bg-teal-950/40 text-teal-200 hover:bg-teal-900/50 font-bold text-base rounded-lg flex items-center gap-2 transition-colors shrink-0"
             >
               <Package className="w-4 h-4" />
               Ingresar a stock
-            </Link>
+            </button>
           )}
           {puedeArmarCombo && (
             <button
@@ -290,6 +316,18 @@ function ComputadoraDetail() {
             >
               <Package className="w-4 h-4" />
               Armar combo
+            </button>
+          )}
+          {mostrarSacarPipeline && (
+            <button
+              type="button"
+              onClick={solicitarSacarDePipeline}
+              disabled={sacandoPipeline}
+              className="px-4 py-2 border border-slate-600 bg-slate-800 text-slate-200 hover:bg-slate-700 font-bold text-base rounded-lg flex items-center gap-2 transition-colors shrink-0 disabled:opacity-50"
+              title="Vuelve al lote de Stock de PCs y se elimina esta unidad"
+            >
+              <Monitor className="w-4 h-4" />
+              {sacandoPipeline ? 'Sacando…' : 'Devolver a Stock de PCs'}
             </button>
           )}
           <button 
@@ -341,11 +379,11 @@ function ComputadoraDetail() {
           Inventario / Asignación
         </button>
         <button
-          onClick={() => setSolapa('auditoria')}
-          className={`py-4 px-4 text-base font-bold border-b-2 transition-all shrink-0 flex items-center gap-1.5 ${solapa === 'auditoria' ? 'border-[#0c66e4] text-[#0c66e4] font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+          onClick={() => setSolapa('historial')}
+          className={`py-4 px-4 text-base font-bold border-b-2 transition-all shrink-0 flex items-center gap-1.5 ${solapa === 'historial' ? 'border-[#0c66e4] text-[#0c66e4] font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
         >
-          <ShieldAlert className="w-4 h-4" />
-          Auditoría HW
+          <Clock className="w-4 h-4" />
+          Historial
         </button>
       </div>
 
@@ -364,11 +402,14 @@ function ComputadoraDetail() {
         )}
 
         {solapa === 'perifericos' && (
-          <ComputadoraPerifericosSection
-            computadora={c}
-            uuid={uuid}
-            onActualizado={data => { setC(data); listado?.mergeEnListado?.(data); }}
-          />
+          <div className="space-y-6">
+            <ComputadoraStockPerifericosBlock uuid={uuid} estadoLabels={estadoLabels} />
+            <ComputadoraPerifericosSection
+              computadora={c}
+              uuid={uuid}
+              onActualizado={data => { setC(data); listado?.mergeEnListado?.(data); }}
+            />
+          </div>
         )}
 
         {solapa === 'software' && (
@@ -594,14 +635,18 @@ function ComputadoraDetail() {
           </div>
         )}
 
-        {solapa === 'auditoria' && (
+        {solapa === 'historial' && (
           <div className="space-y-4">
+            <StockEstadoLeyenda variant="compact" />
             <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
               <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-widest flex items-center gap-1.5 pb-3 border-b border-slate-100 mb-4">
-                <ShieldAlert className="w-4 h-4 text-[#0c66e4]" />
-                Cambios de hardware detectados
+                <Clock className="w-4 h-4 text-[#0c66e4]" />
+                Timeline unificado
               </h4>
-              <ComputadoraEventosTimeline uuid={uuid} />
+              <p className="text-xs text-slate-500 font-medium mb-4">
+                Estados IT, cambios de hardware (AgenteBacar) y conciliaciones stock ↔ agente en orden cronológico.
+              </p>
+              <ComputadoraTimelineUnificada uuid={uuid} />
             </div>
           </div>
         )}

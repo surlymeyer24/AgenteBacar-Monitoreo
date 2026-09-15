@@ -14,6 +14,8 @@ public class IngresarStockDTO {
     private String condicion;
     private String ubicacion;
     private String ubicacionStock;
+    private EspecificacionStockDTO especificacionEsperada;
+    private String descripcionStock;
     @Size(max = 2000)
     private String motivo;
 }

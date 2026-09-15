@@ -1,0 +1,1 @@
+function e(e){return!e||typeof e.seconds!=`number`?`—`:new Date(e.seconds*1e3).toLocaleString(`es-AR`,{dateStyle:`short`,timeStyle:`medium`})}export{e as t};

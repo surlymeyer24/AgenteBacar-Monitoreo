@@ -93,7 +93,7 @@ function EventoHardwareDetail() {
           });
         }
       })
-      .catch(() => { if (!cancelled) setError('No se pudo cargar el evento'); })
+      .catch(err => { if (!cancelled) setError(err.message || 'No se pudo cargar el evento'); })
       .finally(() => { if (!cancelled) setCargando(false); });
     return () => { cancelled = true; };
   }, [id, queryClient]);

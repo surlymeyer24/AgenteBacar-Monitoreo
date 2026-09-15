@@ -10,6 +10,9 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Repository;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.bacarsa.inventario.models.EventoHardware;
 import com.google.api.core.ApiFuture;
 import com.google.cloud.firestore.DocumentSnapshot;
@@ -20,6 +23,8 @@ import com.google.cloud.firestore.QuerySnapshot;
 
 @Repository
 public class EventoHardwareRepository {
+
+    private static final Logger log = LoggerFactory.getLogger(EventoHardwareRepository.class);
 
     private final Firestore firestore;
     private final String collectionName;
@@ -92,10 +97,17 @@ public class EventoHardwareRepository {
     }
 
     private static EventoHardware snapshotToEntity(DocumentSnapshot doc) {
-        EventoHardware e = doc.toObject(EventoHardware.class);
-        if (e == null) e = new EventoHardware();
-        e.setId(doc.getId());
-        return e;
+        try {
+            EventoHardware e = doc.toObject(EventoHardware.class);
+            if (e == null) e = new EventoHardware();
+            e.setId(doc.getId());
+            return e;
+        } catch (RuntimeException ex) {
+            log.error("Error deserializando evento_hardware id={}: {}", doc.getId(), ex.getMessage());
+            EventoHardware fallback = new EventoHardware();
+            fallback.setId(doc.getId());
+            return fallback;
+        }
     }
 
     private static int compareByTimestampDesc(EventoHardware a, EventoHardware b) {

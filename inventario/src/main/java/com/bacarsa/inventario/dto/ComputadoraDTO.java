@@ -45,6 +45,8 @@ public class ComputadoraDTO {
     private String condicion;
     private String origenAlta;
     private String estadoConciliacion;
+    private String estadoPreparacion;
+    private String estadoReporteAgente;
     private BaselineEsperadoDTO baselineEsperado;
     private String comboEsperadoId;
     private String primerReporteAgenteAt;
@@ -54,6 +56,7 @@ public class ComputadoraDTO {
     private String agenteUuid;
     private String loteOrigenId;
     private EspecificacionStockDTO especificacionEsperada;
+    private String descripcionStock;
     private String ubicacionStock;
 
 }

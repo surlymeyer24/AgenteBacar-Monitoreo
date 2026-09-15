@@ -91,9 +91,9 @@ function TarjetaBarras({ titulo, porClave }) {
 function InfraestructuraDashboard() {
   const [filtroTelefono, setFiltroTelefono] = useState('');
 
-  const { data: stats, isLoading: statsLoading } = useDashboardStats();
-  const { data: listaNvrs = [], isLoading: nvrsLoading } = useNvrs();
-  const { data: camaras = [], isLoading: camarasLoading } = useCamaras();
+  const { data: stats, isLoading: statsLoading, error: statsError } = useDashboardStats();
+  const { data: listaNvrs = [], isLoading: nvrsLoading, error: nvrsError } = useNvrs();
+  const { data: camaras = [], isLoading: camarasLoading, error: camarasError } = useCamaras();
   const { data: maquinas = [] } = useMaquinas();
   const { items: tipoMaqItems } = useCatalogo('tipos_maquina');
   const tipoMaqLabels = useMemo(() => labelsEnumCatalogo(tipoMaqItems), [tipoMaqItems]);
@@ -101,6 +101,7 @@ function InfraestructuraDashboard() {
   const { data: internos = [] } = useInternos();
 
   const cargando = statsLoading || nvrsLoading || camarasLoading;
+  const error = statsError?.message ?? nvrsError?.message ?? camarasError?.message ?? null;
   const totalServidores = servidores.length;
 
   const camarasPorNvr = useMemo(
@@ -114,6 +115,7 @@ function InfraestructuraDashboard() {
   );
 
   if (cargando) return <StudioLoading message="Cargando infraestructura…" />;
+  if (error && !stats) return <StudioError message={error} />;
 
   const s = stats ?? {};
   const totalNvrs = listaNvrs.length;
@@ -134,12 +136,6 @@ function InfraestructuraDashboard() {
       title="Infraestructura: Red, Videovigilancia y Tesorería"
       subtitle={`${subt}. Videovigilancia (NVR y cámaras), red corporativa y equipos de tesorería.`}
     >
-      {error ? (
-        <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm font-medium" role="alert">
-          {error}
-        </div>
-      ) : null}
-
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StudioMetricCard
           title="NVR"

@@ -26,6 +26,8 @@ import com.bacarsa.inventario.models.EspecificacionStock;
 import com.bacarsa.inventario.models.Estado;
 import com.bacarsa.inventario.models.EstadoConciliacion;
 import com.bacarsa.inventario.models.EstadoOperativo;
+import com.bacarsa.inventario.models.EstadoPreparacion;
+import com.bacarsa.inventario.models.EstadoReporteAgente;
 import com.bacarsa.inventario.models.OrigenAlta;
 import com.bacarsa.inventario.models.PerifericoManual;
 import com.bacarsa.inventario.repository.ComputadoraRepository;
@@ -122,7 +124,7 @@ public class PerifericoManualService {
         campos.put("nombre", dto.getNombre() != null && !dto.getNombre().isBlank() ? dto.getNombre().trim() : null);
         campos.put("fabricante", dto.getFabricante() != null && !dto.getFabricante().isBlank() ? dto.getFabricante().trim() : null);
         campos.put("conexion", dto.getConexion() != null && !dto.getConexion().isBlank() ? dto.getConexion().trim() : null);
-        campos.put("computadoraHostname", dto.getComputadoraHostname() != null && !dto.getComputadoraHostname().isBlank() ? dto.getComputadoraHostname().trim() : null);
+        campos.put("computadora_hostname", dto.getComputadoraHostname() != null && !dto.getComputadoraHostname().isBlank() ? dto.getComputadoraHostname().trim() : null);
         campos.put("ubicacion", dto.getUbicacion() != null && !dto.getUbicacion().isBlank() ? dto.getUbicacion().trim() : null);
         campos.put("notas", dto.getNotas() != null && !dto.getNotas().isBlank() ? dto.getNotas().trim() : null);
         if (dto.getFechaAlta() != null)
@@ -201,7 +203,8 @@ public class PerifericoManualService {
                 throw new IllegalArgumentException("El lote no está disponible en stock");
             }
             String compUuid = loteDoc.getString("computadora_uuid");
-            String compHost = loteDoc.getString("computadoraHostname");
+            String compHost = loteDoc.getString("computadora_hostname");
+            if (compHost == null) compHost = loteDoc.getString("computadoraHostname");
             if ((compUuid != null && !compUuid.isBlank()) || (compHost != null && !compHost.isBlank())) {
                 throw new IllegalArgumentException("El lote no está disponible en stock");
             }
@@ -227,9 +230,7 @@ public class PerifericoManualService {
                 if (slug.length() > 28) {
                     slug = slug.substring(0, 28);
                 }
-                String sufijo = loteId.length() >= 4
-                        ? loteId.substring(loteId.length() - 4)
-                        : loteId;
+                String sufijo = pcUuid.substring(0, 8);
                 hostname = slug + "-" + sufijo;
             }
 
@@ -262,6 +263,8 @@ public class PerifericoManualService {
             pcData.put("hostname", hostname);
             pcData.put("origen_alta", OrigenAlta.STOCK.name());
             pcData.put("estado_conciliacion", EstadoConciliacion.SIN_BASELINE.name());
+            pcData.put("estado_preparacion", EstadoPreparacion.SIN_ARMAR.name());
+            pcData.put("estado_reporte_agente", EstadoReporteAgente.SIN_REPORTE.name());
             pcData.put("estadoActual", estadoMap);
             pcData.put("historialEstados", List.of(historialEntry));
             pcData.put("ubicacion_stock", ubicacionStock);
@@ -294,6 +297,94 @@ public class PerifericoManualService {
         return result;
     }
 
+    /**
+     * Devuelve una unidad al lote de Stock de PCs y borra el documento de computadora.
+     * Así no queda en /computadoras ni en el pipeline.
+     */
+    @Caching(evict = {
+            @CacheEvict(value = "pc-listado", allEntries = true),
+            @CacheEvict(value = "pc-detalle", allEntries = true),
+            @CacheEvict(value = "computadoras-gordo", allEntries = true),
+            @CacheEvict(value = "perifericosManuales", allEntries = true)
+    })
+    public PerifericoManualDTO devolverUnidadALote(String uuid)
+            throws ExecutionException, InterruptedException {
+        if (uuid == null || uuid.isBlank()) {
+            return null;
+        }
+
+        String loteId = firestore.runTransaction(transaction -> {
+            DocumentReference pcRef = firestore.collection(computadorasCollection).document(uuid);
+            DocumentSnapshot pcDoc = transaction.get(pcRef).get();
+            if (!pcDoc.exists()) {
+                throw new IllegalArgumentException("Computadora no encontrada");
+            }
+
+            String loteOrigenId = pcDoc.getString("lote_origen_id");
+            String destinoLoteId = loteOrigenId;
+
+            if (loteOrigenId != null && !loteOrigenId.isBlank()) {
+                DocumentReference loteRef = firestore.collection(perifericosCollection).document(loteOrigenId);
+                DocumentSnapshot loteDoc = transaction.get(loteRef).get();
+                if (loteDoc.exists()) {
+                    transaction.update(loteRef, "cantidad", FieldValue.increment(1));
+                } else {
+                    destinoLoteId = crearLoteDesdePcEnTransaccion(transaction, pcDoc);
+                }
+            } else {
+                destinoLoteId = crearLoteDesdePcEnTransaccion(transaction, pcDoc);
+            }
+
+            transaction.delete(pcRef);
+            return destinoLoteId;
+        }).get();
+
+        return obtenerPorId(loteId);
+    }
+
+    private String crearLoteDesdePcEnTransaccion(
+            com.google.cloud.firestore.Transaction transaction,
+            DocumentSnapshot pcDoc) {
+        DocumentReference nuevoLote = firestore.collection(perifericosCollection).document();
+        Timestamp ahora = Timestamp.now();
+
+        Map<String, Object> estadoMap = new HashMap<>();
+        estadoMap.put("nombre", EstadoOperativo.SIN_ASIGNAR.getNombre());
+        estadoMap.put("descripcion", EstadoOperativo.SIN_ASIGNAR.getDescripcion());
+
+        Map<String, Object> historialEntry = new HashMap<>();
+        historialEntry.put("estado", estadoMap);
+        historialEntry.put("motivo", "Devolución de unidad " + pcDoc.getId() + " a Stock de PCs");
+        historialEntry.put("fechaHoraInicio", ahora);
+        historialEntry.put("fechaHoraFin", null);
+
+        EspecificacionStock spec = EspecificacionStockMapper.fromFirestoreMap(pcDoc.get("especificacion_esperada"));
+        String nombre = EspecificacionStockMapper.buildNombreResumen(spec);
+        if (nombre == null || nombre.isBlank()) {
+            String hostname = pcDoc.getString("hostname");
+            nombre = (hostname != null && !hostname.isBlank()) ? hostname : "PC stock";
+        }
+
+        String ubicacionStock = pcDoc.getString("ubicacion_stock");
+        if (ubicacionStock == null || ubicacionStock.isBlank()) {
+            ubicacionStock = UBICACION_STOCK_DEFAULT;
+        }
+
+        Map<String, Object> loteData = new HashMap<>();
+        loteData.put("tipo", "computadora");
+        loteData.put("cantidad", 1);
+        loteData.put("nombre", nombre);
+        loteData.put("ubicacion", ubicacionStock);
+        loteData.put("fechaAlta", LocalDate.now().toString());
+        loteData.put("especificacion_stock", EspecificacionStockMapper.toFirestoreMap(spec));
+        loteData.put("estadoActual", estadoMap);
+        loteData.put("historialEstados", List.of(historialEntry));
+        loteData.put("notas", "Devuelta desde unidad " + pcDoc.getId());
+
+        transaction.set(nuevoLote, loteData);
+        return nuevoLote.getId();
+    }
+
     public List<PerifericoManualDTO> listarPorComputadoraUuid(String computadoraUuid)
             throws ExecutionException, InterruptedException {
         if (computadoraUuid == null || computadoraUuid.isBlank()) {
@@ -302,6 +393,63 @@ public class PerifericoManualService {
         return repository.findByComputadoraUuid(computadoraUuid.trim()).stream()
                 .map(PerifericoManualMapper::toDTO)
                 .collect(Collectors.toList());
+    }
+
+    public PerifericoManualDTO asignarUbicacion(String id, String ubicacionRaw, String motivo)
+            throws ExecutionException, InterruptedException {
+        PerifericoManual original = repository.findById(id);
+        if (original == null) return null;
+
+        String ubicacion = blankToNull(ubicacionRaw);
+        if (ubicacion == null) {
+            throw new IllegalArgumentException("La ubicación es obligatoria");
+        }
+        if ("stock".equalsIgnoreCase(ubicacion.trim())) {
+            throw new IllegalArgumentException("Usá devolver a stock para reingresar al depósito");
+        }
+
+        String motivoFinal = (motivo != null && !motivo.isBlank())
+                ? motivo.trim()
+                : "Asignado a " + ubicacion;
+
+        if (original.getCantidad() > 1) {
+            repository.decrementarCantidad(id);
+
+            PerifericoManual asignado = new PerifericoManual();
+            asignado.setTipo(original.getTipo());
+            asignado.setCantidad(1);
+            asignado.setNombre(original.getNombre());
+            asignado.setFabricante(original.getFabricante());
+            asignado.setConexion(original.getConexion());
+            asignado.setUbicacion(ubicacion);
+            asignado.setNotas(original.getNotas());
+            asignado.setFechaAlta(original.getFechaAlta());
+            asignado.setComboId(original.getComboId());
+            asignado.setComboNombre(original.getComboNombre());
+            asignado.setEspecificacionStock(original.getEspecificacionStock());
+            asignado.setNumeroSerie(original.getNumeroSerie());
+            asignado.setLoteOrigenId(original.getLoteOrigenId() != null ? original.getLoteOrigenId() : id);
+
+            String nuevoId = repository.create(asignado);
+            cambiarEstado(nuevoId, "ASIGNADA", motivoFinal);
+            return obtenerPorId(nuevoId);
+        }
+
+        repository.updateUbicacion(id, ubicacion);
+        return cambiarEstado(id, "ASIGNADA", motivoFinal);
+    }
+
+    public PerifericoManualDTO devolverStock(String id, String motivo)
+            throws ExecutionException, InterruptedException {
+        PerifericoManual original = repository.findById(id);
+        if (original == null) return null;
+
+        String motivoFinal = (motivo != null && !motivo.isBlank())
+                ? motivo.trim()
+                : "Devolución a stock";
+
+        repository.limpiarAsignacion(id, UBICACION_STOCK_DEFAULT);
+        return cambiarEstado(id, "SIN_ASIGNAR", motivoFinal);
     }
 
     public PerifericoManualDTO asignar(String id, String computadoraUuid, String motivo)
@@ -342,6 +490,8 @@ public class PerifericoManualService {
             asignado.setComboNombre(original.getComboNombre());
             asignado.setEspecificacionStock(original.getEspecificacionStock());
             asignado.setNumeroSerie(original.getNumeroSerie());
+            asignado.setLoteOrigenId(original.getLoteOrigenId() != null ? original.getLoteOrigenId() : id);
+            asignado.setUbicacion(original.getUbicacion());
 
             String nuevoId = repository.create(asignado);
             cambiarEstado(nuevoId, "ASIGNADA", motivoFinal);
@@ -360,7 +510,7 @@ public class PerifericoManualService {
         String trimmed = estadoRaw == null ? "" : estadoRaw.trim();
         EstadoOperativo estadoOperativo;
         if ("DERIVAR_ASIGNACION".equalsIgnoreCase(trimmed)) {
-            estadoOperativo = EstadoOperativo.inferirAsignacionDesdeTexto(p.getComputadoraHostname());
+            estadoOperativo = EstadoOperativo.inferirAsignacionDesdeTexto(p.getComputadoraUuid());
         } else {
             try {
                 estadoOperativo = EstadoOperativo.valueOf(trimmed);
@@ -407,22 +557,4 @@ public class PerifericoManualService {
                 && (lote.getComputadoraHostname() == null || lote.getComputadoraHostname().isBlank());
     }
 
-    private static String resolverHostname(PerifericoManual lote, SacarUnidadStockDTO dto) {
-        if (dto.getHostname() != null && !dto.getHostname().isBlank()) {
-            return dto.getHostname().trim();
-        }
-        String base = EspecificacionStockMapper.buildNombreResumen(lote.getEspecificacionStock());
-        if (base == null || base.isBlank()) {
-            base = lote.getNombre();
-        }
-        if (base == null || base.isBlank()) {
-            base = "PC-STOCK";
-        }
-        String slug = base.replaceAll("[^a-zA-Z0-9]+", "-").replaceAll("^-+|-+$", "");
-        if (slug.length() > 28) {
-            slug = slug.substring(0, 28);
-        }
-        String sufijo = lote.getId() == null ? "0000" : lote.getId().substring(Math.max(0, lote.getId().length() - 4));
-        return slug + "-" + sufijo;
-    }
 }

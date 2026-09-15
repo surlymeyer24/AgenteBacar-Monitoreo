@@ -58,6 +58,37 @@ public class ConciliacionStockRepository {
         return documentToModel(doc);
     }
 
+    /**
+     * Conciliaciones donde la PC participa como agente o como candidato stock.
+     */
+    public List<ConciliacionStock> findByPcUuid(String pcUuid)
+            throws ExecutionException, InterruptedException {
+        if (pcUuid == null || pcUuid.isBlank()) {
+            return List.of();
+        }
+        java.util.LinkedHashMap<String, ConciliacionStock> porId = new java.util.LinkedHashMap<>();
+        mergeConciliacionesPorUuid(porId, firestore.collection(collectionName)
+                .whereEqualTo("agente_uuid", pcUuid)
+                .limit(100)
+                .get().get());
+        mergeConciliacionesPorUuid(porId, firestore.collection(collectionName)
+                .whereEqualTo("candidato_stock_uuid", pcUuid)
+                .limit(100)
+                .get().get());
+        return porId.values().stream()
+                .sorted(Comparator.comparing(ConciliacionStock::getFecha, Comparator.nullsLast(Comparator.reverseOrder())))
+                .toList();
+    }
+
+    private void mergeConciliacionesPorUuid(java.util.Map<String, ConciliacionStock> porId, QuerySnapshot snap) {
+        for (QueryDocumentSnapshot doc : snap.getDocuments()) {
+            ConciliacionStock c = documentToModel(doc);
+            if (c.getId() != null) {
+                porId.putIfAbsent(c.getId(), c);
+            }
+        }
+    }
+
     public ConciliacionStock findByAgenteAndSnapshotClave(String agenteUuid, String snapshotClave)
             throws ExecutionException, InterruptedException {
         QuerySnapshot snap = firestore.collection(collectionName)

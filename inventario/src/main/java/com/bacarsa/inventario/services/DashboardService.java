@@ -33,6 +33,7 @@ import com.bacarsa.inventario.repository.InternoIpRepository;
 import com.bacarsa.inventario.repository.NvrRepository;
 import com.bacarsa.inventario.repository.RouterRepository;
 import com.bacarsa.inventario.repository.SwitchRedRepository;
+import com.bacarsa.inventario.util.InventarioOperativoHelper;
 import com.google.cloud.Timestamp;
 
 @Service
@@ -92,6 +93,12 @@ public class DashboardService {
         }
 
         List<Computadora> computadoras = fPc.join();
+        List<Computadora> pcsOperativas = computadoras.stream()
+                .filter(InventarioOperativoHelper::esPcVisibleEnInventario)
+                .toList();
+        int stockEnDeposito = (int) computadoras.stream()
+                .filter(InventarioOperativoHelper::esUnidadStockEnDeposito)
+                .count();
         List<Camara> camaras = fCam.join();
         List<Router> routers = fRou.join();
         List<SwitchRed> switches = fSw.join();
@@ -99,8 +106,8 @@ public class DashboardService {
 
         DashboardStatsDTO stats = new DashboardStatsDTO();
 
-        // Totales
-        stats.setTotalComputadoras(computadoras.size());
+        // Totales (inventario operativo; unidades en depósito van a stockPcsSinAsignar)
+        stats.setTotalComputadoras(pcsOperativas.size());
         stats.setTotalCamaras(camaras.size());
         stats.setTotalNvrs(fNvr.join());
         stats.setTotalRouters(routers.size());
@@ -109,36 +116,32 @@ public class DashboardService {
         stats.setTotalTelefonos(fTel.join());
 
         int notebooks = 0;
-        int sinAsignar = 0;
-        for (Computadora c : computadoras) {
+        for (Computadora c : pcsOperativas) {
             if (c.getTipoEquipo() != null && c.getTipoEquipo().getTipo() != null
                     && c.getTipoEquipo().getTipo().toLowerCase().contains("notebook")) {
                 notebooks++;
             }
-            if (c.getEstadoActual() != null && "Sin Asignar".equalsIgnoreCase(c.getEstadoActual().getNombre())) {
-                sinAsignar++;
-            }
         }
         stats.setTotalNotebooks(notebooks);
-        stats.setTotalDesktops(computadoras.size() - notebooks);
-        stats.setStockPcsSinAsignar(sinAsignar);
+        stats.setTotalDesktops(pcsOperativas.size() - notebooks);
+        stats.setStockPcsSinAsignar(stockEnDeposito);
 
         // Conexión de computadoras
         int conectadas = 0;
-        for (Computadora c : computadoras) {
+        for (Computadora c : pcsOperativas) {
             if ("ONLINE".equalsIgnoreCase(c.getEstadoConexion())) {
                 conectadas++;
             }
         }
         stats.setComputadorasConectadas(conectadas);
-        stats.setComputadorasDesconectadas(computadoras.size() - conectadas);
+        stats.setComputadorasDesconectadas(pcsOperativas.size() - conectadas);
 
         int totalPerifericos = 0;
         int totalMonitores = 0;
         int syncActivoUmbral = 0;
         int syncIntermedio = 0;
         int sinActividad1h = 0;
-        for (Computadora c : computadoras) {
+        for (Computadora c : pcsOperativas) {
             totalPerifericos += contarPerifericos(c);
             totalMonitores += contarMonitores(c);
             switch (bandaActividadSync(c)) {
@@ -149,14 +152,14 @@ public class DashboardService {
         }
         stats.setTotalMonitores(totalMonitores);
         stats.setTotalPerifericos(totalPerifericos);
-        stats.setPerifericosPorTipo(acumularPerifericosPorTipo(computadoras));
+        stats.setPerifericosPorTipo(acumularPerifericosPorTipo(pcsOperativas));
         stats.setComputadorasSyncMenos10Min(syncActivoUmbral);
         stats.setComputadorasSyncEntre10MinY1h(syncIntermedio);
         stats.setComputadorasSinActividadMas1h(sinActividad1h);
 
         // Por estado operativo
         stats.setPorEstadoComputadoras(contarPorEstado(
-                computadoras.stream().map(Computadora::getEstadoActual).toList()));
+                pcsOperativas.stream().map(Computadora::getEstadoActual).toList()));
         stats.setPorEstadoCamaras(contarPorEstado(
                 camaras.stream().map(Camara::getEstadoActual).toList()));
         stats.setPorEstadoRouters(contarPorEstado(
@@ -166,7 +169,7 @@ public class DashboardService {
 
         // Por ubicación
         Map<String, Integer> porUbPC = inicializarMapa(Ubicacion.values());
-        for (Computadora c : computadoras) {
+        for (Computadora c : pcsOperativas) {
             if (c.getUbicacion() != null) {
                 porUbPC.merge(c.getUbicacion().name(), 1, Integer::sum);
             }
@@ -198,7 +201,7 @@ public class DashboardService {
         stats.setPorUbicacionSwitches(porUbSwitch);
 
         // Actividad reciente
-        stats.setUltimosCambios(armarUltimosCambios(computadoras, camaras, routers, switches));
+        stats.setUltimosCambios(armarUltimosCambios(pcsOperativas, camaras, routers, switches));
 
         return stats;
     }
@@ -260,9 +263,6 @@ public class DashboardService {
         if (p.getMonitores() != null) {
             n += p.getMonitores().size();
         }
-        if (p.getAudio() != null && p.getAudio().getSalida() != null) {
-            n += p.getAudio().getSalida().size();
-        }
         return n;
     }
 
@@ -278,8 +278,7 @@ public class DashboardService {
             "Monitores",
             "Teclados",
             "Mouse",
-            "Webcams",
-            "Parlantes");
+            "Webcams");
 
     private Map<String, Integer> acumularPerifericosPorTipo(List<Computadora> computadoras) {
         Map<String, Integer> raw = new HashMap<>();
@@ -312,9 +311,6 @@ public class DashboardService {
                 }
                 mergeTipo(map, tipoUsb, 1);
             }
-        }
-        if (p.getAudio() != null && p.getAudio().getSalida() != null) {
-            mergeTipo(map, "Parlantes", p.getAudio().getSalida().size());
         }
     }
 

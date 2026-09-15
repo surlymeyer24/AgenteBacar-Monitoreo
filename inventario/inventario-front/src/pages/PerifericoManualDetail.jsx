@@ -298,20 +298,20 @@ function PerifericoManualDetail() {
         })()}
 
         <div ref={asignarRef}>
-          <DetailSection title="Asignar a PC de stock">
+          <DetailSection title="Asignar a computadora">
             <p className="text-sm text-slate-500 mb-3">
-              Vincula 1 unidad del stock a una PC trazable del inventario (por UUID). Si hay más de 1 en stock, se descuenta automáticamente y se crea un registro separado. No requiere que el agente AgenteBacar haya reportado aún.
+              Vincula 1 unidad del stock a una computadora del inventario (por UUID). Si hay más de 1 en stock, se descuenta automáticamente y se crea un registro separado.
             </p>
             <WriteGate fallback={<p className="text-sm text-slate-500">Sin permiso de escritura.</p>}>
               <form onSubmit={hacerAsignar} className="space-y-3 max-w-xl">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
-                    PC de stock *
+                    Computadora *
                   </label>
                   {cargandoPcs ? (
-                    <p className="text-sm text-slate-500 font-medium">Cargando PCs…</p>
+                    <p className="text-sm text-slate-500 font-medium">Cargando computadoras…</p>
                   ) : pcsAsignables.length === 0 ? (
-                    <p className="text-sm text-amber-700 font-medium">No hay PCs trazables de stock. Usá &quot;Sacar 1&quot; en un lote primero.</p>
+                    <p className="text-sm text-amber-700 font-medium">No hay computadoras disponibles para asignar.</p>
                   ) : (
                     <FriendlySelect
                       name="pcUuidAsignar"

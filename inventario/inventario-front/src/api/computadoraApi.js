@@ -28,6 +28,19 @@ export function fetchComputadora(uuid) {
   });
 }
 
+/** GET /api/computadoras/{uuid}/timeline — historial unificado IT + agente + conciliación. */
+export function fetchComputadoraTimeline(uuid, params = {}) {
+  const id = encodeURIComponent(uuid);
+  const q = new URLSearchParams();
+  if (params.limit) q.set('limit', String(params.limit));
+  const suffix = q.toString() ? `?${q}` : '';
+  return apiFetch(`${BASE_URL}/${id}/timeline${suffix}`).then(res => {
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  });
+}
+
 export function updateUbicacion(uuid, ubicacion) {
   return apiFetch(`${BASE_URL}/${uuid}/ubicacion`, {
     method: 'POST',
@@ -175,6 +188,19 @@ async function parseErrorBody(res) {
     /* ignore */
   }
   return `HTTP ${res.status}`;
+}
+
+/** POST /api/computadoras/{uuid}/sacar-de-pipeline — devuelve la unidad al lote y borra la PC. */
+export function sacarDePipeline(uuid) {
+  const id = encodeURIComponent(uuid);
+  return apiFetch(`${BASE_URL}/${id}/sacar-de-pipeline`, {
+    method: 'POST',
+  }).then(async res => {
+    if (res.status === 404) return null;
+    if (res.status === 400) throw new Error(await parseErrorBody(res));
+    if (!res.ok) throw new Error(await parseErrorBody(res));
+    return res.json();
+  });
 }
 
 /** POST /api/computadoras/{uuid}/armar-combo */

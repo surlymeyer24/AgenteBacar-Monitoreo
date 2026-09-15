@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { fetchDashboardStats } from '../api/dashboardApi';
-import { fetchComputadoras, fetchComputadorasRecientes } from '../api/computadoraApi';
+import { fetchComputadoras, fetchComputadorasRecientes, fetchComputadoraTimeline } from '../api/computadoraApi';
 import { fetchCamaras, fetchCamarasRecientes } from '../api/camaraApi';
 import { fetchInternos } from '../api/internoIpApi';
 import { fetchPerifericosM } from '../api/perifericoManualApi';
@@ -35,6 +35,15 @@ export function useComputadorasRecientes(limit = 8, options) {
   return useQuery({
     queryKey: ['computadorasRecientes', limit],
     queryFn: () => fetchComputadorasRecientes(limit),
+    ...options,
+  });
+}
+
+export function useComputadoraTimeline(uuid, params = {}, options) {
+  return useQuery({
+    queryKey: ['computadoraTimeline', uuid, params],
+    queryFn: () => fetchComputadoraTimeline(uuid, params),
+    enabled: Boolean(uuid),
     ...options,
   });
 }

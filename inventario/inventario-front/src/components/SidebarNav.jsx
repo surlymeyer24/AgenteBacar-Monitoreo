@@ -31,6 +31,7 @@ import {
   BookOpen,
   ShieldAlert,
   GitCompare,
+  FlaskConical,
 } from 'lucide-react';
 import AdminGate from './AdminGate';
 import { useEventosHardwarePendientesCount, useConciliacionesPendientesCount } from '../hooks/useQueries';
@@ -273,6 +274,10 @@ export default function SidebarNav({ sidebarCollapsed, onMobileClose }) {
         <NavLink onClick={onMobileClose} to="/system" className={navLinkClass}>
           <Terminal className="w-4 h-4" />
           <span className="nav-link-text">Sistema</span>
+        </NavLink>
+        <NavLink onClick={onMobileClose} to="/investigacion" className={navLinkClass}>
+          <FlaskConical className="w-4 h-4" />
+          <span className="nav-link-text">Investigación</span>
         </NavLink>
       </AdminGate>
     </nav>

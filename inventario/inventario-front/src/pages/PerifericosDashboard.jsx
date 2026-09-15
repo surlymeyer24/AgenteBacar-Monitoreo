@@ -48,7 +48,7 @@ function PerifericosDashboard() {
 
   const porTipo = useMemo(() => {
     const raw = stats?.perifericosPorTipo ?? {};
-    return Object.entries(raw).filter(([, n]) => Number(n) > 0);
+    return Object.entries(raw).filter(([label, n]) => label !== 'Parlantes' && Number(n) > 0);
   }, [stats]);
 
   const monitoresPorPulgada = useMemo(() => {
