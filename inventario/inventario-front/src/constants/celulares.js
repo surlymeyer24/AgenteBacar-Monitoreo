@@ -35,3 +35,11 @@ export function normalizarConCargador(raw) {
   if (['no', 'false', '0', 'sin', 'sin cargador'].includes(s)) return false;
   return null;
 }
+
+/** True si el celular está en depósito (`en_stock`). Null/vacío no cuenta. */
+export function esCelularEnStock(celular) {
+  if (celular == null || celular.estado == null || String(celular.estado).trim() === '') {
+    return false;
+  }
+  return normalizarEstadoCelular(celular.estado) === 'en_stock';
+}

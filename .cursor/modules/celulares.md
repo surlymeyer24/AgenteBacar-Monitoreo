@@ -50,7 +50,7 @@ Inventario de móviles corporativos: alta a stock, listado, edición y estados (
 ## Dependencias
 
 Este módulo usa: catálogo `estados_dispositivo`, Firestore `celulares`.
-Este módulo es usado por: dashboard de periféricos (conteo), menú.
+Este módulo es usado por: dashboard de periféricos (conteo), menú, y (consumidor) stock de depósito vía `asignarCelular` / `devolverCelularAStock` / `esCelularEnStock`.
 
 ## Notas
 
@@ -58,3 +58,7 @@ Este módulo es usado por: dashboard de periféricos (conteo), menú.
 - Updates Firestore: merge / mapa parcial para no pisar campos.
 - IMEI es la identidad del aparato; duplicados se rechazan.
 - `estado` `en_stock` es el default al dar de alta a depósito.
+- Contrato para periféricos (no tocar `PerifericoManualList` desde este módulo):
+  - `asignarCelular(celular, { responsable, area })` y `devolverCelularAStock(celular)` en `celularApi.js` (PUT completo con el objeto actual).
+  - `esCelularEnStock(celular)` en `constants/celulares.js`.
+  - React Query: `useCelulares` usa `queryKey: ['celulares']`. Invalidar esa key tras asignar/devolver.
