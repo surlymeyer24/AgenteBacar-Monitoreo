@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Outlet, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
-  Package, Plus, Laptop, UserCheck, ChevronDown, Layers, Router, ClipboardList,
+  Package, Plus, Laptop, UserCheck, ChevronDown, Layers, Router, ClipboardList, Smartphone,
 } from 'lucide-react';
 import { fetchComputadora, sacarDePipeline } from '../api/computadoraApi';
 import PerifericosTab from '../components/stock/PerifericosTab';
@@ -10,12 +10,15 @@ import StockLotesTab from '../components/stock/StockLotesTab';
 import StockUnidadesTab from '../components/stock/StockUnidadesTab';
 import StockInfraTab from '../components/stock/StockInfraTab';
 import StockAsignacionesTab from '../components/stock/StockAsignacionesTab';
+import StockCelularesTab from '../components/stock/StockCelularesTab';
 import StockManualListModals from '../components/stock/StockManualListModals';
 import EditPcStockModal from '../components/EditPcStockModal';
 import { editPcStockModalProps, nuevaPcStockModalProps } from '../utils/editPcStockModalProps';
 import { normalizarTipoStock, esTipoInfra } from '../constants/tiposStock';
 import { useCatalogo, labelsEnumCatalogo } from '../hooks/useCatalogo';
 import { usePerifericoManualListData } from '../hooks/usePerifericoManualListData';
+import { useCelulares } from '../hooks/useQueries';
+import { esCelularEnStock } from '../constants/celulares';
 import { usePerifericoItemForm } from '../hooks/usePerifericoItemForm';
 import { useStockComboForm } from '../hooks/useStockComboForm';
 import { useStockPcModals } from '../hooks/useStockPcModals';
@@ -62,6 +65,17 @@ export default function PerifericoManualList() {
     refreshLista,
     refreshPcs,
   } = usePerifericoManualListData();
+
+  const {
+    data: celularesLista = [],
+    isLoading: cargandoCelulares,
+    error: errorCelulares,
+  } = useCelulares();
+
+  const celularesEnStock = useMemo(
+    () => (Array.isArray(celularesLista) ? celularesLista.filter(esCelularEnStock) : []),
+    [celularesLista],
+  );
 
   const itemForm = usePerifericoItemForm({
     lista,
@@ -303,6 +317,22 @@ export default function PerifericoManualList() {
       </>
     );
   }
+  if (vista === 'stock' && activeTab === 'celulares' && cargandoCelulares) {
+    return (
+      <>
+        <StudioLoading />
+        <Outlet />
+      </>
+    );
+  }
+  if (vista === 'stock' && activeTab === 'celulares' && errorCelulares) {
+    return (
+      <>
+        <StudioError message={errorCelulares?.message || 'No se pudieron cargar los celulares en stock.'} />
+        <Outlet />
+      </>
+    );
+  }
 
   const tabDescriptions = {
     stock: {
@@ -310,6 +340,7 @@ export default function PerifericoManualList() {
       'lotes-pc': 'Contás cuántas PCs hay de cada tipo (ej. 3× Ryzen 5600G 8GB). Stock por cantidad — sin hostname ni agente.',
       unidades: 'Pipeline de PCs trazables: arrastrá entre columnas o usá las acciones de cada tarjeta.',
       infraestructura: 'Equipos de red en depósito: routers, switches y access points.',
+      celulares: 'Celulares en stock de depósito: marca, modelo, IMEI, cargador y condición. Asigná a un responsable para sacarlos del stock.',
     },
     asignaciones: 'Custodia activa: periféricos e infraestructura asignados a PCs o ubicaciones. Devolvé acá para reingresar al stock.',
   };
@@ -503,6 +534,21 @@ export default function PerifericoManualList() {
             <span className="px-1.5 py-0.5 text-[10px] font-bold bg-orange-100 text-orange-700 rounded-full">{totalInfraUnidades}</span>
           )}
         </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('celulares')}
+          className={`px-4 py-2 rounded-md text-sm font-bold transition-all flex items-center gap-2 ${
+            activeTab === 'celulares'
+              ? 'bg-white text-slate-900 shadow-sm'
+              : 'text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <Smartphone className="w-4 h-4" />
+          Celulares
+          {celularesEnStock.length > 0 && (
+            <span className="px-1.5 py-0.5 text-[10px] font-bold bg-sky-100 text-sky-700 rounded-full">{celularesEnStock.length}</span>
+          )}
+        </button>
       </div>
       )}
 
@@ -559,6 +605,10 @@ export default function PerifericoManualList() {
           onUpdateStock={itemForm.handleUpdateStock}
           onAsignarUbicacion={pcModals.openAsignarUbicacion}
         />
+      )}
+
+      {vista === 'stock' && activeTab === 'celulares' && (
+        <StockCelularesTab celularesEnStock={celularesEnStock} />
       )}
 
       {vista === 'asignaciones' && (
