@@ -3,6 +3,16 @@ import { apiFetch } from './http.js';
 
 const BASE_URL = `${API_ORIGIN}/api/celulares`;
 
+async function parseErrorBody(res, fallback) {
+  try {
+    const data = await res.json();
+    if (data?.error) return data.error;
+  } catch {
+    /* respuesta sin JSON */
+  }
+  return fallback || `HTTP ${res.status}`;
+}
+
 export function fetchCelulares() {
   return apiFetch(BASE_URL).then(res => {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -23,9 +33,11 @@ export function crearCelular(body) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
-  }).then(res => {
-    if (res.status === 400) throw new Error('Datos inválidos');
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  }).then(async res => {
+    if (res.status === 400 || res.status === 409) {
+      throw new Error(await parseErrorBody(res, 'Datos inválidos'));
+    }
+    if (!res.ok) throw new Error(await parseErrorBody(res));
     return res.json();
   });
 }
@@ -35,10 +47,12 @@ export function actualizarCelular(id, body) {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
-  }).then(res => {
-    if (res.status === 400) throw new Error('Datos inválidos');
+  }).then(async res => {
+    if (res.status === 400 || res.status === 409) {
+      throw new Error(await parseErrorBody(res, 'Datos inválidos'));
+    }
     if (res.status === 404) throw new Error('Celular no encontrado');
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) throw new Error(await parseErrorBody(res));
     return res.json();
   });
 }

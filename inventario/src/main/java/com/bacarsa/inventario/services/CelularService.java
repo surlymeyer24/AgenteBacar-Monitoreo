@@ -2,6 +2,7 @@ package com.bacarsa.inventario.services;
 
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
@@ -35,7 +36,8 @@ public class CelularService {
     }
 
     public CelularDTO crear(CelularCreateDTO dto) throws ExecutionException, InterruptedException {
-        validar(dto);
+        validar(dto, true);
+        validarImeiUnico(dto.getImei(), null);
         Celular celular = fromDto(dto);
         String id = celularRepository.create(celular);
         return obtenerPorId(id);
@@ -46,7 +48,8 @@ public class CelularService {
         if (celularRepository.findById(id) == null) {
             throw new IllegalArgumentException("Celular no encontrado: " + id);
         }
-        validar(dto);
+        validar(dto, false);
+        validarImeiUnico(dto.getImei(), id);
         celularRepository.update(id, toUpdateMap(dto));
         return obtenerPorId(id);
     }
@@ -59,28 +62,50 @@ public class CelularService {
         return true;
     }
 
-    private static void validar(CelularCreateDTO dto) {
+    private void validarImeiUnico(String imei, String idActual)
+            throws ExecutionException, InterruptedException {
+        String normalizado = normalizarImei(imei);
+        boolean duplicado = celularRepository.findAll().stream()
+                .filter(celular -> idActual == null || !idActual.equals(celular.getId()))
+                .map(Celular::getImei)
+                .filter(valor -> valor != null && !valor.isBlank())
+                .map(CelularService::normalizarImeiExistente)
+                .anyMatch(normalizado::equalsIgnoreCase);
+        if (duplicado) {
+            throw new IllegalArgumentException("Ya existe un celular con el IMEI " + normalizado);
+        }
+    }
+
+    private static void validar(CelularCreateDTO dto, boolean esAlta) {
         if (dto.getMarca() == null || dto.getMarca().isBlank()) {
             throw new IllegalArgumentException("La marca es obligatoria");
         }
         if (dto.getModelo() == null || dto.getModelo().isBlank()) {
             throw new IllegalArgumentException("El modelo es obligatorio");
         }
-        if (dto.getArea() == null || dto.getArea().isBlank()) {
-            throw new IllegalArgumentException("El área es obligatoria");
+        normalizarImei(dto.getImei());
+        if (dto.getConCargador() == null) {
+            throw new IllegalArgumentException("Debe indicar si el celular tiene cargador");
         }
-        parseEstado(dto.getEstado());
+        parseCondicion(dto.getCondicion());
+        if (!esAlta || (dto.getEstado() != null && !dto.getEstado().isBlank())) {
+            parseEstado(dto.getEstado());
+        }
     }
 
     private static Celular fromDto(CelularCreateDTO dto) {
         Celular celular = new Celular();
         celular.setMarca(dto.getMarca().trim());
         celular.setModelo(dto.getModelo().trim());
-        celular.setImei(blankToNull(dto.getImei()));
+        celular.setImei(normalizarImei(dto.getImei()));
+        celular.setConCargador(dto.getConCargador());
+        celular.setCondicion(parseCondicion(dto.getCondicion()));
         celular.setLineaNumero(blankToNull(dto.getLineaNumero()));
         celular.setResponsable(blankToNull(dto.getResponsable()));
-        celular.setArea(dto.getArea().trim());
-        celular.setEstado(parseEstado(dto.getEstado()).name());
+        celular.setArea(areaODeposito(dto.getArea()));
+        celular.setEstado(dto.getEstado() == null || dto.getEstado().isBlank()
+                ? EstadoCelular.en_stock.name()
+                : parseEstado(dto.getEstado()).name());
         return celular;
     }
 
@@ -88,12 +113,26 @@ public class CelularService {
         Map<String, Object> campos = new HashMap<>();
         campos.put("marca", dto.getMarca().trim());
         campos.put("modelo", dto.getModelo().trim());
-        campos.put("imei", blankToNull(dto.getImei()));
+        campos.put("imei", normalizarImei(dto.getImei()));
+        campos.put("con_cargador", dto.getConCargador());
+        campos.put("condicion", parseCondicion(dto.getCondicion()));
         campos.put("linea_numero", blankToNull(dto.getLineaNumero()));
         campos.put("responsable", blankToNull(dto.getResponsable()));
-        campos.put("area", dto.getArea().trim());
+        campos.put("area", areaODeposito(dto.getArea()));
         campos.put("estado", parseEstado(dto.getEstado()).name());
         return campos;
+    }
+
+    private static String parseCondicion(String raw) {
+        if (raw == null || raw.isBlank()) {
+            throw new IllegalArgumentException("La condición es obligatoria");
+        }
+        String normalizada = raw.trim().toLowerCase(Locale.ROOT);
+        if (!"nuevo".equals(normalizada) && !"usado".equals(normalizada)) {
+            throw new IllegalArgumentException("Condición inválida: " + raw
+                    + " (valores: nuevo, usado)");
+        }
+        return normalizada;
     }
 
     private static EstadoCelular parseEstado(String raw) {
@@ -112,6 +151,26 @@ public class CelularService {
             throw new IllegalArgumentException("Estado inválido: " + raw
                     + " (valores: activo, en_stock, baja)", ex);
         }
+    }
+
+    private static String normalizarImei(String raw) {
+        if (raw == null || raw.isBlank()) {
+            throw new IllegalArgumentException("El IMEI es obligatorio");
+        }
+        String normalizado = raw.trim().replaceAll("[\\s-]", "");
+        if (!normalizado.matches("\\d+")) {
+            throw new IllegalArgumentException("El IMEI solo puede contener dígitos");
+        }
+        return normalizado;
+    }
+
+    private static String normalizarImeiExistente(String raw) {
+        String normalizado = raw.trim().replaceAll("[\\s-]", "");
+        return normalizado.matches("\\d+") ? normalizado : raw.trim();
+    }
+
+    private static String areaODeposito(String area) {
+        return area == null || area.isBlank() ? "Depósito" : area.trim();
     }
 
     private static String blankToNull(String s) {
