@@ -18,14 +18,18 @@ import { normalizarTipoStock, esTipoInfra } from '../constants/tiposStock';
 import { useCatalogo, labelsEnumCatalogo } from '../hooks/useCatalogo';
 import { usePerifericoManualListData } from '../hooks/usePerifericoManualListData';
 import { useCelulares } from '../hooks/useQueries';
-import { esCelularEnStock } from '../constants/celulares';
+import { esCelularEnStock, esCelularAsignadoDesdeStock } from '../constants/celulares';
 import { usePerifericoItemForm } from '../hooks/usePerifericoItemForm';
 import { useStockComboForm } from '../hooks/useStockComboForm';
 import { useStockPcModals } from '../hooks/useStockPcModals';
 import { StudioLoading, StudioError } from '../components/studio/StudioUi';
 import { resolveSpecFromItem, specSearchText } from '../utils/stockPcHelpers';
 import { esPcPipelineStock } from '../utils/pipelinePcHelpers';
-import { filtrarAsignados, filtrarEnBodega } from '../utils/asignacionesStockHelpers';
+import {
+  filtrarAsignados,
+  filtrarEnBodega,
+  filtrarPcsAsignadasDesdeStock,
+} from '../utils/asignacionesStockHelpers';
 
 export default function PerifericoManualList() {
   const queryClient = useQueryClient();
@@ -74,6 +78,11 @@ export default function PerifericoManualList() {
 
   const celularesEnStock = useMemo(
     () => (Array.isArray(celularesLista) ? celularesLista.filter(esCelularEnStock) : []),
+    [celularesLista],
+  );
+
+  const celularesAsignados = useMemo(
+    () => (Array.isArray(celularesLista) ? celularesLista.filter(esCelularAsignadoDesdeStock) : []),
     [celularesLista],
   );
 
@@ -143,9 +152,16 @@ export default function PerifericoManualList() {
     [lista, estadoLabels],
   );
 
+  const pcsAsignadas = useMemo(
+    () => filtrarPcsAsignadasDesdeStock(todasPcs, estadoLabels),
+    [todasPcs, estadoLabels],
+  );
+
   const totalAsignadosUnidades = useMemo(
-    () => asignados.reduce((sum, p) => sum + (p.cantidad ?? 1), 0),
-    [asignados],
+    () => asignados.reduce((sum, p) => sum + (p.cantidad ?? 1), 0)
+      + pcsAsignadas.length
+      + celularesAsignados.length,
+    [asignados, pcsAsignadas, celularesAsignados],
   );
 
   const perifericosBodega = useMemo(
@@ -342,7 +358,7 @@ export default function PerifericoManualList() {
       infraestructura: 'Equipos de red en depósito: routers, switches y access points.',
       celulares: 'Celulares en stock de depósito: marca, modelo, IMEI, cargador y condición. Asigná a un responsable para sacarlos del stock.',
     },
-    asignaciones: 'Custodia activa: periféricos e infraestructura asignados a PCs o ubicaciones. Devolvé acá para reingresar al stock.',
+    asignaciones: 'Custodia activa: periféricos e infraestructura, computadoras asignadas desde stock y celulares liberados del depósito. Devolvé periféricos, infraestructura y celulares acá; las PCs se gestionan desde el pipeline.',
   };
 
   return (
@@ -614,8 +630,15 @@ export default function PerifericoManualList() {
       {vista === 'asignaciones' && (
         <StockAsignacionesTab
           lista={lista}
+          pcsAsignadas={pcsAsignadas}
+          celularesAsignados={celularesAsignados}
           estadoLabels={estadoLabels}
           onRefresh={refreshLista}
+          onRefreshCelulares={() => queryClient.invalidateQueries({ queryKey: ['celulares'] })}
+          cargandoPcs={cargandoPcs}
+          cargandoCelulares={cargandoCelulares}
+          errorPcs={errorPcs}
+          errorCelulares={errorCelulares}
         />
       )}
 

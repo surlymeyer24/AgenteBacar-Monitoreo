@@ -1,35 +1,41 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Monitor, Router, Package, RotateCcw, MapPin, Laptop } from 'lucide-react';
-import { devolverStockM } from '../../api/perifericoManualApi';
-import { labelTipoStock, normalizarTipoStock } from '../../constants/tiposStock';
 import {
-  filtrarAsignados,
-  esAsignacionInfra,
-  esAsignacionPeriferico,
-  destinoAsignacion,
-  fmtFechaAsignacion,
-  motivoAsignacionDesdeHistorial,
-  resumenItemAsignado,
-} from '../../utils/asignacionesStockHelpers';
+  Monitor, Router, Package, RotateCcw, MapPin, Laptop, User, Cpu, Smartphone,
+} from 'lucide-react';
+import { devolverCelularAStock } from '../../api/celularApi';
+import { devolverStockM } from '../../api/perifericoManualApi';
+import { BadgeDisponibilidad } from '../StockEstadoBadges';
 import { StudioFilterBar } from '../studio/StudioUi';
 import TableFilters from '../TableFilters';
 import WriteGate from '../WriteGate';
-import { BadgeDisponibilidad } from '../StockEstadoBadges';
+import {
+  armarFilasAsignaciones,
+  fmtFechaValor,
+} from '../../utils/asignacionesStockHelpers';
 
 const SOLAPAS = [
   { id: 'todos', label: 'Todos' },
   { id: 'perifericos', label: 'Periféricos' },
   { id: 'infra', label: 'Infraestructura' },
+  { id: 'computadoras', label: 'Computadoras' },
+  { id: 'celulares', label: 'Celulares' },
 ];
+
+const SOLAPA_ORIGEN = {
+  perifericos: 'periferico',
+  infra: 'infra',
+  computadoras: 'pc',
+  celulares: 'celular',
+};
 
 function KpiCard({ icon: Icon, label, value, sub, colorBg, colorText }) {
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-5 flex items-center gap-4 shadow-sm">
-      <div className={`p-3 ${colorBg} ${colorText} rounded-lg`}>
-        <Icon className="w-6 h-6" />
+      <div className={`p-3 ${colorBg} ${colorText} rounded-lg shrink-0`}>
+        {Icon ? <Icon className="w-6 h-6" /> : null}
       </div>
-      <div>
+      <div className="min-w-0">
         <span className="text-sm text-slate-400 block font-bold uppercase tracking-wider mb-1">{label}</span>
         <span className={`text-3xl font-black font-mono ${colorText}`}>{value}</span>
         {sub && <span className="text-xs text-slate-500 font-medium block mt-0.5">{sub}</span>}
@@ -38,83 +44,136 @@ function KpiCard({ icon: Icon, label, value, sub, colorBg, colorText }) {
   );
 }
 
-export default function StockAsignacionesTab({ lista, estadoLabels, onRefresh }) {
+function textoError(err) {
+  if (!err) return '';
+  if (typeof err === 'string') return err;
+  return err.message || '';
+}
+
+export default function StockAsignacionesTab({
+  lista,
+  pcsAsignadas = [],
+  celularesAsignados = [],
+  estadoLabels,
+  onRefresh,
+  onRefreshCelulares,
+  cargandoPcs = false,
+  cargandoCelulares = false,
+  errorPcs = null,
+  errorCelulares = null,
+}) {
   const [solapa, setSolapa] = useState('todos');
   const [buscar, setBuscar] = useState('');
-  const [devolverItem, setDevolverItem] = useState(null);
+  const [devolverFila, setDevolverFila] = useState(null);
   const [motivoDevolver, setMotivoDevolver] = useState('');
   const [devolviendo, setDevolviendo] = useState(false);
 
-  const asignados = useMemo(
-    () => filtrarAsignados(lista, estadoLabels),
-    [lista, estadoLabels],
+  const filas = useMemo(
+    () => armarFilasAsignaciones({
+      items: lista,
+      pcs: pcsAsignadas,
+      celulares: celularesAsignados,
+      estadoLabels,
+    }),
+    [lista, pcsAsignadas, celularesAsignados, estadoLabels],
   );
 
   const conteos = useMemo(() => {
-    const perif = asignados.filter(i => esAsignacionPeriferico(i, estadoLabels));
-    const infra = asignados.filter(i => esAsignacionInfra(i, estadoLabels));
-    const unidades = asignados.reduce((s, i) => s + (i.cantidad ?? 1), 0);
-    const aPc = asignados.filter(i => destinoAsignacion(i).tipo === 'pc');
+    const sum = (pred) => filas.filter(pred).reduce((s, f) => s + (f.cantidad ?? 1), 0);
     return {
-      unidades,
-      perif: perif.reduce((s, i) => s + (i.cantidad ?? 1), 0),
-      infra: infra.reduce((s, i) => s + (i.cantidad ?? 1), 0),
-      aPc: aPc.reduce((s, i) => s + (i.cantidad ?? 1), 0),
+      unidades: sum(() => true),
+      perif: sum(f => f.origen === 'periferico'),
+      infra: sum(f => f.origen === 'infra'),
+      aPc: sum(f => f.destino?.tipo === 'pc'),
+      pcs: sum(f => f.origen === 'pc'),
+      celulares: sum(f => f.origen === 'celular'),
     };
-  }, [asignados, estadoLabels]);
+  }, [filas]);
 
   const filtrados = useMemo(() => {
-    let list = asignados;
-    if (solapa === 'perifericos') {
-      list = list.filter(i => esAsignacionPeriferico(i, estadoLabels));
-    } else if (solapa === 'infra') {
-      list = list.filter(i => esAsignacionInfra(i, estadoLabels));
-    }
+    const origen = SOLAPA_ORIGEN[solapa];
+    let list = origen ? filas.filter(f => f.origen === origen) : filas;
     const q = buscar.trim().toLowerCase();
     if (!q) return list;
-    return list.filter(item => {
-      const dest = destinoAsignacion(item);
-      const blob = [
-        item.id,
-        item.nombre,
-        item.fabricante,
-        item.numeroSerie,
-        item.tipo,
-        dest.label,
-        item.computadoraHostname,
-        motivoAsignacionDesdeHistorial(item),
-      ].filter(Boolean).join(' ').toLowerCase();
-      return blob.includes(q);
-    });
-  }, [asignados, solapa, buscar, estadoLabels]);
+    return list.filter(f => f.busqueda.includes(q));
+  }, [filas, solapa, buscar]);
+
+  const refrescarCelulares = async () => {
+    try {
+      await onRefreshCelulares?.();
+    } catch (refreshErr) {
+      console.error(refreshErr);
+    }
+  };
 
   const handleDevolver = async () => {
-    if (!devolverItem) return;
+    if (!devolverFila || devolviendo) return;
+    const esCelular = devolverFila.origen === 'celular';
     setDevolviendo(true);
     try {
-      await devolverStockM(
-        devolverItem.id,
-        motivoDevolver.trim() || 'Devolución a stock',
-      );
-      setDevolverItem(null);
+      if (esCelular) {
+        await devolverCelularAStock(devolverFila.raw);
+        await refrescarCelulares();
+      } else {
+        await devolverStockM(
+          devolverFila.raw.id,
+          motivoDevolver.trim() || 'Devolución a stock',
+        );
+        await onRefresh?.();
+      }
+      setDevolverFila(null);
       setMotivoDevolver('');
-      await onRefresh?.();
     } catch (err) {
       console.error(err);
-      alert('No se pudo devolver el ítem a stock.');
+      if (esCelular) {
+        await refrescarCelulares();
+        alert(err?.message || 'No se pudo devolver el celular a stock.');
+      } else {
+        alert('No se pudo devolver el ítem a stock.');
+      }
     } finally {
       setDevolviendo(false);
     }
   };
 
+  const avisoCarga = cargandoPcs && cargandoCelulares
+    ? 'Cargando computadoras y celulares…'
+    : cargandoPcs
+      ? 'Cargando computadoras…'
+      : cargandoCelulares
+        ? 'Cargando celulares…'
+        : null;
+
   return (
     <>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {(avisoCarga || errorPcs || errorCelulares) && (
+        <div className="space-y-2">
+          {avisoCarga && (
+            <p className="text-xs font-semibold text-slate-500">{avisoCarga}</p>
+          )}
+          {errorCelulares && (
+            <p className="text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              No se pudieron cargar los celulares
+              {textoError(errorCelulares) ? `: ${textoError(errorCelulares)}` : ''}
+              . Periféricos, infraestructura y computadoras siguen visibles.
+            </p>
+          )}
+          {errorPcs && (
+            <p className="text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              No se pudieron cargar las computadoras
+              {textoError(errorPcs) ? `: ${textoError(errorPcs)}` : ''}
+              . El resto de las asignaciones sigue visible.
+            </p>
+          )}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <KpiCard
           icon={Package}
           label="Total asignado"
           value={conteos.unidades}
-          sub={`${asignados.length} ítem(s) distintos`}
+          sub={`${filas.length} ítem(s) distintos`}
           colorBg="bg-indigo-50"
           colorText="text-indigo-600"
         />
@@ -142,6 +201,22 @@ export default function StockAsignacionesTab({ lista, estadoLabels, onRefresh })
           colorBg="bg-violet-50"
           colorText="text-violet-600"
         />
+        <KpiCard
+          icon={Cpu}
+          label="Computadoras"
+          value={conteos.pcs}
+          sub="Origen stock, asignadas"
+          colorBg="bg-teal-50"
+          colorText="text-teal-600"
+        />
+        <KpiCard
+          icon={Smartphone}
+          label="Celulares"
+          value={conteos.celulares}
+          sub="Liberados del stock"
+          colorBg="bg-sky-50"
+          colorText="text-sky-600"
+        />
       </div>
 
       <div className="flex flex-wrap gap-1 bg-slate-100 p-1 rounded-lg w-fit">
@@ -166,7 +241,7 @@ export default function StockAsignacionesTab({ lista, estadoLabels, onRefresh })
           <TableFilters.Search
             value={buscar}
             onChange={setBuscar}
-            placeholder="Buscar por ítem, S/N, PC, ubicación…"
+            placeholder="Buscar por ítem, S/N, IMEI, hostname o responsable…"
           />
         </TableFilters>
       </StudioFilterBar>
@@ -195,66 +270,71 @@ export default function StockAsignacionesTab({ lista, estadoLabels, onRefresh })
                   </td>
                 </tr>
               ) : (
-                filtrados.map(item => {
-                  const dest = destinoAsignacion(item);
-                  const motivo = motivoAsignacionDesdeHistorial(item);
-                  return (
-                    <tr key={item.id} className="hover:bg-slate-50/50">
-                      <td className="py-4 px-5">
-                        <Link
-                          to={`/perifericos/stock/${encodeURIComponent(item.id)}`}
-                          className="font-bold text-indigo-600 hover:underline"
-                        >
-                          {resumenItemAsignado(item)}
-                        </Link>
-                        <p className="text-[10px] font-mono text-slate-400 mt-0.5">{item.id}</p>
-                        {item.numeroSerie && (
-                          <p className="text-[11px] text-slate-500 font-mono mt-0.5">
-                            S/N:
-                            {' '}
-                            {item.numeroSerie}
-                          </p>
-                        )}
-                      </td>
-                      <td className="py-4 px-5">
-                        <span className="text-xs font-bold capitalize text-slate-700">
-                          {labelTipoStock(normalizarTipoStock(item.tipo))}
-                        </span>
+                filtrados.map(fila => (
+                  <tr key={fila.key} className="hover:bg-slate-50/50">
+                    <td className="py-4 px-5">
+                      <Link
+                        to={fila.linkTo}
+                        className="font-bold text-indigo-600 hover:underline"
+                      >
+                        {fila.titulo}
+                      </Link>
+                      {fila.subtituloId && (
+                        <p className="text-[10px] font-mono text-slate-400 mt-0.5">{fila.subtituloId}</p>
+                      )}
+                      {fila.subtituloExtra && (
+                        <p className="text-[11px] text-slate-500 font-mono mt-0.5">
+                          {fila.subtituloExtra}
+                        </p>
+                      )}
+                    </td>
+                    <td className="py-4 px-5">
+                      <span className="text-xs font-bold capitalize text-slate-700">
+                        {fila.tipoLabel}
+                      </span>
+                      {fila.estadoActual != null && String(fila.estadoActual).trim() !== '' && (
                         <div className="mt-1">
-                          <BadgeDisponibilidad estadoActual={item.estado} estadoLabels={estadoLabels} />
+                          <BadgeDisponibilidad estadoActual={fila.estadoActual} estadoLabels={estadoLabels} />
                         </div>
-                      </td>
-                      <td className="py-4 px-5">
-                        {dest.tipo === 'pc' && dest.uuid ? (
-                          <Link
-                            to={`/computadoras/${encodeURIComponent(dest.uuid)}`}
-                            className="inline-flex items-center gap-1 text-indigo-600 font-bold hover:underline"
-                          >
-                            <Laptop className="w-3.5 h-3.5" />
-                            {dest.label}
-                          </Link>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-slate-700 font-semibold">
-                            <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                            {dest.label}
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-4 px-5 text-xs font-medium text-slate-600 whitespace-nowrap">
-                        {fmtFechaAsignacion(item)}
-                      </td>
-                      <td className="py-4 px-5 text-xs text-slate-600 max-w-[200px] truncate" title={motivo || ''}>
-                        {motivo || '—'}
-                      </td>
-                      <td className="py-4 px-5 text-center font-mono font-bold">
-                        {item.cantidad ?? 1}
-                      </td>
-                      <td className="py-4 px-5 text-right">
+                      )}
+                    </td>
+                    <td className="py-4 px-5">
+                      {fila.destino?.tipo === 'pc' && fila.destino.uuid ? (
+                        <Link
+                          to={`/computadoras/${encodeURIComponent(fila.destino.uuid)}`}
+                          className="inline-flex items-center gap-1 text-indigo-600 font-bold hover:underline"
+                        >
+                          <Laptop className="w-3.5 h-3.5" />
+                          {fila.destino.label}
+                        </Link>
+                      ) : fila.destino?.tipo === 'responsable' ? (
+                        <span className="inline-flex items-center gap-1 text-slate-700 font-semibold">
+                          <User className="w-3.5 h-3.5 text-slate-400" />
+                          {fila.destino.label}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-slate-700 font-semibold">
+                          <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                          {fila.destino?.label || '—'}
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-4 px-5 text-xs font-medium text-slate-600 whitespace-nowrap">
+                      {fmtFechaValor(fila.fecha)}
+                    </td>
+                    <td className="py-4 px-5 text-xs text-slate-600 max-w-[200px] truncate" title={fila.motivo || ''}>
+                      {fila.motivo || '—'}
+                    </td>
+                    <td className="py-4 px-5 text-center font-mono font-bold">
+                      {fila.cantidad ?? 1}
+                    </td>
+                    <td className="py-4 px-5 text-right">
+                      {fila.puedeDevolver ? (
                         <WriteGate>
                           <button
                             type="button"
                             onClick={() => {
-                              setDevolverItem(item);
+                              setDevolverFila(fila);
                               setMotivoDevolver('');
                             }}
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:bg-emerald-50 hover:border-emerald-200 text-emerald-700 rounded-lg font-bold text-xs transition-colors"
@@ -263,40 +343,48 @@ export default function StockAsignacionesTab({ lista, estadoLabels, onRefresh })
                             Devolver
                           </button>
                         </WriteGate>
-                      </td>
-                    </tr>
-                  );
-                })
+                      ) : (
+                        <span className="text-xs text-slate-400">—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {devolverItem && (
+      {devolverFila && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white border border-slate-200 rounded-xl max-w-md w-full overflow-hidden shadow-xl">
             <div className="px-5 py-4 border-b border-slate-100 bg-slate-50">
               <h2 className="font-extrabold text-sm text-slate-900">Devolver a stock</h2>
               <p className="text-xs text-slate-500 mt-1 font-medium">
-                {resumenItemAsignado(devolverItem)}
+                {devolverFila.titulo}
               </p>
             </div>
             <div className="p-5 space-y-4">
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Motivo</label>
-                <input
-                  type="text"
-                  value={motivoDevolver}
-                  onChange={e => setMotivoDevolver(e.target.value)}
-                  placeholder="Ej: Fin de proyecto, reemplazo…"
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-600"
-                />
-              </div>
+              {devolverFila.origen === 'celular' ? (
+                <p className="text-xs text-slate-600 font-medium">
+                  El celular vuelve a la solapa Celulares. El motivo no se guarda.
+                </p>
+              ) : (
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Motivo</label>
+                  <input
+                    type="text"
+                    value={motivoDevolver}
+                    onChange={e => setMotivoDevolver(e.target.value)}
+                    placeholder="Ej: Fin de proyecto, reemplazo…"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-600"
+                  />
+                </div>
+              )}
               <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
-                  onClick={() => setDevolverItem(null)}
+                  onClick={() => setDevolverFila(null)}
                   className="px-4 py-2 border border-slate-200 rounded-lg text-sm font-bold text-slate-700 hover:bg-slate-50"
                 >
                   Cancelar

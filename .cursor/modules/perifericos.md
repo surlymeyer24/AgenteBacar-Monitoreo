@@ -68,4 +68,4 @@ Este módulo es usado por: dashboard de periféricos, reportes.
 - Cada tab tiene su badge de conteo en el botón; seguí ese patrón al agregar una tab.
 - Los estados operativos se resuelven por catálogo (`estadoLabels`), no hardcodeados.
 - Celulares tienen su propio estado (`activo` / `en_stock` / `baja`), distinto de los estados operativos de periféricos. No mezclar.
-- Tab Celulares (vista Stock): lista `useCelulares()` filtrado con `esCelularEnStock`. Edición y asignación van en `StockCelularesTab` (modales propios). No van a la vista Asignaciones.
+- Tab Celulares (vista Stock): lista `useCelulares()` filtrado con `esCelularEnStock`. Edición y asignación van en `StockCelularesTab` (modales propios). Los que cumplen `esCelularAsignadoDesdeStock` sí aparecen en la vista Asignaciones (Devolver reutiliza `devolverCelularAStock`). Las PCs de origen stock en columna Asignada del pipeline también se listan ahí, solo lectura.
