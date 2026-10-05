@@ -59,6 +59,9 @@ Este módulo es usado por: dashboard de periféricos (conteo), menú, y (consumi
 - IMEI es la identidad del aparato; duplicados se rechazan.
 - `estado` `en_stock` es el default al dar de alta a depósito.
 - Contrato para periféricos (no tocar `PerifericoManualList` desde este módulo):
-  - `asignarCelular(celular, { responsable, area })` y `devolverCelularAStock(celular)` en `celularApi.js` (PUT completo con el objeto actual).
-  - `esCelularEnStock(celular)` en `constants/celulares.js`.
+  - `asignarCelular(celular, { responsable, area })` en `celularApi.js`: PUT completo con el objeto actual, `estado: 'activo'` y `asignadoDesdeStock: true`. El backend pone `fechaAsignacion` (ISO-8601).
+  - `devolverCelularAStock(celular)`: PUT con `estado: 'en_stock'` y `asignadoDesdeStock: false`. El backend limpia la traza (`asignadoDesdeStock: false`, `fechaAsignacion: null`).
+  - DTO: `asignadoDesdeStock` (Boolean, nullable) y `fechaAsignacion` (String ISO-8601 o null; el cliente no la envía).
+  - `esCelularEnStock(celular)`, `esCelularAsignadoDesdeStock(celular)` (activo + traza) y `fechaAsignacionCelular(celular)` (Date o null) en `constants/celulares.js`.
+  - Un PUT sin `asignadoDesdeStock` no pisa la traza, salvo que el estado pase a `en_stock`.
   - React Query: `useCelulares` usa `queryKey: ['celulares']`. Invalidar esa key tras asignar/devolver.

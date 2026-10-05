@@ -19,4 +19,6 @@ public class CelularDTO {
     private String responsable;
     private String area;
     private String estado;
+    private Boolean asignadoDesdeStock;
+    private String fechaAsignacion;
 }

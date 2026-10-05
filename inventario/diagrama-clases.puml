@@ -164,6 +164,21 @@ class SwitchRed {
     +getEstadoActual(): Estado
 }
 
+class Celular {
+    -id: String
+    -marca: String
+    -modelo: String
+    -imei: String
+    -conCargador: Boolean
+    -condicion: String
+    -lineaNumero: String
+    -responsable: String
+    -area: String
+    -estado: String
+    -asignadoDesdeStock: Boolean
+    -fechaAsignacion: String
+}
+
 ' ==================== CLASES FIRESTORE (Agente C#) ====================
 
 package "Firestore — datos del agente C#" {

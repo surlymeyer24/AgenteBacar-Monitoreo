@@ -1,5 +1,6 @@
 package com.bacarsa.inventario.services;
 
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -103,10 +104,22 @@ public class CelularService {
         celular.setLineaNumero(blankToNull(dto.getLineaNumero()));
         celular.setResponsable(blankToNull(dto.getResponsable()));
         celular.setArea(areaODeposito(dto.getArea()));
-        celular.setEstado(dto.getEstado() == null || dto.getEstado().isBlank()
-                ? EstadoCelular.en_stock.name()
-                : parseEstado(dto.getEstado()).name());
+        EstadoCelular estado = dto.getEstado() == null || dto.getEstado().isBlank()
+                ? EstadoCelular.en_stock
+                : parseEstado(dto.getEstado());
+        celular.setEstado(estado.name());
+        aplicarTraza(celular, dto, estado);
         return celular;
+    }
+
+    private static void aplicarTraza(Celular celular, CelularCreateDTO dto, EstadoCelular estado) {
+        Map<String, Object> traza = new HashMap<>();
+        aplicarTraza(traza, dto, estado);
+        if (!traza.containsKey("asignado_desde_stock")) {
+            return;
+        }
+        celular.setAsignadoDesdeStock((Boolean) traza.get("asignado_desde_stock"));
+        celular.setFechaAsignacion((String) traza.get("fecha_asignacion"));
     }
 
     private static Map<String, Object> toUpdateMap(CelularCreateDTO dto) {
@@ -119,8 +132,35 @@ public class CelularService {
         campos.put("linea_numero", blankToNull(dto.getLineaNumero()));
         campos.put("responsable", blankToNull(dto.getResponsable()));
         campos.put("area", areaODeposito(dto.getArea()));
-        campos.put("estado", parseEstado(dto.getEstado()).name());
+        EstadoCelular estado = parseEstado(dto.getEstado());
+        campos.put("estado", estado.name());
+        aplicarTraza(campos, dto, estado);
         return campos;
+    }
+
+    /**
+     * La traza solo se escribe si el estado pasa a en_stock o si el cliente manda
+     * {@code asignadoDesdeStock} explícito. Null en el mapa deja {@code fecha_asignacion}
+     * en null: {@code CelularRepository.update} hace {@code set} con merge y el cliente
+     * Firestore 3.13 codifica un null de Java como NullValue (no lo filtra).
+     */
+    private static void aplicarTraza(Map<String, Object> campos, CelularCreateDTO dto, EstadoCelular estado) {
+        if (estado == EstadoCelular.en_stock) {
+            campos.put("asignado_desde_stock", false);
+            campos.put("fecha_asignacion", null);
+            return;
+        }
+        Boolean traza = dto.getAsignadoDesdeStock();
+        if (traza == null) {
+            return;
+        }
+        if (Boolean.TRUE.equals(traza)) {
+            campos.put("asignado_desde_stock", true);
+            campos.put("fecha_asignacion", Instant.now().toString());
+            return;
+        }
+        campos.put("asignado_desde_stock", false);
+        campos.put("fecha_asignacion", null);
     }
 
     private static String parseCondicion(String raw) {

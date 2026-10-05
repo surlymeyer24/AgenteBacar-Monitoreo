@@ -100,7 +100,8 @@ function cuerpoDesdeCelular(celular, extras) {
 }
 
 /**
- * Asigna un celular en stock a un responsable: estado `activo`.
+ * Asigna un celular en stock a un responsable: estado `activo` y traza
+ * `asignadoDesdeStock: true`. El backend fija `fechaAsignacion` (ISO-8601).
  * Hay que pasar el objeto actual (GET/listado) para no perder IMEI/cargador/condición.
  *
  * @param {object} celular — documento actual (`id` obligatorio)
@@ -120,6 +121,7 @@ export function asignarCelular(celular, { responsable, area } = {}) {
       responsable: nombre,
       area: areaNueva || areaActual || 'Depósito',
       estado: 'activo',
+      asignadoDesdeStock: true,
     });
     return actualizarCelular(celular.id, body);
   } catch (err) {
@@ -129,6 +131,8 @@ export function asignarCelular(celular, { responsable, area } = {}) {
 
 /**
  * Devuelve el celular al depósito: estado `en_stock` y sin responsable.
+ * El backend limpia la traza (`asignadoDesdeStock: false`, `fechaAsignacion: null`).
+ * `asignadoDesdeStock: false` va explícito; con `en_stock` el servidor igual la borra.
  * Conserva marca/modelo/IMEI/cargador/condición/línea/área.
  *
  * @param {object} celular — documento actual (`id` obligatorio)
@@ -142,6 +146,7 @@ export function devolverCelularAStock(celular) {
       responsable: undefined,
       area: areaActual || 'Depósito',
       estado: 'en_stock',
+      asignadoDesdeStock: false,
     });
     return actualizarCelular(celular.id, body);
   } catch (err) {

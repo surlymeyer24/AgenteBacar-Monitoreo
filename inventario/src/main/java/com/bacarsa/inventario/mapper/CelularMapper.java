@@ -22,6 +22,8 @@ public class CelularMapper {
         dto.setResponsable(celular.getResponsable());
         dto.setArea(celular.getArea());
         dto.setEstado(celular.getEstado());
+        dto.setAsignadoDesdeStock(celular.getAsignadoDesdeStock());
+        dto.setFechaAsignacion(celular.getFechaAsignacion());
         return dto;
     }
 }

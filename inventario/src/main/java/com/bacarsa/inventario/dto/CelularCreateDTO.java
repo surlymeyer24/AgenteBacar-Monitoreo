@@ -30,4 +30,7 @@ public class CelularCreateDTO {
     private String responsable;
     private String area;
     private String estado;
+
+    /** Opcional. Null = no tocar la traza en un update. La fecha la fija el servidor. */
+    private Boolean asignadoDesdeStock;
 }

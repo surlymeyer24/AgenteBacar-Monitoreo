@@ -1,13 +1,17 @@
 package com.bacarsa.inventario.services;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -19,6 +23,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.bacarsa.inventario.dto.CelularCreateDTO;
+import com.bacarsa.inventario.dto.CelularDTO;
+import com.bacarsa.inventario.mapper.CelularMapper;
 import com.bacarsa.inventario.models.Celular;
 import com.bacarsa.inventario.repository.CelularRepository;
 
@@ -57,6 +63,8 @@ class CelularServiceTest {
         assertEquals("nuevo", creado.getCondicion());
         assertEquals("Depósito", creado.getArea());
         assertEquals("en_stock", creado.getEstado());
+        assertEquals(false, creado.getAsignadoDesdeStock());
+        assertNull(creado.getFechaAsignacion());
     }
 
     @Test
@@ -101,6 +109,97 @@ class CelularServiceTest {
                         request("222222", true, "nuevo", "Depósito", "en_stock")));
 
         verify(celularRepository, never()).update(eq("cel-1"), any());
+    }
+
+    @Test
+    void updateConAsignadoDesdeStockTrueSeteaTrazaYFecha() throws Exception {
+        Celular existente = celular("cel-1", "123456");
+        when(celularRepository.findById("cel-1")).thenReturn(existente);
+        when(celularRepository.findAll()).thenReturn(List.of(existente));
+
+        Instant antes = Instant.now();
+        CelularCreateDTO dto = request("123456", true, "nuevo", "Sistemas", "activo");
+        dto.setAsignadoDesdeStock(true);
+        dto.setResponsable("Ana");
+        service.update("cel-1", dto);
+        Instant despues = Instant.now();
+
+        Map<String, Object> campos = camposActualizados("cel-1");
+        assertEquals(true, campos.get("asignado_desde_stock"));
+        assertEquals("activo", campos.get("estado"));
+        Instant fecha = Instant.parse((String) campos.get("fecha_asignacion"));
+        assertFalse(fecha.isBefore(antes));
+        assertFalse(fecha.isAfter(despues));
+    }
+
+    @Test
+    void updateAEnStockLimpiaTrazaAunqueNoVengaElCampo() throws Exception {
+        Celular existente = celular("cel-1", "123456");
+        existente.setAsignadoDesdeStock(true);
+        existente.setFechaAsignacion("2026-01-01T00:00:00Z");
+        when(celularRepository.findById("cel-1")).thenReturn(existente);
+        when(celularRepository.findAll()).thenReturn(List.of(existente));
+
+        service.update("cel-1", request("123456", true, "nuevo", "Depósito", "en_stock"));
+
+        Map<String, Object> campos = camposActualizados("cel-1");
+        assertEquals("en_stock", campos.get("estado"));
+        assertEquals(false, campos.get("asignado_desde_stock"));
+        assertTrue(campos.containsKey("fecha_asignacion"));
+        assertNull(campos.get("fecha_asignacion"));
+    }
+
+    @Test
+    void updateConAsignadoDesdeStockFalseLimpiaTrazaSinVolverAStock() throws Exception {
+        Celular existente = celular("cel-1", "123456");
+        when(celularRepository.findById("cel-1")).thenReturn(existente);
+        when(celularRepository.findAll()).thenReturn(List.of(existente));
+
+        CelularCreateDTO dto = request("123456", true, "usado", "Sistemas", "activo");
+        dto.setAsignadoDesdeStock(false);
+        service.update("cel-1", dto);
+
+        Map<String, Object> campos = camposActualizados("cel-1");
+        assertEquals("activo", campos.get("estado"));
+        assertEquals(false, campos.get("asignado_desde_stock"));
+        assertTrue(campos.containsKey("fecha_asignacion"));
+        assertNull(campos.get("fecha_asignacion"));
+    }
+
+    @Test
+    void updateSinAsignadoDesdeStockNoTocaLaTraza() throws Exception {
+        Celular existente = celular("cel-1", "123456");
+        existente.setAsignadoDesdeStock(true);
+        existente.setFechaAsignacion("2026-01-01T00:00:00Z");
+        when(celularRepository.findById("cel-1")).thenReturn(existente);
+        when(celularRepository.findAll()).thenReturn(List.of(existente));
+
+        service.update("cel-1", request("123456", true, "usado", "Sistemas", "activo"));
+
+        Map<String, Object> campos = camposActualizados("cel-1");
+        assertEquals("activo", campos.get("estado"));
+        assertFalse(campos.containsKey("asignado_desde_stock"));
+        assertFalse(campos.containsKey("fecha_asignacion"));
+    }
+
+    @Test
+    void mapperExponeTrazaEnElDto() {
+        Celular celular = celular("cel-1", "123456");
+        celular.setEstado("activo");
+        celular.setAsignadoDesdeStock(true);
+        celular.setFechaAsignacion("2026-10-05T12:00:00Z");
+
+        CelularDTO dto = CelularMapper.toDTO(celular);
+
+        assertEquals(true, dto.getAsignadoDesdeStock());
+        assertEquals("2026-10-05T12:00:00Z", dto.getFechaAsignacion());
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> camposActualizados(String id) throws Exception {
+        ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
+        verify(celularRepository).update(eq(id), captor.capture());
+        return captor.getValue();
     }
 
     private static CelularCreateDTO request(

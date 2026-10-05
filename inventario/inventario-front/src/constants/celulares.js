@@ -43,3 +43,28 @@ export function esCelularEnStock(celular) {
   }
   return normalizarEstadoCelular(celular.estado) === 'en_stock';
 }
+
+/**
+ * True solo si el celular está activo y salió del stock
+ * (`asignadoDesdeStock === true`, o los strings `true` / `si`).
+ */
+export function esCelularAsignadoDesdeStock(celular) {
+  if (celular == null) return false;
+  if (normalizarEstadoCelular(celular.estado) !== 'activo') return false;
+  return trazaAsignadoDesdeStock(celular.asignadoDesdeStock);
+}
+
+/** Date de `fechaAsignacion`, o null si falta o no parsea. */
+export function fechaAsignacionCelular(celular) {
+  const raw = celular?.fechaAsignacion;
+  if (raw == null || String(raw).trim() === '') return null;
+  const fecha = new Date(raw);
+  return Number.isNaN(fecha.getTime()) ? null : fecha;
+}
+
+function trazaAsignadoDesdeStock(raw) {
+  if (raw === true) return true;
+  if (typeof raw !== 'string') return false;
+  const s = raw.trim().toLowerCase();
+  return s === 'true' || s === 'si' || s === 'sí';
+}
