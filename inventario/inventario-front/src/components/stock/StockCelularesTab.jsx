@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Smartphone, CheckCircle, Edit2, UserCheck, X, Check, BatteryCharging } from 'lucide-react';
 import { motion as Motion, AnimatePresence } from 'motion/react';
@@ -36,7 +36,12 @@ function formDesdeCelular(celular) {
   };
 }
 
-export default function StockCelularesTab({ celularesEnStock }) {
+export default function StockCelularesTab({
+  celularesEnStock,
+  editarAlMontar = null,
+  onCerrarEdicion,
+  ocultarListado = false,
+}) {
   const queryClient = useQueryClient();
   const [buscar, setBuscar] = useState('');
   const [editando, setEditando] = useState(null);
@@ -72,6 +77,11 @@ export default function StockCelularesTab({ celularesEnStock }) {
     setFormError('');
   }
 
+  function cerrarEditar() {
+    setEditando(null);
+    onCerrarEdicion?.();
+  }
+
   function abrirAsignar(celular) {
     setAsignando(celular);
     setAsignarA('');
@@ -98,10 +108,11 @@ export default function StockCelularesTab({ celularesEnStock }) {
         condicion: form.condicion,
         lineaNumero: form.lineaNumero.trim() || undefined,
         area: form.area.trim() || 'Depósito',
-        estado: 'en_stock',
+        responsable: (editando.responsable ?? '').trim(),
+        estado: editando.estado || 'en_stock',
       });
       await queryClient.invalidateQueries({ queryKey: ['celulares'] });
-      setEditando(null);
+      cerrarEditar();
     } catch (err) {
       setFormError(err?.message || 'No se pudo guardar el celular.');
     } finally {
@@ -134,8 +145,18 @@ export default function StockCelularesTab({ celularesEnStock }) {
 
   const vacioStock = celularesEnStock.length === 0;
 
+  const editarId = editarAlMontar?.id ?? null;
+  useEffect(() => {
+    if (!editarId) return;
+    abrirEditar(editarAlMontar);
+    // Solo al cambiar el id pedido desde Asignaciones.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editarId]);
+
   return (
     <>
+      {!ocultarListado && (
+      <>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="bg-white border border-slate-200 rounded-xl p-5 flex items-center gap-4 shadow-sm">
           <div className="p-3 bg-sky-50 text-sky-600 rounded-lg">
@@ -259,6 +280,8 @@ export default function StockCelularesTab({ celularesEnStock }) {
           </div>
         </div>
       )}
+      </>
+      )}
 
       <AnimatePresence>
         {editando && (
@@ -277,7 +300,7 @@ export default function StockCelularesTab({ celularesEnStock }) {
                 <button
                   type="button"
                   disabled={guardando}
-                  onClick={() => setEditando(null)}
+                  onClick={cerrarEditar}
                   className="p-1 hover:bg-slate-200 rounded text-slate-500"
                 >
                   <X className="w-4 h-4" />
@@ -374,7 +397,7 @@ export default function StockCelularesTab({ celularesEnStock }) {
                   <button
                     type="button"
                     disabled={guardando}
-                    onClick={() => setEditando(null)}
+                    onClick={cerrarEditar}
                     className="px-4 py-2 border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 font-bold"
                   >
                     Cancelar

@@ -46,6 +46,7 @@ export default function PerifericoManualList() {
   const [buscar, setBuscar] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [sacandoUuid, setSacandoUuid] = useState(null);
+  const [celularEnEdicion, setCelularEnEdicion] = useState(null);
 
   const setVista = (nextVista) => {
     const next = new URLSearchParams(searchParams);
@@ -639,6 +640,26 @@ export default function PerifericoManualList() {
           cargandoCelulares={cargandoCelulares}
           errorPcs={errorPcs}
           errorCelulares={errorCelulares}
+          onEditar={(fila) => {
+            if (fila.origen === 'pc') {
+              pcModals.handleOpenEditPc(fila.raw);
+              return;
+            }
+            if (fila.origen === 'celular') {
+              setCelularEnEdicion(fila.raw);
+              return;
+            }
+            itemForm.handleOpenEdit(fila.raw);
+          }}
+        />
+      )}
+
+      {celularEnEdicion && (
+        <StockCelularesTab
+          celularesEnStock={[]}
+          editarAlMontar={celularEnEdicion}
+          onCerrarEdicion={() => setCelularEnEdicion(null)}
+          ocultarListado
         />
       )}
 

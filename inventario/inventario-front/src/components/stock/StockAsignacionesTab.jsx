@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Monitor, Router, Package, RotateCcw, MapPin, Laptop, User, Cpu, Smartphone,
+  Monitor, Router, Package, RotateCcw, MapPin, Laptop, User, Cpu, Smartphone, Edit2,
 } from 'lucide-react';
 import { devolverCelularAStock } from '../../api/celularApi';
 import { devolverStockM } from '../../api/perifericoManualApi';
@@ -57,6 +57,7 @@ export default function StockAsignacionesTab({
   estadoLabels,
   onRefresh,
   onRefreshCelulares,
+  onEditar,
   cargandoPcs = false,
   cargandoCelulares = false,
   errorPcs = null,
@@ -329,23 +330,33 @@ export default function StockAsignacionesTab({
                       {fila.cantidad ?? 1}
                     </td>
                     <td className="py-4 px-5 text-right">
-                      {fila.puedeDevolver ? (
-                        <WriteGate>
+                      <div className="inline-flex items-center justify-end gap-2">
+                        {fila.puedeDevolver ? (
+                          <WriteGate>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDevolverFila(fila);
+                                setMotivoDevolver('');
+                              }}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:bg-emerald-50 hover:border-emerald-200 text-emerald-700 rounded-lg font-bold text-xs transition-colors"
+                            >
+                              <RotateCcw className="w-3.5 h-3.5" />
+                              Devolver
+                            </button>
+                          </WriteGate>
+                        ) : null}
+                        {onEditar ? (
                           <button
                             type="button"
-                            onClick={() => {
-                              setDevolverFila(fila);
-                              setMotivoDevolver('');
-                            }}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:bg-emerald-50 hover:border-emerald-200 text-emerald-700 rounded-lg font-bold text-xs transition-colors"
+                            onClick={() => onEditar(fila)}
+                            className="p-2 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-800 rounded-lg transition-colors border border-transparent hover:border-indigo-100"
+                            title="Editar"
                           >
-                            <RotateCcw className="w-3.5 h-3.5" />
-                            Devolver
+                            <Edit2 className="w-4 h-4" />
                           </button>
-                        </WriteGate>
-                      ) : (
-                        <span className="text-xs text-slate-400">—</span>
-                      )}
+                        ) : null}
+                      </div>
                     </td>
                   </tr>
                 ))
