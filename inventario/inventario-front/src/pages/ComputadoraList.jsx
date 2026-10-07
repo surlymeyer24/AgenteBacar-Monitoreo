@@ -508,6 +508,7 @@ function ComputadoraList() {
               ) : null}
               <th className={`${studioThClass()} text-center`}>Sync</th>
               <th className={studioThClass()}>Hostname</th>
+              <th className={studioThClass()}>Asignado a</th>
               <th className={studioThClass()}>AnyDesk ID</th>
               <th className={studioThClass()}>Sistema operativo</th>
               <th className={studioThClass()}>Ubicación</th>
@@ -523,7 +524,7 @@ function ComputadoraList() {
           <tbody className="divide-y divide-slate-100">
             {computadoras.length === 0 ? (
               <tr>
-                <td colSpan={puedeEscribir ? 11 : 9} className={`${studioTdClass()} text-center text-slate-400 py-10`}>
+                <td colSpan={puedeEscribir ? 12 : 10} className={`${studioTdClass()} text-center text-slate-400 py-10`}>
                   {todas.length === 0
                     ? 'Sin registros'
                     : 'Ningún equipo coincide con los filtros'}
@@ -577,6 +578,9 @@ function ComputadoraList() {
                           )}
                         </div>
                       </div>
+                    </td>
+                    <td className={`${studioTdClass()} text-slate-800 font-semibold`}>
+                      {(c.responsableInventario ?? '').trim() || '—'}
                     </td>
                     <td className={studioTdClass()} onClick={e => e.stopPropagation()}>
                       {anydesk ? (
