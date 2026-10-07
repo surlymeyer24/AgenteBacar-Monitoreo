@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Outlet, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
-  Package, Plus, Laptop, UserCheck, ChevronDown, Layers, Router, ClipboardList, Smartphone,
+  Package, Plus, Laptop, UserCheck, ChevronDown, Layers, Router, ClipboardList, Smartphone, Archive,
 } from 'lucide-react';
 import { fetchComputadora, sacarDePipeline } from '../api/computadoraApi';
 import PerifericosTab from '../components/stock/PerifericosTab';
@@ -11,6 +11,7 @@ import StockUnidadesTab from '../components/stock/StockUnidadesTab';
 import StockInfraTab from '../components/stock/StockInfraTab';
 import StockAsignacionesTab from '../components/stock/StockAsignacionesTab';
 import StockCelularesTab from '../components/stock/StockCelularesTab';
+import StockBajasTab from '../components/stock/StockBajasTab';
 import StockManualListModals from '../components/stock/StockManualListModals';
 import EditPcStockModal from '../components/EditPcStockModal';
 import { editPcStockModalProps, nuevaPcStockModalProps } from '../utils/editPcStockModalProps';
@@ -25,6 +26,7 @@ import { useStockPcModals } from '../hooks/useStockPcModals';
 import { StudioLoading, StudioError } from '../components/studio/StudioUi';
 import { resolveSpecFromItem, specSearchText } from '../utils/stockPcHelpers';
 import { esPcPipelineStock } from '../utils/pipelinePcHelpers';
+import { armarFilasBaja } from '../utils/bajaStockHelpers';
 import { filtrarAsignados, filtrarEnBodega } from '../utils/asignacionesStockHelpers';
 
 export default function PerifericoManualList() {
@@ -191,6 +193,11 @@ export default function PerifericoManualList() {
     [todasPcs],
   );
 
+  const filasBaja = useMemo(
+    () => armarFilasBaja({ pcs: todasPcs, manuales: lista, estadoLabels }),
+    [todasPcs, lista, estadoLabels],
+  );
+
   const pcsPipelineFiltradas = useMemo(() => {
     if (!pcModals.buscarUnidad) return pcsPipeline;
     const q = pcModals.buscarUnidad.toLowerCase();
@@ -333,6 +340,22 @@ export default function PerifericoManualList() {
       </>
     );
   }
+  if (vista === 'stock' && activeTab === 'bajas' && (cargando || cargandoPcs)) {
+    return (
+      <>
+        <StudioLoading />
+        <Outlet />
+      </>
+    );
+  }
+  if (vista === 'stock' && activeTab === 'bajas' && (error || errorPcs)) {
+    return (
+      <>
+        <StudioError message={errorPcs || error} />
+        <Outlet />
+      </>
+    );
+  }
 
   const tabDescriptions = {
     stock: {
@@ -341,6 +364,7 @@ export default function PerifericoManualList() {
       unidades: 'Pipeline de PCs trazables: arrastrá entre columnas o usá las acciones de cada tarjeta.',
       infraestructura: 'Equipos de red en depósito: routers, switches y access points.',
       celulares: 'Celulares en stock de depósito: marca, modelo, IMEI, cargador y condición. Asigná a un responsable para sacarlos del stock.',
+      bajas: 'Computadoras y componentes dados de baja. Solo lectura: el documento sigue en el inventario.',
     },
     asignaciones: 'Custodia activa: periféricos e infraestructura asignados a PCs o ubicaciones. Devolvé acá para reingresar al stock.',
   };
@@ -549,6 +573,21 @@ export default function PerifericoManualList() {
             <span className="px-1.5 py-0.5 text-[10px] font-bold bg-sky-100 text-sky-700 rounded-full">{celularesEnStock.length}</span>
           )}
         </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('bajas')}
+          className={`px-4 py-2 rounded-md text-sm font-bold transition-all flex items-center gap-2 ${
+            activeTab === 'bajas'
+              ? 'bg-white text-slate-900 shadow-sm'
+              : 'text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <Archive className="w-4 h-4" />
+          Bajas
+          {filasBaja.length > 0 && (
+            <span className="px-1.5 py-0.5 text-[10px] font-bold bg-rose-100 text-rose-700 rounded-full">{filasBaja.length}</span>
+          )}
+        </button>
       </div>
       )}
 
@@ -609,6 +648,10 @@ export default function PerifericoManualList() {
 
       {vista === 'stock' && activeTab === 'celulares' && (
         <StockCelularesTab celularesEnStock={celularesEnStock} />
+      )}
+
+      {vista === 'stock' && activeTab === 'bajas' && (
+        <StockBajasTab filas={filasBaja} estadoLabels={estadoLabels} />
       )}
 
       {vista === 'asignaciones' && (
