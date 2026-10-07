@@ -56,3 +56,4 @@ Este módulo es usado por: stock de depósito (lee PCs), reportes, asignaciones.
 - `cambiarEstado` ya agrega un tramo a `historialEstados` (motivo, fechas, estado). No crear otra colección.
 - `SIN_ASIGNAR` es la vuelta de operativo a stock disponible. No cambiar esa regla.
 - Si la baja no se puede guardar, el estado anterior tiene que seguir vigente.
+- `BAJA` solo se acepta si el estado actual es `EN_MANTENIMIENTO` y hay motivo. Lo valida `ComputadoraService.cambiarEstado` antes de escribir; el historial lo sigue armando `ComputadoraRepository.cambiarEstado`. En `AsignacionesBoard` la opción «Retirada (Dar de baja)» aparece en reparación (y en una PC que ya está en baja, para que el select muestre el estado actual).

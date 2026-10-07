@@ -103,6 +103,17 @@ export default function AsignacionesBoard({ computadoras, onUpdateComputer }) {
 
     const extras = {};
 
+    if (selectedKey === 'BAJA') {
+      if (currentItState !== 'En mantenimiento') {
+        alert('Solo se puede dar de baja un equipo que está en reparación.');
+        return;
+      }
+      if (!motiveText.trim()) {
+        alert('El motivo es obligatorio para dar de baja.');
+        return;
+      }
+    }
+
     if (selectedKey === 'SIN_ASIGNAR') {
       const ubStock = (rowUbicacionStock[c.uuid] || '').trim();
       if (!ubStock) {
@@ -122,7 +133,8 @@ export default function AsignacionesBoard({ computadoras, onUpdateComputer }) {
     }
 
     try {
-      const result = await updateEstado(c.uuid, selectedKey, motiveText, extras);
+      const motivoEnvio = selectedKey === 'BAJA' ? motiveText.trim() : motiveText;
+      const result = await updateEstado(c.uuid, selectedKey, motivoEnvio, extras);
       const newLabel = ESTADO_KEY_TO_LABEL[selectedKey] || selectedKey;
       if (onUpdateComputer) {
         const updated = { ...c, estadoActual: newLabel, estadoIt: newLabel };
@@ -297,7 +309,9 @@ export default function AsignacionesBoard({ computadoras, onUpdateComputer }) {
                               <option value="ASIGNADA">Asignada</option>
                               <option value="SIN_ASIGNAR">Disponible (Sin asignar)</option>
                               <option value="EN_MANTENIMIENTO">En Reparación</option>
-                              <option value="BAJA">Retirada (Dar de baja)</option>
+                              {(currentItState === 'En mantenimiento' || currentItState === 'Baja') && (
+                                <option value="BAJA">Retirada (Dar de baja)</option>
+                              )}
                             </select>
                           </div>
 
@@ -324,7 +338,7 @@ export default function AsignacionesBoard({ computadoras, onUpdateComputer }) {
                           <div className="flex gap-1.5">
                             <input
                               type="text"
-                              placeholder="Motivo (opcional)"
+                              placeholder={selectedKey === 'BAJA' ? 'Motivo de la baja (obligatorio)' : 'Motivo (opcional)'}
                               value={currentMotiveText}
                               onChange={(evt) => setRowMotive(prev => ({ ...prev, [c.uuid]: evt.target.value }))}
                               className="px-2 py-0.5 bg-white border border-slate-200 hover:border-slate-300 focus:border-[#0c66e4] text-xs rounded transition-all font-medium text-slate-800 w-full"
