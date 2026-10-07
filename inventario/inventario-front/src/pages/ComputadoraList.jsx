@@ -109,7 +109,6 @@ function ComputadoraList() {
   const { puedeEscribir } = usePermisos();
   const { items: ubicCompItems } = useCatalogo('ubicaciones_computadora');
   const { items: tiposEquipoItems } = useCatalogo('tipos_equipo');
-  const { items: condicionesItems } = useCatalogo('condiciones_equipo');
   const [viewPerspective, setViewPerspective] = useState('inventario');
   const [buscar, setBuscar] = useState('');
   const [filtroUbicacion, setFiltroUbicacion] = useState('');
@@ -513,7 +512,6 @@ function ComputadoraList() {
               <th className={studioThClass()}>Sistema operativo</th>
               <th className={studioThClass()}>Ubicación</th>
               <th className={studioThClass()}>Tipo</th>
-              <th className={studioThClass()}>Condición</th>
               <th className={studioThClass()}>Conexión</th>
               <th className={studioThClass()}>Estado</th>
               {puedeEscribir ? (
@@ -524,7 +522,7 @@ function ComputadoraList() {
           <tbody className="divide-y divide-slate-100">
             {computadoras.length === 0 ? (
               <tr>
-                <td colSpan={puedeEscribir ? 12 : 10} className={`${studioTdClass()} text-center text-slate-400 py-10`}>
+                <td colSpan={puedeEscribir ? 11 : 9} className={`${studioTdClass()} text-center text-slate-400 py-10`}>
                   {todas.length === 0
                     ? 'Sin registros'
                     : 'Ningún equipo coincide con los filtros'}
@@ -613,11 +611,6 @@ function ComputadoraList() {
                     <td className={studioTdClass()}>
                       <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">
                         {c.tipoEquipo ? labelDeCatalogo(tiposEquipoItems, c.tipoEquipo) : '—'}
-                      </span>
-                    </td>
-                    <td className={studioTdClass()}>
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">
-                        {c.condicion ? labelDeCatalogo(condicionesItems, c.condicion) : '—'}
                       </span>
                     </td>
                     <td className={studioTdClass()}>
