@@ -12,7 +12,10 @@ import lombok.NoArgsConstructor;
 public class CambiarEstadoDTO {
     @NotBlank
     private String estado;
-    /** Opcional en API; puede quedar vacío en Firestore. */
+    /**
+     * Opcional en el resto de cambios. En una PC, {@code BAJA} lo exige el servicio
+     * y solo se acepta si el equipo está en mantenimiento.
+     */
     @Size(max = 2000)
     private String motivo;
 

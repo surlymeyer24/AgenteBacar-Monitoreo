@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Smartphone, Search, Edit2, Trash2, X, ShieldCheck } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion as Motion, AnimatePresence } from 'motion/react';
 import ImportModal from '../components/ImportModal';
 import { celularesSchema } from '../lib/importSchemas/celularesSchema';
 import {
@@ -9,7 +9,12 @@ import {
   actualizarCelular,
   deleteCelular,
 } from '../api/celularApi';
-import { normalizarEstadoCelular } from '../constants/celulares';
+import {
+  CONDICION_CELULAR_LABELS,
+  normalizarConCargador,
+  normalizarCondicionCelular,
+  normalizarEstadoCelular,
+} from '../constants/celulares';
 import { useCatalogo, opcionesCatalogo, labelDeCatalogo } from '../hooks/useCatalogo';
 import {
   StudioPageShell,
@@ -23,10 +28,12 @@ const emptyForm = {
   marca: '',
   modelo: '',
   imei: '',
+  conCargador: '',
+  condicion: '',
   lineaNumero: '',
   responsable: '',
-  area: '',
-  estado: 'activo',
+  area: 'Depósito',
+  estado: 'en_stock',
 };
 
 function estadoBadgeClass(estado) {
@@ -106,10 +113,12 @@ export default function CelularList() {
       marca: item.marca ?? '',
       modelo: item.modelo ?? '',
       imei: item.imei ?? '',
+      conCargador: item.conCargador == null ? '' : item.conCargador ? 'si' : 'no',
+      condicion: item.condicion ?? '',
       lineaNumero: item.lineaNumero ?? '',
       responsable: item.responsable ?? '',
-      area: item.area ?? '',
-      estado: item.estado ?? 'activo',
+      area: item.area ?? 'Depósito',
+      estado: item.estado ?? 'en_stock',
     });
     setFormError('');
     setModalAbierto(true);
@@ -129,17 +138,20 @@ export default function CelularList() {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!form.marca.trim() || !form.modelo.trim() || !form.area.trim()) {
-      setFormError('Marca, modelo y área son obligatorios.');
+    if (!form.marca.trim() || !form.modelo.trim() || !form.imei.trim()
+        || !form.conCargador || !form.condicion) {
+      setFormError('Marca, modelo, IMEI, cargador y condición son obligatorios.');
       return;
     }
     const body = {
       marca: form.marca.trim(),
       modelo: form.modelo.trim(),
-      imei: form.imei.trim() || undefined,
+      imei: form.imei.trim(),
+      conCargador: form.conCargador === 'si',
+      condicion: form.condicion,
       lineaNumero: form.lineaNumero.trim() || undefined,
       responsable: form.responsable.trim() || undefined,
-      area: form.area.trim(),
+      area: form.area.trim() || 'Depósito',
       estado: normalizarEstadoCelular(form.estado),
     };
     setGuardando(true);
@@ -150,7 +162,7 @@ export default function CelularList() {
         showBanner('Celular actualizado.');
       } else {
         await crearCelular(body);
-        showBanner('Celular registrado.');
+        showBanner('Celular agregado al stock.');
       }
       setModalAbierto(false);
       cargarLista();
@@ -166,15 +178,24 @@ export default function CelularList() {
     let ok = 0;
     let fail = 0;
     for (const row of rows) {
-      if (!row.marca?.trim() || !row.modelo?.trim() || !row.area?.trim()) continue;
+      const conCargador = normalizarConCargador(row.conCargador);
+      const condicion = normalizarCondicionCelular(row.condicion);
+      if (!String(row.marca ?? '').trim() || !String(row.modelo ?? '').trim()
+          || !String(row.imei ?? '').trim()
+          || conCargador == null || !condicion) {
+        fail += 1;
+        continue;
+      }
       try {
         await crearCelular({
           marca: String(row.marca).trim(),
           modelo: String(row.modelo).trim(),
-          imei: row.imei ? String(row.imei).trim() : undefined,
+          imei: String(row.imei).trim(),
+          conCargador,
+          condicion,
           lineaNumero: row.lineaNumero ? String(row.lineaNumero).trim() : undefined,
           responsable: row.responsable ? String(row.responsable).trim() : undefined,
-          area: String(row.area).trim(),
+          area: row.area ? String(row.area).trim() : 'Depósito',
           estado: normalizarEstadoCelular(row.estado),
         });
         ok += 1;
@@ -201,14 +222,14 @@ export default function CelularList() {
             Importar Excel/CSV
           </StudioSecondaryButton>
           <StudioPrimaryButton requiresWrite onClick={abrirNuevo}>
-            Registrar celular
+            Agregar a stock
           </StudioPrimaryButton>
         </>
       }
     >
       <AnimatePresence>
         {banner ? (
-          <motion.div
+          <Motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
@@ -218,7 +239,7 @@ export default function CelularList() {
               <ShieldCheck className="w-4 h-4 shrink-0" />
               <span>{banner}</span>
             </div>
-          </motion.div>
+          </Motion.div>
         ) : null}
       </AnimatePresence>
 
@@ -286,6 +307,10 @@ export default function CelularList() {
                 <p><strong>Responsable:</strong> {cel.responsable || '—'}</p>
                 <p><strong>Línea:</strong> <span className="font-mono">{cel.lineaNumero || '—'}</span></p>
                 <p><strong>IMEI:</strong> <span className="font-mono">{cel.imei || '—'}</span></p>
+                <p><strong>Cargador:</strong> {
+                  cel.conCargador == null ? '—' : cel.conCargador ? 'Con cargador' : 'Sin cargador'
+                }</p>
+                <p><strong>Condición:</strong> {CONDICION_CELULAR_LABELS[cel.condicion] || '—'}</p>
               </div>
             </div>
             <div className="pt-2 border-t border-slate-100 flex gap-2">
@@ -316,7 +341,7 @@ export default function CelularList() {
       <AnimatePresence>
         {modalAbierto ? (
           <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
-            <motion.div
+            <Motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
@@ -327,7 +352,7 @@ export default function CelularList() {
                   <span className="w-1.5 h-6 rounded-full bg-accent shrink-0" aria-hidden />
                   <Smartphone className="w-5 h-5 text-blue-600 shrink-0" />
                   <span className="font-extrabold text-sm text-slate-900 uppercase tracking-wide">
-                    {isEdit ? 'Editar celular' : 'Registrar celular'}
+                    {isEdit ? 'Editar celular' : 'Agregar celular a stock'}
                   </span>
                 </div>
                 <button
@@ -366,9 +391,8 @@ export default function CelularList() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label>Área *</label>
+                    <label>Área</label>
                     <input
-                      required
                       type="text"
                       value={form.area}
                       onChange={e => setForm(f => ({ ...f, area: e.target.value }))}
@@ -388,8 +412,10 @@ export default function CelularList() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label>IMEI</label>
+                    <label>IMEI *</label>
                     <input
+                      required
+                      inputMode="numeric"
                       type="text"
                       value={form.imei}
                       onChange={e => setForm(f => ({ ...f, imei: e.target.value }))}
@@ -405,6 +431,34 @@ export default function CelularList() {
                       className="w-full p-2 border rounded-lg bg-slate-50 focus:ring-1 focus:ring-blue-600 font-mono font-normal"
                       placeholder="+54 9 …"
                     />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label>Cargador *</label>
+                    <select
+                      required
+                      value={form.conCargador}
+                      onChange={e => setForm(f => ({ ...f, conCargador: e.target.value }))}
+                      className="w-full p-2 border rounded-lg bg-slate-50 focus:ring-1 focus:ring-blue-600 font-normal"
+                    >
+                      <option value="">Seleccionar…</option>
+                      <option value="si">Con cargador</option>
+                      <option value="no">Sin cargador</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label>Condición *</label>
+                    <select
+                      required
+                      value={form.condicion}
+                      onChange={e => setForm(f => ({ ...f, condicion: e.target.value }))}
+                      className="w-full p-2 border rounded-lg bg-slate-50 focus:ring-1 focus:ring-blue-600 font-normal"
+                    >
+                      <option value="">Seleccionar…</option>
+                      <option value="nuevo">Nuevo</option>
+                      <option value="usado">Usado</option>
+                    </select>
                   </div>
                 </div>
                 <div className="space-y-1">
@@ -437,7 +491,7 @@ export default function CelularList() {
                   </button>
                 </div>
               </form>
-            </motion.div>
+            </Motion.div>
           </div>
         ) : null}
       </AnimatePresence>
@@ -450,6 +504,7 @@ export default function CelularList() {
         entityName="Celulares"
         isImporting={importando}
         existingData={lista}
+        matchFields={['imei']}
       />
     </StudioPageShell>
   );

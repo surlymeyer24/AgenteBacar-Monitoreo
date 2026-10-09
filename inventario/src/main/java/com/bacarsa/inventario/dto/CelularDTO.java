@@ -13,6 +13,8 @@ public class CelularDTO {
     private String marca;
     private String modelo;
     private String imei;
+    private Boolean conCargador;
+    private String condicion;
     private String lineaNumero;
     private String responsable;
     private String area;

@@ -1,6 +1,6 @@
 import {
   Package, Check, X, UserCheck, Edit2, Trash2, Layers,
-  ArrowUpRight, MapPin, Plus, Router,
+  ArrowUpRight, MapPin, Plus, Router, Archive,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ArmarComboModal from '../ArmarComboModal';
@@ -690,6 +690,61 @@ export default function StockManualListModals({
                   >
                     <Check className="w-4 h-4" />
                     {pcModals.asignandoUbic ? 'Asignando…' : 'Confirmar'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {itemForm.bajaItem && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white border border-slate-200 rounded-xl max-w-md w-full overflow-hidden shadow-xl"
+            >
+              <div className="px-5 py-4 border-b border-slate-150 flex items-center justify-between bg-slate-50">
+                <span className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
+                  <Archive className="w-4 h-4 text-rose-600" />
+                  Dar de baja 1 — {itemForm.bajaItem.nombre || 'ítem'}
+                </span>
+                <button type="button" onClick={() => itemForm.setBajaItem(null)} className="p-1 hover:bg-slate-200 rounded text-slate-500 transition-colors">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="p-5 space-y-4 text-xs font-bold text-slate-700">
+                <p className="text-slate-500 font-medium">
+                  Se descuenta 1 unidad del stock. Esa unidad pasa a la pestaña Bajas.
+                  {(itemForm.bajaItem.cantidad ?? 1) > 1
+                    ? ' El resto de la fila sigue disponible.'
+                    : ' Es la última unidad de la fila.'}
+                </p>
+                <div>
+                  <label className="text-slate-700 block mb-1">Motivo *</label>
+                  <input
+                    type="text"
+                    placeholder="Ej: Roto, extraviado, fuera de uso…"
+                    value={itemForm.bajaMotivo}
+                    onChange={(e) => itemForm.setBajaMotivo(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-rose-600 focus:border-transparent"
+                  />
+                </div>
+                <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
+                  <button type="button" onClick={() => itemForm.setBajaItem(null)} className="px-4 py-2 border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 font-bold transition-all cursor-pointer">
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={itemForm.handleConfirmarBajaUnidad}
+                    disabled={!itemForm.bajaMotivo.trim() || itemForm.bajando}
+                    className="px-5 py-2 bg-rose-600 hover:bg-rose-700 disabled:bg-slate-300 text-white rounded-lg font-bold shadow-xs flex items-center gap-1.5 cursor-pointer transition-colors"
+                  >
+                    <Check className="w-4 h-4" />
+                    {itemForm.bajando ? 'Dando de baja…' : 'Dar de baja 1'}
                   </button>
                 </div>
               </div>

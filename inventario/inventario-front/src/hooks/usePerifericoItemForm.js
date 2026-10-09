@@ -4,6 +4,7 @@ import {
   actualizarPerifericoM,
   createPerifericoM,
   deletePerifericoM,
+  bajaUnidadStockM,
 } from '../api/perifericoManualApi';
 import { normalizarTipoStock } from '../constants/tiposStock';
 import { opcionesEnumCatalogo } from '../hooks/useCatalogo';
@@ -16,7 +17,9 @@ import {
   UBICACION_DEPOSITO_DEFAULT,
 } from '../utils/stockPcHelpers';
 
-export function usePerifericoItemForm({ lista, setLista, setActiveTab, tiposEquipoItems, condicionesItems }) {
+export function usePerifericoItemForm({
+  lista, setLista, setActiveTab, tiposEquipoItems, condicionesItems, refreshLista,
+}) {
   const [formModeLotePc, setFormModeLotePc] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [formCargando, setFormCargando] = useState(false);
@@ -35,6 +38,9 @@ export function usePerifericoItemForm({ lista, setLista, setActiveTab, tiposEqui
   const [formTipoEquipo, setFormTipoEquipo] = useState('');
   const [formCondicion, setFormCondicion] = useState('');
   const [formNumeroSerie, setFormNumeroSerie] = useState('');
+  const [bajaItem, setBajaItem] = useState(null);
+  const [bajaMotivo, setBajaMotivo] = useState('');
+  const [bajando, setBajando] = useState(false);
 
   const resetFormSpec = () => {
     setFormCpu('');
@@ -102,6 +108,26 @@ export function usePerifericoItemForm({ lista, setLista, setActiveTab, tiposEqui
       console.error('Error actualizando stock:', err);
       setLista(prev => prev.map(item => item.id === p.id ? { ...item, cantidad: currentStock } : item));
       alert(`Hubo un error al actualizar el stock de ${p.nombre || p.id}`);
+    }
+  };
+
+  const openBajaUnidad = (item) => {
+    setBajaItem(item);
+    setBajaMotivo('');
+  };
+
+  const handleConfirmarBajaUnidad = async () => {
+    if (!bajaItem || !bajaMotivo.trim()) return;
+    setBajando(true);
+    try {
+      await bajaUnidadStockM(bajaItem.id, bajaMotivo.trim());
+      if (refreshLista) await refreshLista();
+      setBajaItem(null);
+      setBajaMotivo('');
+    } catch (err) {
+      alert(err?.message || 'No se pudo dar de baja la unidad');
+    } finally {
+      setBajando(false);
     }
   };
 
@@ -308,6 +334,13 @@ export function usePerifericoItemForm({ lista, setLista, setActiveTab, tiposEqui
     setFormNumeroSerie,
     formSpecPreview,
     handleUpdateStock,
+    bajaItem,
+    setBajaItem,
+    bajaMotivo,
+    setBajaMotivo,
+    bajando,
+    openBajaUnidad,
+    handleConfirmarBajaUnidad,
     handleOpenAdd,
     handleOpenAddInfra,
     handleOpenAddLotePc,

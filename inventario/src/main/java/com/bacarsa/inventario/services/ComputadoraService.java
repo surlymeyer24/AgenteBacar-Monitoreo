@@ -163,6 +163,33 @@ public class ComputadoraService {
         return (s == null || s.isBlank()) ? null : s.trim();
     }
 
+    /**
+     * La baja no borra el documento. Solo se acepta desde reparación y con motivo,
+     * para que {@code historialEstados} guarde el tramo. Si no cumple, no se escribe.
+     */
+    private static void exigirBajaDesdeReparacion(Computadora pc, String motivo) {
+        if (estadoOperativoDe(pc.getEstadoActual()) != EstadoOperativo.EN_MANTENIMIENTO) {
+            throw new IllegalArgumentException(
+                    "Solo se puede dar de baja un equipo que está en mantenimiento");
+        }
+        if (blankToNull(motivo) == null) {
+            throw new IllegalArgumentException("El motivo es obligatorio para dar de baja");
+        }
+    }
+
+    private static EstadoOperativo estadoOperativoDe(Estado estado) {
+        if (estado == null || estado.getNombre() == null || estado.getNombre().isBlank()) {
+            return null;
+        }
+        String nombre = estado.getNombre().trim();
+        for (EstadoOperativo op : EstadoOperativo.values()) {
+            if (op.name().equalsIgnoreCase(nombre) || op.getNombre().equalsIgnoreCase(nombre)) {
+                return op;
+            }
+        }
+        return null;
+    }
+
     public ComputadoraDTO actualizarDatosStock(String uuid, ComputadoraStockUpdateDTO dto)
             throws ExecutionException, InterruptedException {
         if (computadoraRepository.findByUuid(uuid) == null) {
@@ -255,6 +282,12 @@ public class ComputadoraService {
             }
         }
 
+        String motivoPersistido = dto.getMotivo();
+        if (estadoOperativo == EstadoOperativo.BAJA) {
+            exigirBajaDesdeReparacion(pc, motivoPersistido);
+            motivoPersistido = blankToNull(motivoPersistido);
+        }
+
         String riAnterior = pc.getResponsableInventario();
         String hostname = pc.getHostname();
         String ubicacionPc = pc.getUbicacion() == null ? null : pc.getUbicacion().name();
@@ -275,7 +308,7 @@ public class ComputadoraService {
         estado.setNombre(estadoOperativo.getNombre());
         estado.setDescripcion(estadoOperativo.getDescripcion());
         String riParaRepo = limpiarResponsable ? "" : responsableInventario;
-        computadoraRepository.cambiarEstado(uuid, estado, dto.getMotivo(),
+        computadoraRepository.cambiarEstado(uuid, estado, motivoPersistido,
                 ubicacionStock, riParaRepo);
         ComputadoraDTO result = getByUuid(uuid);
         if (!"DERIVAR_ASIGNACION".equalsIgnoreCase(trimmed)) {

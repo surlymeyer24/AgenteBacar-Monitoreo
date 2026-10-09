@@ -132,6 +132,21 @@ public class PerifericoManualController {
         }
     }
 
+    @PostMapping("/{id}/baja-unidad")
+    public ResponseEntity<?> darDeBajaUnidad(
+            @PathVariable String id,
+            @RequestBody(required = false) DevolverStockDTO body)
+            throws ExecutionException, InterruptedException {
+        try {
+            String motivo = body != null ? body.getMotivo() : null;
+            PerifericoManualDTO dto = service.darDeBajaUnidad(id, motivo);
+            if (dto == null) return ResponseEntity.notFound().build();
+            return ResponseEntity.ok(dto);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
+        }
+    }
+
     @PostMapping("/{id}/estado")
     public ResponseEntity<PerifericoManualDTO> cambiarEstado(
             @PathVariable String id,

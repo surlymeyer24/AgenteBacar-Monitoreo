@@ -1,4 +1,5 @@
 import { normalizarTipoStock, esTipoInfra, labelTipoStock } from '../constants/tiposStock';
+import { esEstadoOperativoBaja } from './bajaStockHelpers';
 import { UBICACION_DEPOSITO_DEFAULT } from './stockPcHelpers';
 
 const ESTADO_ASIGNADA = 'Asignada';
@@ -97,10 +98,11 @@ export function filtrarAsignados(lista, estadoLabels = {}) {
   return (lista ?? []).filter(item => esItemAsignado(item, estadoLabels));
 }
 
-/** Ítem aún en depósito (no en custodia / asignación activa). */
+/** Ítem aún en depósito (no en custodia / asignación activa, ni dado de baja). */
 export function esItemEnBodega(item, estadoLabels = {}) {
   const tipo = normalizarTipoStock(item?.tipo);
   if (tipo === 'computadora') return false;
+  if (esEstadoOperativoBaja(item?.estado, estadoLabels)) return false;
   return !esItemAsignado(item, estadoLabels);
 }
 

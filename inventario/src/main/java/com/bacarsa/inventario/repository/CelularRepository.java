@@ -17,6 +17,7 @@ import com.google.cloud.firestore.DocumentSnapshot;
 import com.google.cloud.firestore.Firestore;
 import com.google.cloud.firestore.QueryDocumentSnapshot;
 import com.google.cloud.firestore.QuerySnapshot;
+import com.google.cloud.firestore.SetOptions;
 
 @Repository
 public class CelularRepository {
@@ -59,7 +60,7 @@ public class CelularRepository {
 
     @CacheEvict(value = "celulares", allEntries = true)
     public void update(String id, Map<String, Object> campos) throws ExecutionException, InterruptedException {
-        firestore.collection(collectionName).document(id).update(campos).get();
+        firestore.collection(collectionName).document(id).set(campos, SetOptions.merge()).get();
     }
 
     @CacheEvict(value = "celulares", allEntries = true)

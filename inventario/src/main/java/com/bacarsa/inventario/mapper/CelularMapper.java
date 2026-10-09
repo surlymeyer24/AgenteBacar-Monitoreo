@@ -16,6 +16,8 @@ public class CelularMapper {
         dto.setMarca(celular.getMarca());
         dto.setModelo(celular.getModelo());
         dto.setImei(celular.getImei());
+        dto.setConCargador(celular.getConCargador());
+        dto.setCondicion(celular.getCondicion());
         dto.setLineaNumero(celular.getLineaNumero());
         dto.setResponsable(celular.getResponsable());
         dto.setArea(celular.getArea());
