@@ -111,6 +111,22 @@ export function asignarUbicacionM(id, ubicacion, motivo) {
   });
 }
 
+export function bajaUnidadStockM(id, motivo) {
+  return apiFetch(`${BASE_URL}/${encodeURIComponent(id)}/baja-unidad`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ motivo }),
+  }).then(async (res) => {
+    if (res.status === 400) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || 'No se pudo dar de baja la unidad');
+    }
+    if (res.status === 404) throw new Error('Ítem de stock no encontrado');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  });
+}
+
 export function devolverStockM(id, motivo) {
   return apiFetch(`${BASE_URL}/${encodeURIComponent(id)}/devolver-stock`, {
     method: 'POST',

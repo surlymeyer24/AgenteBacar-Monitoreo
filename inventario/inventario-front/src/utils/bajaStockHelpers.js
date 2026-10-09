@@ -64,6 +64,7 @@ export function armarFilasBaja({ pcs = [], manuales = [], estadoLabels = {} } = 
       href: pc?.uuid ? `/computadoras/${encodeURIComponent(pc.uuid)}` : null,
       nombre: hostname || 'Sin hostname',
       clase: 'Computadora',
+      cantidad: 1,
       estado: 'Baja',
       desde: tramo.desde,
       motivo: tramo.motivo,
@@ -76,11 +77,13 @@ export function armarFilasBaja({ pcs = [], manuales = [], estadoLabels = {} } = 
     const tramo = tramoBajaDesdeHistorial(item, estadoLabels);
     const tipo = normalizarTipoStock(item?.tipo);
     const clase = tipo === 'computadora' ? 'Lote de PCs' : (labelTipoStock(item?.tipo) || 'Componente');
+    const cantidad = Number(item?.cantidad);
     filasManual.push({
       id: `manual:${item?.id || filasManual.length}`,
       href: item?.id ? `/perifericos/stock/${encodeURIComponent(item.id)}` : null,
       nombre: nombreManual(item),
       clase,
+      cantidad: Number.isFinite(cantidad) && cantidad > 0 ? cantidad : 1,
       estado: 'Baja',
       desde: tramo.desde,
       motivo: tramo.motivo,

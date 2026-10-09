@@ -26,7 +26,7 @@ import { useStockPcModals } from '../hooks/useStockPcModals';
 import { StudioLoading, StudioError } from '../components/studio/StudioUi';
 import { resolveSpecFromItem, specSearchText } from '../utils/stockPcHelpers';
 import { esPcPipelineStock } from '../utils/pipelinePcHelpers';
-import { armarFilasBaja } from '../utils/bajaStockHelpers';
+import { armarFilasBaja, esEstadoOperativoBaja } from '../utils/bajaStockHelpers';
 import { filtrarAsignados, filtrarEnBodega } from '../utils/asignacionesStockHelpers';
 
 export default function PerifericoManualList() {
@@ -85,6 +85,7 @@ export default function PerifericoManualList() {
     setActiveTab,
     tiposEquipoItems,
     condicionesItems,
+    refreshLista,
   });
 
   const comboForm = useStockComboForm({ setLista });
@@ -131,8 +132,11 @@ export default function PerifericoManualList() {
   }, [searchParams.get('editarPc')]);
 
   const pcsNuevasStock = useMemo(
-    () => lista.filter(c => normalizarTipoStock(c.tipo) === 'computadora'),
-    [lista],
+    () => lista.filter(c => (
+      normalizarTipoStock(c.tipo) === 'computadora'
+      && !esEstadoOperativoBaja(c.estado, estadoLabels)
+    )),
+    [lista, estadoLabels],
   );
 
   const listaEnBodega = useMemo(
@@ -601,6 +605,7 @@ export default function PerifericoManualList() {
           onCategoryChange={setSelectedCategory}
           estadoLabels={estadoLabels}
           onUpdateStock={itemForm.handleUpdateStock}
+          onBajaUnidad={itemForm.openBajaUnidad}
           onOpenEdit={itemForm.handleOpenEdit}
           onAsignarPeriferico={pcModals.openAsignarPeriferico}
         />
@@ -619,6 +624,7 @@ export default function PerifericoManualList() {
           onOpenSacarUnidad={pcModals.handleOpenSacarUnidad}
           onOpenEdit={itemForm.handleOpenEdit}
           onUpdateStock={itemForm.handleUpdateStock}
+          onBajaUnidad={itemForm.openBajaUnidad}
         />
       )}
 
@@ -642,6 +648,7 @@ export default function PerifericoManualList() {
           estadoLabels={estadoLabels}
           onOpenEdit={itemForm.handleOpenEdit}
           onUpdateStock={itemForm.handleUpdateStock}
+          onBajaUnidad={itemForm.openBajaUnidad}
           onAsignarUbicacion={pcModals.openAsignarUbicacion}
         />
       )}

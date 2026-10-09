@@ -17,6 +17,7 @@ export default function StockLotesTab({
   onOpenSacarUnidad,
   onOpenEdit,
   onUpdateStock,
+  onBajaUnidad,
 }) {
   return (
     <>
@@ -125,6 +126,14 @@ export default function StockLotesTab({
                               Sacar 1
                             </button>
                           )}
+                          <button
+                            type="button"
+                            onClick={() => onBajaUnidad(lote)}
+                            className="inline-flex items-center px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-bold text-xs transition-colors shadow-sm cursor-pointer"
+                            title="Dar de baja 1 unidad"
+                          >
+                            Baja 1
+                          </button>
                           <button
                             type="button"
                             onClick={() => onOpenEdit(lote)}

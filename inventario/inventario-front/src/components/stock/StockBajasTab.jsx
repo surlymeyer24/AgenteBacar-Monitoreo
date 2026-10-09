@@ -9,6 +9,11 @@ import TableFilters from '../TableFilters';
 export default function StockBajasTab({ filas = [], estadoLabels = {} }) {
   const [buscar, setBuscar] = useState('');
 
+  const unidades = useMemo(
+    () => filas.reduce((sum, fila) => sum + (fila.cantidad ?? 1), 0),
+    [filas],
+  );
+
   const visibles = useMemo(() => {
     const q = buscar.trim().toLowerCase();
     if (!q) return filas;
@@ -27,10 +32,10 @@ export default function StockBajasTab({ filas = [], estadoLabels = {} }) {
         <div>
           <span className="text-sm text-slate-400 block font-bold uppercase tracking-wider mb-1">En baja</span>
           <span className="text-3xl font-black font-mono text-slate-900">
-            {filas.length}
+            {unidades}
             {' '}
             <span className="text-base font-normal text-slate-400">
-              {filas.length === 1 ? 'registro' : 'registros'}
+              {unidades === 1 ? 'unidad' : 'unidades'}
             </span>
           </span>
         </div>
@@ -53,6 +58,7 @@ export default function StockBajasTab({ filas = [], estadoLabels = {} }) {
               <tr className="bg-slate-50 border-b border-slate-200 text-xs font-extrabold text-slate-500 uppercase tracking-wider">
                 <th className="py-4 px-5">Qué es</th>
                 <th className="py-4 px-5">Tipo</th>
+                <th className="py-4 px-5">Cantidad</th>
                 <th className="py-4 px-5">Estado</th>
                 <th className="py-4 px-5">Desde</th>
                 <th className="py-4 px-5">Motivo</th>
@@ -61,7 +67,7 @@ export default function StockBajasTab({ filas = [], estadoLabels = {} }) {
             <tbody className="divide-y divide-slate-100 text-sm text-slate-700">
               {visibles.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-12 px-4 text-center text-slate-400 font-medium">
+                  <td colSpan={6} className="py-12 px-4 text-center text-slate-400 font-medium">
                     {filas.length === 0
                       ? 'No hay computadoras ni componentes en baja.'
                       : 'Ningún registro coincide con la búsqueda.'}
@@ -84,6 +90,7 @@ export default function StockBajasTab({ filas = [], estadoLabels = {} }) {
                         {fila.clase}
                       </span>
                     </td>
+                    <td className="py-4 px-5 font-mono font-bold text-slate-900">{fila.cantidad ?? 1}</td>
                     <td className="py-4 px-5">
                       <BadgeDisponibilidad estadoActual={fila.estado} estadoLabels={estadoLabels} />
                     </td>

@@ -502,6 +502,55 @@ public class PerifericoManualService {
         }
     }
 
+    /**
+     * Da de baja una sola unidad del depósito.
+     * Si la fila tiene más de una, resta 1 y deja el resto en su estado.
+     * La unidad dada de baja queda con cantidad 1 y estado Baja.
+     */
+    public PerifericoManualDTO darDeBajaUnidad(String id, String motivo)
+            throws ExecutionException, InterruptedException {
+        PerifericoManual original = repository.findById(id);
+        if (original == null) return null;
+
+        String motivoFinal = motivo == null ? "" : motivo.trim();
+        if (motivoFinal.isBlank()) {
+            throw new IllegalArgumentException("El motivo es obligatorio para dar de baja");
+        }
+
+        Estado actual = original.getEstadoActual();
+        if (actual != null && actual.getNombre() != null
+                && EstadoOperativo.BAJA.getNombre().equalsIgnoreCase(actual.getNombre())) {
+            throw new IllegalArgumentException("Ese ítem ya está dado de baja");
+        }
+        if (original.getCantidad() < 1) {
+            throw new IllegalArgumentException("No hay unidades para dar de baja");
+        }
+
+        if (original.getCantidad() > 1) {
+            repository.decrementarCantidad(id);
+
+            PerifericoManual baja = new PerifericoManual();
+            baja.setTipo(original.getTipo());
+            baja.setCantidad(1);
+            baja.setNombre(original.getNombre());
+            baja.setFabricante(original.getFabricante());
+            baja.setConexion(original.getConexion());
+            baja.setUbicacion(original.getUbicacion());
+            baja.setNotas(original.getNotas());
+            baja.setFechaAlta(original.getFechaAlta());
+            baja.setComboId(original.getComboId());
+            baja.setComboNombre(original.getComboNombre());
+            baja.setEspecificacionStock(original.getEspecificacionStock());
+            baja.setNumeroSerie(original.getNumeroSerie());
+            baja.setLoteOrigenId(original.getLoteOrigenId() != null ? original.getLoteOrigenId() : id);
+
+            String nuevoId = repository.create(baja);
+            return cambiarEstado(nuevoId, EstadoOperativo.BAJA.name(), motivoFinal);
+        }
+
+        return cambiarEstado(id, EstadoOperativo.BAJA.name(), motivoFinal);
+    }
+
     public PerifericoManualDTO cambiarEstado(String id, String estadoRaw, String motivo)
             throws ExecutionException, InterruptedException {
         PerifericoManual p = repository.findById(id);
