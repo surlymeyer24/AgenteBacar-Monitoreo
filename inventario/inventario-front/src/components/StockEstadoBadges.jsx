@@ -75,26 +75,6 @@ export function BadgeAgente({ estadoReporteAgente, variant = 'light' }) {
   return <Badge label={cfg.label} cls={variant === 'dark' ? cfg.clsDark : cfg.cls} title="Agente: ¿ya reportó AgenteBacar?" variant={variant} />;
 }
 
-export function BadgeLoteInventario() {
-  return (
-    <Badge
-      label="Por cantidad"
-      cls="bg-teal-50 text-teal-700 border-teal-200"
-      title="Inventario por cantidad — sin hostname ni agente"
-    />
-  );
-}
-
-export function BadgeUnidadTrazable({ reingreso = false }) {
-  return (
-    <Badge
-      label={reingreso ? 'Individual · Reingreso' : 'Individual'}
-      cls={reingreso ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-blue-50 text-blue-700 border-blue-200'}
-      title="Computadora con hostname y UUID — puede armar combo y conciliar con el agente"
-    />
-  );
-}
-
 /** Tres badges ortogonales para una computadora trazable en stock. */
 export function StockEstadosUnidad({ pc, estadoLabels, variant = 'light', className = '' }) {
   return (

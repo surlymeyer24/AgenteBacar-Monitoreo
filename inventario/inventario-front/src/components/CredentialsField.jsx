@@ -34,37 +34,3 @@ export function CredentialsDisplay({ label = 'Contraseña', value }) {
     </div>
   );
 }
-
-/** Input de credencial para formularios. */
-export function CredentialsInput({ id, name, label, value, onChange, placeholder }) {
-  const [visible, setVisible] = useState(false);
-
-  return (
-    <div className="space-y-1">
-      <label htmlFor={id} className="flex items-center gap-1.5 text-slate-600 uppercase text-xs tracking-wider font-bold">
-        <Lock className="w-3 h-3" />
-        {label}
-      </label>
-      <div className="relative">
-        <input
-          id={id}
-          name={name}
-          type={visible ? 'text' : 'password'}
-          value={value || ''}
-          onChange={onChange}
-          placeholder={placeholder}
-          autoComplete="off"
-          className="w-full p-2.5 pr-10 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 bg-slate-50 text-slate-800 font-semibold text-sm"
-        />
-        <button
-          type="button"
-          onClick={() => setVisible(v => !v)}
-          className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600"
-          tabIndex={-1}
-        >
-          {visible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-        </button>
-      </div>
-    </div>
-  );
-}

@@ -61,27 +61,6 @@ export function coincideUbicacionFiltro(valorDoc, codigoFiltro) {
   return v === f;
 }
 
-/** Nombres del enum `Ubicacion` (backend Java, `com.bacarsa.inventario.models.Ubicacion`). */
-export const UBICACIONES_COMPUTADORA = [
-  'ADMINISTRACION',
-  'MONITOREO',
-  'TESORERIA',
-  'CAPITAL_HUMANO',
-  'SISTEMAS',
-  'SEGURIDAD_PRIVADA',
-  'OPERACIONES',
-];
-
-/** Nombres del enum `UbicacionRed` (routers / switches). */
-export const UBICACIONES_RED = [
-  'RACK_PRINCIPAL',
-  'RACK_SECUNDARIO',
-  'ADMINISTRACION',
-  'MONITOREO',
-  'SISTEMAS',
-  'GUARDIA',
-];
-
 /** Valores históricos de cámara (antes de ubicación libre en API). */
 export const UBICACIONES_CAMARA_LEGACY = [
   'GUARDIA',
@@ -168,6 +147,3 @@ const _camaraSugeridasSet = new Set([
 export const UBICACIONES_CAMARA_SUGERIDAS = [..._camaraSugeridasSet].sort((a, b) =>
   String(a).localeCompare(String(b), 'es'),
 );
-
-/** Alias: listado combinado para combos y datalist. */
-export const UBICACIONES_CAMARA = UBICACIONES_CAMARA_SUGERIDAS;

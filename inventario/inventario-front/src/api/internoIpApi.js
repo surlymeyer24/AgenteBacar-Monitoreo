@@ -13,18 +13,6 @@ export async function fetchInternos() {
 }
 
 /**
- * Obtener interno IP por ID
- */
-export async function fetchInternoById(id) {
-  const res = await apiFetch(`${BASE_URL}/${id}`);
-  if (!res.ok) {
-    if (res.status === 404) return null;
-    throw new Error('Error fetching interno by id');
-  }
-  return res.json();
-}
-
-/**
  * Crear interno IP (uno solo)
  */
 export async function createInterno(data) {
@@ -74,15 +62,6 @@ export async function cambiarEstadoInterno(id, payload) {
   });
   if (!res.ok) throw new Error('Error changing state');
   return res.text(); // OK
-}
-
-/**
- * Obtener historial de estados del interno
- */
-export async function fetchHistorialInterno(id) {
-  const res = await apiFetch(`${BASE_URL}/${id}/historial`);
-  if (!res.ok) throw new Error('Error fetching history');
-  return res.json();
 }
 
 /**

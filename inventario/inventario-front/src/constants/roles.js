@@ -16,11 +16,6 @@ export const ROLES_SISTEMA = [
   },
 ];
 
-export function labelRolSistema(rol) {
-  if (!rol) return 'Sin rol';
-  return ROLES_SISTEMA.find(r => r.value === rol)?.label ?? rol;
-}
-
 export function badgeClassRol(rol) {
   switch (rol) {
     case 'ADMINISTRADOR':

@@ -1,11 +1,5 @@
 export const ESTADOS_CELULAR = ['activo', 'en_stock', 'baja'];
 
-export const ESTADO_CELULAR_LABELS = {
-  activo: 'Activo',
-  en_stock: 'En stock',
-  baja: 'Baja',
-};
-
 export const CONDICION_CELULAR_LABELS = {
   nuevo: 'Nuevo',
   usado: 'Usado',

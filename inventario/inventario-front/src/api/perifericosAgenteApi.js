@@ -7,11 +7,6 @@ const BASE_URL = `${API_ORIGIN}/api/perifericos/agente/listados`;
 let cache = null;
 let inflight = null;
 
-export function invalidatePerifericosAgenteListadosCache() {
-  cache = null;
-  inflight = null;
-}
-
 function normalize(body) {
   const empty = { teclados: [], mouse: [], webcams: [], parlantes: [], microfonos: [] };
   if (!body || typeof body !== 'object') return empty;

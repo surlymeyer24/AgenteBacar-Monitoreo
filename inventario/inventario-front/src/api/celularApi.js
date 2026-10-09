@@ -24,14 +24,6 @@ export function fetchCelulares() {
   });
 }
 
-export function fetchCelular(id) {
-  return apiFetch(`${BASE_URL}/${encodeURIComponent(id)}`).then(res => {
-    if (res.status === 404) return null;
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
-  });
-}
-
 export function crearCelular(body) {
   return apiFetch(BASE_URL, {
     method: 'POST',
@@ -120,28 +112,6 @@ export function asignarCelular(celular, { responsable, area } = {}) {
       responsable: nombre,
       area: areaNueva || areaActual || 'Depósito',
       estado: 'activo',
-    });
-    return actualizarCelular(celular.id, body);
-  } catch (err) {
-    return Promise.reject(err);
-  }
-}
-
-/**
- * Devuelve el celular al depósito: estado `en_stock` y sin responsable.
- * Conserva marca/modelo/IMEI/cargador/condición/línea/área.
- *
- * @param {object} celular — documento actual (`id` obligatorio)
- * @returns {Promise<object>} CelularDTO actualizado
- * @throws {Error} 400/409 con el mensaje del backend, o validación local
- */
-export function devolverCelularAStock(celular) {
-  try {
-    const areaActual = celular?.area == null ? '' : String(celular.area).trim();
-    const body = cuerpoDesdeCelular(celular, {
-      responsable: undefined,
-      area: areaActual || 'Depósito',
-      estado: 'en_stock',
     });
     return actualizarCelular(celular.id, body);
   } catch (err) {

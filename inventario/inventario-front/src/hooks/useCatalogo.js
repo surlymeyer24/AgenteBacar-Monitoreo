@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { fetchCatalogo } from '../api/catalogoApi';
 import { TIPOS_STOCK, labelTipoStock } from '../constants/tiposStock';
 import { codigoCatalogoDesdeValor } from '../constants/ubicaciones';
@@ -54,20 +54,6 @@ export function labelDeCatalogo(items, valor) {
   return item ? item.label : String(valor).replace(/_/g, ' ');
 }
 
-/** Catálogo ubicaciones_computadora + helper de label para pantallas de PC. */
-export function useLabelUbicacionComputadora() {
-  const { items, cargando, error } = useCatalogo('ubicaciones_computadora');
-  const labelUbicacionPc = useCallback(
-    valor => labelDeCatalogo(items, valor),
-    [items],
-  );
-  return { items, cargando, error, labelUbicacion: labelUbicacionPc };
-}
-
-/**
- * Construye opciones {value, label} para selects de enums Java.
- * El value es el codigo en UPPERCASE (como lo almacena Firestore).
- */
 export function opcionesEnumCatalogo(items) {
   return items.map(i => ({ value: i.codigo.toUpperCase(), label: i.label }));
 }

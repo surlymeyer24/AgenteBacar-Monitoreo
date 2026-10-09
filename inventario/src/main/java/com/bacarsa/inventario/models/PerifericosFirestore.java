@@ -9,7 +9,7 @@ import lombok.Setter;
 
 /**
  * Mapa anidado {@code perifericos} del documento de computadora en Firestore (snapshot del agente).
- * No confundir con {@link Periferico}, que modela inventario / negocio IT.
+ * El stock manual vive en {@link PerifericoManual}, no en este mapa.
  */
 @Getter
 @Setter

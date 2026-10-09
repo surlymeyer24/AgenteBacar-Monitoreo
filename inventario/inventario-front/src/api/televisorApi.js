@@ -10,14 +10,6 @@ export function fetchTelevisores() {
   });
 }
 
-export function fetchTelevisor(id) {
-  return apiFetch(`${BASE_URL}/${encodeURIComponent(id)}`).then(res => {
-    if (res.status === 404) return null;
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
-  });
-}
-
 export function crearTelevisor(body) {
   return apiFetch(BASE_URL, {
     method: 'POST',

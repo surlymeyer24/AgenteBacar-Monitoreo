@@ -19,15 +19,6 @@ export function fetchEtiquetaQr(uuid) {
   });
 }
 
-export function fetchEtiquetaQrPorHostname(hostname) {
-  const h = encodeURIComponent(hostname);
-  return apiFetch(`${BASE_URL}/por-hostname/${h}`).then(res => {
-    if (res.status === 404) return null;
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
-  });
-}
-
 export function fetchProgresosLogistica() {
   return apiFetch(`${BASE_URL}/progreso`).then(res => {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);

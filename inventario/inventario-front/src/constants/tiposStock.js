@@ -41,12 +41,3 @@ export function labelTipoStock(tipo) {
   if (LABELS_TIPO_STOCK[t]) return LABELS_TIPO_STOCK[t];
   return t.charAt(0).toUpperCase() + t.slice(1);
 }
-
-/** Opciones del select; incluye el valor actual si es un tipo legado fuera de la lista. */
-export function opcionesTipoStock(tipoActual) {
-  const actual = normalizarTipoStock(tipoActual);
-  if (actual && !TIPOS_STOCK.includes(actual)) {
-    return [...TIPOS_STOCK, actual];
-  }
-  return TIPOS_STOCK;
-}

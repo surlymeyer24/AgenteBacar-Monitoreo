@@ -23,14 +23,6 @@ export async function fetchConciliacionPendientesCount() {
   });
 }
 
-export async function fetchConciliacion(id) {
-  return apiFetch(`${CONCILIACIONES_URL}/${encodeURIComponent(id)}`).then(res => {
-    if (res.status === 404) return null;
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
-  });
-}
-
 export async function confirmarConciliacion(id, body = {}) {
   return apiFetch(`${CONCILIACIONES_URL}/${encodeURIComponent(id)}/confirmar`, {
     method: 'POST',
@@ -64,15 +56,6 @@ export async function posponerConciliacion(id) {
 
 export async function fetchStockSinAgente() {
   return apiFetch(`${CONCILIACIONES_URL}/stock-sin-agente`).then(res => {
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
-  });
-}
-
-export async function reprocesarMatchingAdmin(uuid) {
-  return apiFetch(`${API_ORIGIN}/api/admin/migracion/conciliaciones/reprocesar/${encodeURIComponent(uuid)}`, {
-    method: 'POST',
-  }).then(res => {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json();
   });

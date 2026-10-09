@@ -1,6 +1,3 @@
-import { codigoCatalogoDesdeValor } from '../constants/ubicaciones';
-import { opcionesEnumCatalogo } from '../hooks/useCatalogo';
-
 /** Ubicación física por defecto en depósito/stock. */
 export const UBICACION_DEPOSITO_DEFAULT = 'stock';
 
@@ -170,10 +167,6 @@ export function descripcionFromItem(item) {
   return nombre;
 }
 
-export function specFromItem(item) {
-  return resolveSpecFromItem(item);
-}
-
 /** Normaliza valor de catálogo para matchear el select (case-insensitive). */
 export function normalizeCatalogValue(value, options = []) {
   const raw = (value ?? '').trim();
@@ -184,14 +177,6 @@ export function normalizeCatalogValue(value, options = []) {
 }
 
 /** Normaliza ubicación de sede (enum Firestore) para el select del catálogo. */
-export function normalizeUbicacionSede(valor, ubicCompItems) {
-  if (!valor) return '';
-  const opts = opcionesEnumCatalogo(ubicCompItems);
-  const codigo = codigoCatalogoDesdeValor(valor);
-  return normalizeCatalogValue(codigo ? codigo.toUpperCase() : '', opts)
-    || normalizeCatalogValue(valor, opts);
-}
-
 export function specSearchText(spec) {
   if (!spec) return '';
   return [

@@ -1,14 +1,12 @@
 import { useEffect, useState } from 'react';
 import {
   collection,
-  getDocs,
   limit,
   onSnapshot,
   orderBy,
   query,
   where,
   Timestamp,
-  writeBatch,
 } from 'firebase/firestore';
 import { initFirebase, isFirebaseConfigured, mensajeFirebaseNoConfig, COLLECTIONS } from '../lib/firebase';
 
@@ -36,47 +34,6 @@ function constraintsRangoTimestamp(desdeMs, hastaMs) {
     constraints.push(where('timestamp', '<=', Timestamp.fromDate(new Date(hastaMs))));
   }
   return constraints;
-}
-
-const BORRADO_LOTE = 500;
-
-export async function deleteLogsActualizacionCoinciden(filtroFechas) {
-  if (!isFirebaseConfigured()) {
-    return { ok: false, message: 'Firebase no está configurado (.env).' };
-  }
-  const firestore = initFirebase();
-  if (!firestore) {
-    return { ok: false, message: 'No se pudo obtener Firestore.' };
-  }
-
-  const desdeMs = filtroFechas.desde?.getTime() ?? null;
-  const hastaMs = filtroFechas.hasta?.getTime() ?? null;
-  const col = collection(firestore, COLLECTIONS.LOGS_ACTUALIZACIONES);
-
-  let deleted = 0;
-  try {
-    while (true) {
-      const q = query(
-        col,
-        ...constraintsRangoTimestamp(desdeMs, hastaMs),
-        orderBy('timestamp', 'desc'),
-        limit(BORRADO_LOTE),
-      );
-      const snap = await getDocs(q);
-      if (snap.empty) break;
-
-      const batch = writeBatch(firestore);
-      for (const d of snap.docs) {
-        batch.delete(d.ref);
-      }
-      await batch.commit();
-      deleted += snap.docs.length;
-    }
-    return { ok: true, deleted };
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    return { ok: false, message: msg };
-  }
 }
 
 export function useLogsActualizacion(filtroFechas) {

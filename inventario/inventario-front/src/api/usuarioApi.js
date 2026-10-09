@@ -10,14 +10,6 @@ export function fetchUsuarios() {
   });
 }
 
-export function fetchUsuario(id) {
-  return apiFetch(`${BASE_URL}/${encodeURIComponent(id)}`).then(res => {
-    if (res.status === 404) return null;
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
-  });
-}
-
 export function fetchUsuarioMe() {
   return apiFetch(`${BASE_URL}/me`).then(res => {
     if (res.status === 404) return null;

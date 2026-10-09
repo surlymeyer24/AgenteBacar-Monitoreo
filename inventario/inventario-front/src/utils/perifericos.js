@@ -2,11 +2,6 @@ function norm(s) {
   return (s == null ? '' : String(s)).toLowerCase();
 }
 
-export function siNo(v) {
-  if (v == null) return '—';
-  return v ? 'Sí' : 'No';
-}
-
 /** Heurística sobre `DispositivoUsbAgenteDTO` (clase + nombre, case-insensitive). */
 export function esTeclado(d) {
   const clase = norm(d?.clase);
@@ -20,27 +15,12 @@ export function esMouse(d) {
   return clase.includes('mouse') || nombre.includes('mouse');
 }
 
-export function esWebcam(d) {
-  const clase = norm(d?.clase);
-  const nombre = norm(d?.nombre);
-  return (
-    clase.includes('camera') ||
-    clase.includes('image') ||
-    nombre.includes('webcam') ||
-    nombre.includes('camera')
-  );
-}
-
 /**
  * Para listado de webcams: solo clase USB que indica vídeo UVC (`Camera`).
  * Evita duplicados: Windows suele exponer el mismo equipo también como clase `Media`.
  */
 export function esWebcamClaseCamera(d) {
   return norm(d?.clase).includes('camera');
-}
-
-export function esBluetooth(d) {
-  return norm(d?.clase) === 'bluetooth' || norm(d?.categoria).includes('bluetooth');
 }
 
 /**

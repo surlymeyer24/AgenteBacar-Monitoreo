@@ -13,13 +13,6 @@ export function fetchComputadoras(params = {}) {
   });
 }
 
-export function fetchComputadorasRecientes(limit = 8) {
-  return apiFetch(`${BASE_URL}/recientes?limit=${limit}`).then(res => {
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
-  });
-}
-
 export function fetchComputadora(uuid) {
   return apiFetch(`${BASE_URL}/${uuid}`).then(res => {
     if (res.status === 404) return null;
@@ -111,14 +104,6 @@ export function ingresarStock(uuid, body) {
   }).then(res => {
     if (res.status === 404) return null;
     if (res.status === 400) throw new Error('Datos inválidos');
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
-  });
-}
-
-export function fetchHistorial(uuid) {
-  return apiFetch(`${BASE_URL}/${uuid}/historial`).then(res => {
-    if (res.status === 404) return null;
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json();
   });

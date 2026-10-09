@@ -26,7 +26,3 @@ export function getCategoryColor(category) {
 export function getUbicacionStock(pc) {
   return pc?.ubicacionStock?.trim() || null;
 }
-
-export function puedeArmarPcStock(pc) {
-  return pc.origenAlta === 'STOCK' && pc.estadoPreparacion === 'SIN_ARMAR';
-}

@@ -18,13 +18,6 @@ export function fetchCamaras(params = {}) {
   });
 }
 
-export function fetchCamarasRecientes(limit = 8) {
-  return apiFetch(`${BASE_URL}/recientes?limit=${limit}`).then(res => {
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
-  });
-}
-
 export function fetchCamara(id) {
   return apiFetch(`${BASE_URL}/${encId(id)}`).then(res => {
     if (res.status === 404) return null;
@@ -79,14 +72,6 @@ export function updateEstadoCamara(id, estado, motivo) {
   }).then(res => {
     if (res.status === 404) return null;
     if (res.status === 400) throw new Error('Estado o motivo inválido');
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
-  });
-}
-
-export function fetchHistorialCamara(id) {
-  return apiFetch(`${BASE_URL}/${encId(id)}/historial`).then(res => {
-    if (res.status === 404) return null;
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json();
   });
