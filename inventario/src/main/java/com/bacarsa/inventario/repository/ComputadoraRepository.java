@@ -9,6 +9,8 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.concurrent.ExecutionException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -31,6 +33,9 @@ import com.bacarsa.inventario.models.ProcesadorDetallado;
 import com.bacarsa.inventario.models.Ram;
 import com.bacarsa.inventario.models.RamPlaca;
 import com.bacarsa.inventario.models.Ubicacion;
+import com.bacarsa.inventario.exception.HistorialNoGuardadoException;
+import com.bacarsa.inventario.historial.EscrituraHistorial;
+import com.bacarsa.inventario.historial.HistorialLectura;
 import com.bacarsa.inventario.util.AnydeskIdResolver;
 import com.bacarsa.inventario.util.FirestoreComputadoraParser;
 import com.bacarsa.inventario.util.FirestoreJsonHelper;
@@ -48,6 +53,8 @@ import com.google.cloud.firestore.WriteBatch;
 
 @Repository
 public class ComputadoraRepository {
+
+    private static final Logger log = LoggerFactory.getLogger(ComputadoraRepository.class);
 
     private final Firestore firestore;
     private final String collectionName;
@@ -432,6 +439,16 @@ public class ComputadoraRepository {
                 c.setPerifericos(perifericos);
             }
         }
+        c.setHistorial(HistorialLectura.desdeDocumento(data.get("historial")));
+        if (c.getNotas() == null) {
+            c.setNotas(doc.getString("notas"));
+        }
+        if (c.getSerialEquipo() == null) {
+            c.setSerialEquipo(doc.getString("serial_equipo"));
+        }
+        if (c.getHistorialMigrado() == null) {
+            c.setHistorialMigrado(doc.getBoolean("historial_migrado"));
+        }
 
         return c;
     }
@@ -792,5 +809,94 @@ public class ComputadoraRepository {
             }
         }
         return result;
+    }
+
+    /**
+     * Aplica ficha y renglón en la misma transacción. Si el plan no trae historial
+     * cuando la ficha cambia, no se escribe nada.
+     */
+    @Caching(evict = {
+            @CacheEvict(value = "pc-listado", allEntries = true),
+            @CacheEvict(value = "pc-detalle", allEntries = true),
+            @CacheEvict(value = "computadoras-gordo", allEntries = true)
+    })
+    public void aplicarHistorial(String uuid, java.util.function.BiFunction<Map<String, Object>, Timestamp, EscrituraHistorial> plan)
+            throws ExecutionException, InterruptedException {
+        DocumentReference ref = firestore.collection(collectionName).document(uuid);
+        try {
+            firestore.runTransaction(transaction -> {
+                DocumentSnapshot doc = transaction.get(ref).get();
+                Map<String, Object> data = doc.exists() ? doc.getData() : null;
+                EscrituraHistorial escritura = plan.apply(data, Timestamp.now());
+                if (escritura.modo() == EscrituraHistorial.Modo.NADA) {
+                    return null;
+                }
+                validarEscritura(uuid, escritura);
+                Map<String, Object> campos = conBorrados(escritura.campos());
+                if (!doc.exists()) {
+                    if (escritura.modo() != EscrituraHistorial.Modo.CREAR_CON_HISTORIAL) {
+                        throw new IllegalArgumentException("Documento no encontrado: " + uuid);
+                    }
+                    transaction.set(ref, campos);
+                } else {
+                    transaction.update(ref, campos);
+                }
+                return null;
+            }).get();
+        } catch (ExecutionException ex) {
+            throw traducirFallo(uuid, ex);
+        }
+    }
+
+    public List<String> listarUuidsSinMigrar(int limite) throws ExecutionException, InterruptedException {
+        List<QueryDocumentSnapshot> documents = firestore.collection(collectionName).get().get().getDocuments();
+        List<String> ids = new ArrayList<>();
+        for (QueryDocumentSnapshot doc : documents) {
+            if (Boolean.TRUE.equals(doc.getBoolean("historial_migrado"))) {
+                continue;
+            }
+            ids.add(doc.getId());
+            if (ids.size() >= limite) {
+                break;
+            }
+        }
+        return ids;
+    }
+
+    private static void validarEscritura(String uuid, EscrituraHistorial escritura) {
+        if (escritura.modo() == EscrituraHistorial.Modo.CREAR_CON_HISTORIAL
+                || escritura.modo() == EscrituraHistorial.Modo.ACTUALIZAR_CON_HISTORIAL) {
+            Object historial = escritura.campos().get("historial");
+            if (!(historial instanceof List<?> lista) || lista.isEmpty()) {
+                throw new HistorialNoGuardadoException(uuid, new IllegalStateException(
+                        "La escritura de la ficha no incluye renglón"));
+            }
+        }
+        if (escritura.modo() == EscrituraHistorial.Modo.SOLO_CAMPOS_AGENTE
+                && escritura.campos().containsKey("historial")) {
+            throw new HistorialNoGuardadoException(uuid, new IllegalStateException(
+                    "Un reporte del agente no puede agregar renglón"));
+        }
+    }
+
+    private static Map<String, Object> conBorrados(Map<String, Object> campos) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> entry : campos.entrySet()) {
+            out.put(entry.getKey(), entry.getValue() == null ? FieldValue.delete() : entry.getValue());
+        }
+        return out;
+    }
+
+    private static RuntimeException traducirFallo(String uuid, ExecutionException ex) {
+        Throwable causa = ex.getCause() != null ? ex.getCause() : ex;
+        if (causa instanceof IllegalArgumentException ilegal) {
+            return ilegal;
+        }
+        if (causa instanceof HistorialNoGuardadoException historial) {
+            log.error("No se pudo guardar el historial de la ficha {}", uuid, ex);
+            return historial;
+        }
+        log.error("No se pudo guardar el historial de la ficha {}", uuid, ex);
+        return new HistorialNoGuardadoException(uuid, ex);
     }
 }
