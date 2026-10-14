@@ -23,6 +23,7 @@ import com.google.cloud.firestore.FieldValue;
 import com.google.cloud.firestore.Firestore;
 import com.google.cloud.firestore.QueryDocumentSnapshot;
 import com.google.cloud.firestore.QuerySnapshot;
+import com.google.cloud.firestore.SetOptions;
 
 @Repository
 public class PerifericoManualRepository {
@@ -99,6 +100,15 @@ public class PerifericoManualRepository {
         DocumentReference ref = firestore.collection(collectionName).document();
         ref.set(periferico).get();
         return ref.getId();
+    }
+
+    @CacheEvict(value = "perifericosManuales", allEntries = true)
+    public void mergeCodigoInterno(String id, String codigo) throws ExecutionException, InterruptedException {
+        if (id == null || id.isBlank() || codigo == null || codigo.isBlank()) {
+            return;
+        }
+        firestore.collection(collectionName).document(id)
+                .set(MergeCodigoInterno.unSoloCampo(codigo), SetOptions.merge()).get();
     }
 
     @CacheEvict(value = "perifericosManuales", allEntries = true)

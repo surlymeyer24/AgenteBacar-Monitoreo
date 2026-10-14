@@ -16,6 +16,10 @@ public class PerifericoManual {
     @DocumentId
     private String id;
 
+    @Getter(onMethod_ = @PropertyName("codigo_interno"))
+    @Setter(onMethod_ = @PropertyName("codigo_interno"))
+    private String codigoInterno;
+
     private String tipo;
     private int cantidad = 1;
     private String nombre;
