@@ -22,9 +22,12 @@ public class MatchingDeteccionService {
     private static final Logger log = LoggerFactory.getLogger(MatchingDeteccionService.class);
 
     private final ComputadoraRepository computadoraRepository;
+    private final ComputadoraHistorialService computadoraHistorialService;
 
-    public MatchingDeteccionService(ComputadoraRepository computadoraRepository) {
+    public MatchingDeteccionService(ComputadoraRepository computadoraRepository,
+            ComputadoraHistorialService computadoraHistorialService) {
         this.computadoraRepository = computadoraRepository;
+        this.computadoraHistorialService = computadoraHistorialService;
     }
 
     public int detectarPrimerosReportes() throws ExecutionException, InterruptedException {
@@ -46,6 +49,12 @@ public class MatchingDeteccionService {
                 continue;
             }
             if (pc.getPrimerReporteAgenteAt() != null) {
+                continue;
+            }
+            try {
+                computadoraHistorialService.registrarLlegadaDeReporte(pc.getUuid());
+            } catch (RuntimeException ex) {
+                log.error("No se pudo guardar el historial de la ficha {}", pc.getUuid(), ex);
                 continue;
             }
             Map<String, Object> updates = new HashMap<>();

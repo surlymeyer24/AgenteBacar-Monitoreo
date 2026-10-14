@@ -13,6 +13,8 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import com.bacarsa.inventario.exception.HistorialNoGuardadoException;
+
 @RestControllerAdvice
 public class ApiExceptionHandler {
 
@@ -47,6 +49,15 @@ public class ApiExceptionHandler {
     public ResponseEntity<Map<String, String>> onBadJson(HttpMessageNotReadableException ex) {
         return ResponseEntity.badRequest()
                 .body(Map.of("error", "JSON inválido o cuerpo vacío inesperado"));
+    }
+
+    @ExceptionHandler(HistorialNoGuardadoException.class)
+    public ResponseEntity<Map<String, String>> onHistorial(HistorialNoGuardadoException ex) {
+        String ficha = ex.getFichaId() == null ? "" : ex.getFichaId();
+        log.error("No se pudo guardar el historial de la ficha {}", ficha, ex);
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of(
+                "error", "No se pudo guardar el cambio porque el historial no se registró. La ficha no se modificó.",
+                "fichaId", ficha));
     }
 
     @ExceptionHandler(com.bacarsa.inventario.exception.ApiConflictException.class)

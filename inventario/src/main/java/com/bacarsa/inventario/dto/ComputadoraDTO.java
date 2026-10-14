@@ -35,6 +35,10 @@ public class ComputadoraDTO {
     private List<RamDTO> modulos;
     private PerifericoAgenteDTO perifericos;
     private List<CambioEstadoDTO> historialEstados;
+    /** Historial unificado, del más nuevo al más viejo. */
+    private List<RenglonHistorialDTO> historial;
+    private String serialEquipo;
+    private String notas;
     /** Documentos de la subcolección Firestore {@code programas} bajo la PC (vacío si no hay datos). */
     private List<Map<String, Object>> programas;
     /** Mapa {@code windows_version_detallada} del documento de la PC (solo en detalle completo). */

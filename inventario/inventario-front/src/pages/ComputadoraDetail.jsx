@@ -3,10 +3,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   fetchComputadora,
-  updateUbicacion,
   updateEstado,
-  updateResponsableInventario,
-  deleteComputadora,
+  updateFicha,
   sacarDePipeline,
 } from '../api/computadoraApi';
 import { useOptionalComputadorasList } from '../context/ComputadorasListContext';
@@ -71,6 +69,65 @@ const ORIGEN_ALTA_MAP = {
   DETECTADA_VINCULADA_RETRO: { label: 'Vinc. retro', cls: 'bg-purple-900/40 text-purple-300 border border-purple-700/50' },
 };
 
+const ESTADO_HISTORIAL_LABEL = {
+  SIN_ASIGNAR: 'Sin asignar',
+  ASIGNADA: 'Asignada',
+  EN_MANTENIMIENTO: 'En mantenimiento',
+  BAJA: 'Baja',
+  ACTIVA: 'Activa',
+  INACTIVA: 'Inactiva',
+};
+
+const TIPO_HISTORIAL_LABEL = {
+  ALTA_MANUAL: 'Alta manual',
+  ALTA_AUTOMATICA: 'Alta automática',
+  FICHA: 'Cambio de ficha',
+  ESTADO: 'Cambio de estado',
+  MIGRACION_INICIAL: 'Migración inicial',
+};
+
+const CAMPO_HISTORIAL_LABEL = {
+  hostname: 'Hostname',
+  ubicacion: 'Ubicación',
+  responsable: 'Responsable',
+  serie: 'Serie',
+  anydesk: 'AnyDesk',
+  notas: 'Notas',
+  tipo_equipo: 'Tipo de equipo',
+  condicion: 'Condición',
+  sistema_operativo: 'Sistema operativo',
+  arquitectura: 'Arquitectura',
+  ubicacion_stock: 'Ubicación de stock',
+};
+
+function labelEstadoHistorial(valor) {
+  if (valor == null || valor === '') return '—';
+  return ESTADO_HISTORIAL_LABEL[valor] || valor;
+}
+
+function opcionesConActual(items, actual) {
+  const opciones = opcionesEnumCatalogo(items);
+  if (actual && !opciones.some(o => o.value === actual)) {
+    return [{ value: actual, label: actual }, ...opciones];
+  }
+  return opciones;
+}
+
+function valorVisible(campo, valor) {
+  if (valor == null || valor === '') return '—';
+  if (campo === 'ubicacion') return valor;
+  return String(valor);
+}
+
+const ESTADO_CONCILIACION_MAP = {
+  SIN_BASELINE: { label: 'Sin baseline', cls: 'bg-slate-700/50 text-slate-300 border border-slate-600' },
+  NO_APLICA: { label: 'No aplica', cls: 'bg-slate-700/50 text-slate-400 border border-slate-600' },
+  BASELINE_LISTO: { label: 'Baseline listo', cls: 'bg-cyan-900/40 text-cyan-300 border border-cyan-700/50' },
+  PENDIENTE: { label: 'Pendiente', cls: 'bg-amber-900/40 text-amber-300 border border-amber-700/50' },
+  COINCIDE: { label: 'Coincide', cls: 'bg-emerald-900/40 text-emerald-300 border border-emerald-700/50' },
+  DISCREPANCIA: { label: 'Discrepancia', cls: 'bg-red-900/40 text-red-300 border border-red-700/50' },
+};
+
 function ComputadoraDetail() {
   const { uuid } = useParams();
   const navigate = useNavigate();
@@ -86,16 +143,22 @@ function ComputadoraDetail() {
   const [c, setC] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
-  const [ubicacionSel, setUbicacionSel] = useState('');
-  const [guardandoUbi, setGuardandoUbi] = useState(false);
-  const [msgUbi, setMsgUbi] = useState(null);
+  const [ficha, setFicha] = useState({
+    hostname: '',
+    ubicacion: '',
+    responsableInventario: '',
+    serialEquipo: '',
+    anydeskId: '',
+    notas: '',
+    tipoEquipo: '',
+    condicion: '',
+  });
+  const [guardandoFicha, setGuardandoFicha] = useState(false);
+  const [msgFicha, setMsgFicha] = useState(null);
   const [estadoSel, setEstadoSel] = useState('');
   const [motivoEstado, setMotivoEstado] = useState('');
   const [guardandoEstado, setGuardandoEstado] = useState(false);
   const [msgEstado, setMsgEstado] = useState(null);
-  const [textoResponsableInv, setTextoResponsableInv] = useState('');
-  const [guardandoRi, setGuardandoRi] = useState(false);
-  const [msgRi, setMsgRi] = useState(null);
   const [solapa, setSolapa] = useState('hardware');
   const [eliminando, setEliminando] = useState(false);
   const [msgEliminar, setMsgEliminar] = useState(null);
@@ -109,9 +172,19 @@ function ComputadoraDetail() {
       .then(data => {
         if (cancelled) return;
         setC(data);
-        if (data?.ubicacion) setUbicacionSel(data.ubicacion);
-        setTextoResponsableInv(data?.responsableInventario ?? '');
-        if (data) mergeEnListadoRef.current?.(data);
+        if (data) {
+          setFicha({
+            hostname: data.hostname ?? '',
+            ubicacion: data.ubicacion ?? '',
+            responsableInventario: data.responsableInventario ?? '',
+            serialEquipo: data.serialEquipo ?? '',
+            anydeskId: data.anydeskId ?? '',
+            notas: data.notas ?? '',
+            tipoEquipo: data.tipoEquipo ?? '',
+            condicion: data.condicion ?? '',
+          });
+          mergeEnListadoRef.current?.(data);
+        }
       })
       .catch(() => {
         if (!cancelled) setError('No se pudo cargar el detalle');
@@ -155,37 +228,49 @@ function ComputadoraDetail() {
       .finally(() => setSacandoPipeline(false));
   }
 
-  function guardarUbicacion(e) {
-    e?.preventDefault();
-    if (!ubicacionSel) return;
-    setGuardandoUbi(true);
-    setMsgUbi(null);
-    updateUbicacion(uuid, ubicacionSel)
-      .then(data => {
-        if (data) { setC(data); listado?.mergeEnListado?.(data); alert('Ubicación de red actualizada exitosamente.'); }
-        else setMsgUbi('No se encontró la computadora');
-      })
-      .catch(() => setMsgUbi('No se pudo guardar la ubicación'))
-      .finally(() => setGuardandoUbi(false));
+  function aplicarFicha(data) {
+    setC(data);
+    setFicha({
+      hostname: data.hostname ?? '',
+      ubicacion: data.ubicacion ?? '',
+      responsableInventario: data.responsableInventario ?? '',
+      serialEquipo: data.serialEquipo ?? '',
+      anydeskId: data.anydeskId ?? '',
+      notas: data.notas ?? '',
+      tipoEquipo: data.tipoEquipo ?? '',
+      condicion: data.condicion ?? '',
+    });
+    listado?.mergeEnListado?.(data);
   }
 
-  function guardarResponsableInventario(e) {
+  function guardarFicha(e) {
     e?.preventDefault();
-    setGuardandoRi(true);
-    setMsgRi(null);
-    updateResponsableInventario(uuid, textoResponsableInv.trim() || null)
+    if (!ficha.hostname.trim()) {
+      setMsgFicha('El hostname es obligatorio.');
+      return;
+    }
+    setGuardandoFicha(true);
+    setMsgFicha(null);
+    updateFicha(uuid, {
+      hostname: ficha.hostname.trim(),
+      ubicacion: ficha.ubicacion,
+      responsableInventario: ficha.responsableInventario.trim(),
+      serialEquipo: ficha.serialEquipo.trim(),
+      anydeskId: ficha.anydeskId.trim(),
+      notas: ficha.notas.trim(),
+      tipoEquipo: ficha.tipoEquipo,
+      condicion: ficha.condicion,
+    })
       .then(data => {
         if (data) {
-          setC(data);
-          setTextoResponsableInv(data.responsableInventario ?? '');
-          listado?.mergeEnListado?.(data);
-          alert('Se ha guardado la asignación de inventario con éxito.');
+          aplicarFicha(data);
+          alert('Ficha guardada. El historial quedó registrado.');
         } else {
-          setMsgRi('No se encontró la computadora');
+          setMsgFicha('No se encontró la computadora');
         }
       })
-      .catch(() => setMsgRi('No se pudo guardar el asignado (IT)'))
-      .finally(() => setGuardandoRi(false));
+      .catch(err => setMsgFicha(err?.message || 'No se pudo guardar la ficha'))
+      .finally(() => setGuardandoFicha(false));
   }
 
   function guardarEstado(e) {
@@ -198,25 +283,34 @@ function ComputadoraDetail() {
         if (data) { setC(data); setMotivoEstado(''); listado?.mergeEnListado?.(data); alert('Estado de activo IT actualizado y archivado exitosamente.'); }
         else { setMsgEstado('No se encontró la computadora'); }
       })
-      .catch(() => setMsgEstado('No se pudo cambiar el estado'))
+      .catch(err => setMsgEstado(err?.message || 'No se pudo cambiar el estado'))
       .finally(() => setGuardandoEstado(false));
   }
 
-  function solicitarEliminar() {
+  function solicitarBaja() {
     const nombre = (c.hostname && String(c.hostname).trim()) ? c.hostname : 'esta PC';
-    if (!window.confirm(`¿Confirma que desea dar de baja y eliminar físicamente el nodo "${nombre}" del sistema? Esta acción no se puede deshacer.`)) return;
+    const motivo = window.prompt(`Motivo de la baja de "${nombre}". La ficha se conserva.`);
+    if (motivo == null) return;
+    if (!motivo.trim()) {
+      setMsgEliminar('El motivo es obligatorio para dar de baja.');
+      return;
+    }
     setEliminando(true);
     setMsgEliminar(null);
-    deleteComputadora(uuid)
-      .then(ok => {
-        if (ok) { alert(`PC "${nombre}" desvinculada exitosamente del sistema de inventario.`); listado?.removeEnListado?.(uuid); navigate('/computadoras'); }
-        else setMsgEliminar('No se encontró la computadora (quizá ya fue borrada).');
+    updateEstado(uuid, 'BAJA', motivo.trim())
+      .then(data => {
+        if (data) {
+          aplicarFicha(data);
+          alert('La PC quedó en baja. La ficha y el historial siguen disponibles.');
+        } else {
+          setMsgEliminar('No se encontró la computadora');
+        }
       })
-      .catch(() => setMsgEliminar('No se pudo eliminar la computadora'))
+      .catch(err => setMsgEliminar(err?.message || 'No se pudo dar de baja'))
       .finally(() => setEliminando(false));
   }
 
-  const historial = c.historialEstados ?? [];
+  const historial = c.historial ?? [];
   const conexionTexto = textoConexionAgente(c);
   const isActivo = conexionTexto?.toLowerCase().includes('activ');
   const esNotebook = String(c.tipoEquipo ?? '').trim().toLowerCase() === 'notebook';
@@ -262,6 +356,11 @@ function ComputadoraDetail() {
               {c.origenAlta && ORIGEN_ALTA_MAP[c.origenAlta] && (
                 <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-bold ${ORIGEN_ALTA_MAP[c.origenAlta].cls}`}>
                   {ORIGEN_ALTA_MAP[c.origenAlta].label}
+                </span>
+              )}
+              {c.estadoConciliacion && ESTADO_CONCILIACION_MAP[c.estadoConciliacion] && (
+                <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-bold ${ESTADO_CONCILIACION_MAP[c.estadoConciliacion].cls}`}>
+                  {ESTADO_CONCILIACION_MAP[c.estadoConciliacion].label}
                 </span>
               )}
               <StockEstadosUnidad pc={c} estadoLabels={estadoLabels} variant="dark" className="!mt-0 gap-2" />
@@ -331,13 +430,14 @@ function ComputadoraDetail() {
             </button>
           )}
           <button 
-            onClick={solicitarEliminar}
+            onClick={solicitarBaja}
             disabled={eliminando}
             className="px-4 py-2 border border-red-900/50 text-red-400 hover:bg-red-950/30 hover:border-red-800 font-bold text-base rounded-lg flex items-center gap-2 transition-colors shrink-0"
           >
             <Trash2 className="w-4 h-4" />
-            {eliminando ? 'Eliminando...' : 'Eliminar esta PC'}
+            {eliminando ? 'Guardando baja...' : 'Dar de baja'}
           </button>
+          {msgEliminar && <p className="text-xs text-red-300 m-0 w-full">{msgEliminar}</p>}
           </WriteGate>
         </div>
       </div>
@@ -491,62 +591,104 @@ function ComputadoraDetail() {
 
             {/* Operational controls */}
             <WriteGate>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              
-              {/* ASIGNADO EN INVENTARIO */}
-              <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-3">
-                <div>
-                  <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wide block">Asignado a</h4>
-                  <p className="text-[10px] text-slate-400 mt-0.5">Persona o referencia que tiene en resguardo físico esta PC.</p>
-                </div>
-                <form className="flex gap-2 text-xs text-slate-800" onSubmit={guardarResponsableInventario}>
-                  <input 
-                    type="text" 
-                    value={textoResponsableInv}
-                    onChange={(e) => setTextoResponsableInv(e.target.value)}
-                    placeholder="ej. Juan Pérez (Soporte)"
+            <form onSubmit={guardarFicha} className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
+              <div>
+                <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wide">Datos de la ficha</h4>
+                <p className="text-[10px] text-slate-400 mt-0.5">Un guardado deja un solo renglón con los campos que cambiaron.</p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-slate-800">
+                <label className="space-y-1">
+                  <span className="font-extrabold text-slate-700 block">Hostname</span>
+                  <input
+                    value={ficha.hostname}
+                    onChange={e => setFicha(f => ({ ...f, hostname: e.target.value }))}
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 font-semibold text-slate-700 focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#0c66e4]"
                   />
-                  <button 
-                    type="submit"
-                    disabled={guardandoRi}
-                    className="px-4 py-1.5 bg-[#0c66e4] hover:bg-[#0055cc] text-white font-bold rounded-lg shrink-0 transition-colors cursor-pointer disabled:opacity-50"
-                  >
-                    Guardar
-                  </button>
-                </form>
-                {msgRi && <p className="text-xs text-red-600 m-0">{msgRi}</p>}
-              </div>
-
-              {/* CAMBIAR UBICACIÓN */}
-              <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-3">
-                <div>
-                  <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wide block">Cambiar Ubicación</h4>
-                  <p className="text-[10px] text-slate-400 mt-0.5">Modifique la zona administrativa vinculada de red para sincronización de políticas.</p>
-                </div>
-                <form className="flex gap-2 text-xs text-slate-800" onSubmit={guardarUbicacion}>
-                  <select 
-                    value={ubicacionSel}
-                    onChange={(e) => setUbicacionSel(e.target.value)}
+                </label>
+                <label className="space-y-1">
+                  <span className="font-extrabold text-slate-700 block">Ubicación</span>
+                  <select
+                    value={ficha.ubicacion}
+                    onChange={e => setFicha(f => ({ ...f, ubicacion: e.target.value }))}
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 font-bold text-slate-700 focus:bg-white focus:outline-none cursor-pointer"
                   >
-                    <option value="">Seleccionar...</option>
-                    {opcionesEnumCatalogo(ubicCompItems).map(o => (
+                    <option value="">Sin definir</option>
+                    {opcionesConActual(ubicCompItems, ficha.ubicacion).map(o => (
                       <option key={o.value} value={o.value}>{o.label}</option>
                     ))}
                   </select>
-                  <button 
-                    type="submit"
-                    disabled={guardandoUbi || !ubicacionSel}
-                    className="px-4 py-1.5 bg-[#0c66e4] hover:bg-[#0055cc] text-white font-bold rounded-lg shrink-0 transition-colors cursor-pointer disabled:opacity-50"
+                </label>
+                <label className="space-y-1">
+                  <span className="font-extrabold text-slate-700 block">Responsable</span>
+                  <input
+                    value={ficha.responsableInventario}
+                    onChange={e => setFicha(f => ({ ...f, responsableInventario: e.target.value }))}
+                    placeholder="ej. Juan Pérez (Soporte)"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 font-semibold text-slate-700 focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#0c66e4]"
+                  />
+                </label>
+                <label className="space-y-1">
+                  <span className="font-extrabold text-slate-700 block">Serie</span>
+                  <input
+                    value={ficha.serialEquipo}
+                    onChange={e => setFicha(f => ({ ...f, serialEquipo: e.target.value }))}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 font-semibold text-slate-700 focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#0c66e4]"
+                  />
+                </label>
+                <label className="space-y-1">
+                  <span className="font-extrabold text-slate-700 block">AnyDesk</span>
+                  <input
+                    value={ficha.anydeskId}
+                    onChange={e => setFicha(f => ({ ...f, anydeskId: e.target.value }))}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 font-semibold text-slate-700 focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#0c66e4]"
+                  />
+                </label>
+                <label className="space-y-1">
+                  <span className="font-extrabold text-slate-700 block">Tipo de equipo</span>
+                  <select
+                    value={ficha.tipoEquipo}
+                    onChange={e => setFicha(f => ({ ...f, tipoEquipo: e.target.value }))}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 font-bold text-slate-700 focus:bg-white focus:outline-none cursor-pointer"
                   >
-                    Guardar
-                  </button>
-                </form>
-                {msgUbi && <p className="text-xs text-red-600 m-0">{msgUbi}</p>}
+                    <option value="">Sin definir</option>
+                    {opcionesConActual(tiposEquipoItems, ficha.tipoEquipo).map(o => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="space-y-1">
+                  <span className="font-extrabold text-slate-700 block">Condición</span>
+                  <select
+                    value={ficha.condicion}
+                    onChange={e => setFicha(f => ({ ...f, condicion: e.target.value }))}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 font-bold text-slate-700 focus:bg-white focus:outline-none cursor-pointer"
+                  >
+                    <option value="">Sin definir</option>
+                    {opcionesConActual(condicionesItems, ficha.condicion).map(o => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="space-y-1 md:col-span-2">
+                  <span className="font-extrabold text-slate-700 block">Notas</span>
+                  <input
+                    value={ficha.notas}
+                    onChange={e => setFicha(f => ({ ...f, notas: e.target.value }))}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 font-semibold text-slate-700 focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#0c66e4]"
+                  />
+                </label>
               </div>
-
-            </div>
+              {msgFicha && <p className="text-xs text-red-600 m-0">{msgFicha}</p>}
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  disabled={guardandoFicha}
+                  className="px-4 py-2 bg-[#0c66e4] hover:bg-[#0055cc] disabled:opacity-50 text-white font-bold text-xs rounded-lg transition-colors cursor-pointer"
+                >
+                  {guardandoFicha ? 'Guardando...' : 'Guardar ficha'}
+                </button>
+              </div>
+            </form>
 
             {/* CAMBIAR ESTADO (IT) WITH motive */}
             <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
@@ -600,33 +742,58 @@ function ComputadoraDetail() {
             <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-3.5">
               <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-widest flex items-center gap-1.5 pb-2 border-b border-slate-100">
                 <Clock className="w-4 h-4 text-[#0c66e4]" />
-                Historial de Estados (IT)
+                Historial de cambios
               </h4>
               <div className="space-y-3 pt-1">
-                {historial && historial.length > 0 ? (
+                {historial.length > 0 ? (
                   historial.map((entry, idx) => (
-                    <div key={idx} className="bg-slate-50 border border-slate-200 p-4 rounded-xl text-xs flex flex-col sm:flex-row sm:justify-between gap-4 sm:items-start shadow-sm transition-colors">
-                      <div className="space-y-1.5">
-                        <div className="flex items-center gap-2">
-                          <span className={`font-extrabold bg-blue-50 border px-2.5 py-0.5 rounded-full text-[10px] uppercase font-mono ${entry.activo ? 'border-blue-200 text-[#0c66e4]' : 'border-slate-200 text-slate-500'}`}>
-                            {entry.estado} {entry.activo && '(VIGENTE)'}
+                    <div key={`${entry.actoId ?? 'r'}-${idx}`} className="bg-slate-50 border border-slate-200 p-4 rounded-xl text-xs flex flex-col sm:flex-row sm:justify-between gap-4 sm:items-start shadow-sm">
+                      <div className="space-y-1.5 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className={`font-extrabold bg-blue-50 border px-2.5 py-0.5 rounded-full text-[10px] uppercase ${entry.vigente ? 'border-blue-200 text-[#0c66e4]' : 'border-slate-200 text-slate-500'}`}>
+                            {TIPO_HISTORIAL_LABEL[entry.tipo] || entry.tipo}
+                            {entry.vigente ? ' (vigente)' : ''}
                           </span>
+                          {entry.origen && (
+                            <span className="text-[10px] font-bold text-slate-500 uppercase">{entry.origen === 'MIGRACION' ? 'Migración' : entry.origen === 'AGENTE' ? 'Agente' : entry.origen === 'MANUAL' ? 'Manual' : entry.origen}</span>
+                          )}
                         </div>
-                        {entry.motivo && <p className="text-slate-700 font-semibold leading-relaxed mt-1">{entry.motivo}</p>}
-                        {entry.autor && (
-                          <div className="text-[10px] text-slate-400 flex items-center gap-1.5 mt-1">
-                            <User className="w-3.5 h-3.5" /> Administrador: <span className="font-bold text-slate-500">{entry.autor}</span>
-                          </div>
+                        {(entry.tipo === 'ESTADO' || entry.tipo === 'ALTA_MANUAL' || entry.tipo === 'ALTA_AUTOMATICA' || entry.tipo === 'MIGRACION_INICIAL') && (
+                          <p className="text-slate-800 font-semibold m-0">
+                            {entry.estadoAnterior ? `${labelEstadoHistorial(entry.estadoAnterior)} → ` : ''}
+                            {labelEstadoHistorial(entry.estado)}
+                          </p>
                         )}
+                        {entry.pasadoDesconocido && (
+                          <p className="text-amber-800 font-semibold m-0">Pasado desconocido. No hay evidencia anterior a esta migración.</p>
+                        )}
+                        {entry.motivo && <p className="text-slate-700 font-semibold leading-relaxed m-0">{entry.motivo}</p>}
+                        {Array.isArray(entry.cambios) && entry.cambios.length > 0 && (
+                          <ul className="m-0 pl-4 space-y-1 text-slate-700">
+                            {entry.cambios.map((cambio, i) => (
+                              <li key={`${cambio.campo}-${i}`}>
+                                <span className="font-bold">{CAMPO_HISTORIAL_LABEL[cambio.campo] || cambio.campo}:</span>{' '}
+                                {valorVisible(cambio.campo, cambio.valorAnterior)} → {valorVisible(cambio.campo, cambio.valorNuevo)}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        <div className="text-[10px] text-slate-400 flex items-center gap-1.5">
+                          <User className="w-3.5 h-3.5" />
+                          <span className="font-bold text-slate-500">{entry.quienNombre || entry.quienUid || '—'}</span>
+                        </div>
                       </div>
-                      <div className="text-[10px] text-slate-400 font-mono text-right flex flex-col sm:items-end gap-1 shrink-0 mt-2 sm:mt-0">
-                        <span className="font-bold text-slate-500 bg-slate-200/50 border border-slate-200/70 p-1 px-2.5 rounded">{fmtFechaIso(entry.fechaHoraInicio)}</span>
-                        {entry.fechaHoraFin && <span>Fin: {fmtFechaIso(entry.fechaHoraFin)}</span>}
+                      <div className="text-[10px] text-slate-400 font-mono text-right flex flex-col sm:items-end gap-1 shrink-0">
+                        <span className="font-bold text-slate-500 bg-slate-200/50 border border-slate-200/70 p-1 px-2.5 rounded">
+                          {fmtFechaIso(entry.cuando || entry.desde)}
+                        </span>
+                        {entry.hasta && <span>Fin: {fmtFechaIso(entry.hasta)}</span>}
+                        {entry.vigente && <span>Sin fecha de fin</span>}
                       </div>
                     </div>
                   ))
                 ) : (
-                  <div className="text-xs text-slate-400 italic">No hay registros previos en la bitácora de activos IT.</div>
+                  <div className="text-xs text-slate-400 italic">Esta ficha todavía no tiene historial nuevo.</div>
                 )}
               </div>
             </div>

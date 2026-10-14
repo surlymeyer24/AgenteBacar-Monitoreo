@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import com.bacarsa.inventario.dto.ComputadoraDTO;
+import com.bacarsa.inventario.historial.HistorialLectura;
 import com.bacarsa.inventario.models.Computadora;
 import com.bacarsa.inventario.models.EstadoConciliacion;
 import com.bacarsa.inventario.models.EstadoOperativo;
@@ -81,6 +82,9 @@ public class ComputadoraMapper {
             }
         }
         dto.setHistorialEstados(CambioEstadoMapper.toDTOList(computadora.getHistorialEstados()));
+        dto.setHistorial(HistorialLectura.aDtoOrdenado(computadora.getHistorial()));
+        dto.setSerialEquipo(computadora.getSerialEquipo());
+        dto.setNotas(computadora.getNotas());
         dto.setResponsableInventario(computadora.getResponsableInventario());
         dto.setAnydeskId(computadora.getAnydeskId());
         dto.setCondicion(computadora.getCondicion());
