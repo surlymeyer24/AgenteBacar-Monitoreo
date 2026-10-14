@@ -746,3 +746,25 @@ Cada cambio que una persona hace sobre una computadora deja un renglón que no s
 
 - El listado que borra el documento de la PC no deja renglón. Queda para otra rama.
 
+---
+
+## 30. Stock — Proyección de unidades y código interno (Stock 1)
+
+Proyección unificada de activos individuales de depósito y asignación idempotente de `codigo_interno` legible.
+
+### Arquitectura y Perímetro
+
+- **Colecciones leídas**: `computadoras`, `perifericos_manuales`, `celulares`, `camaras`, `televisores`, `routers`, `switches`, `access_points`.
+- **Prefijos**: desktop `PC`, notebook `NB`, monitor `MON`, teclado `TEC`, mouse `MOU`, impresora `IMP`, webcam `WEB`, parlante `PAR`, micrófono `MIC`, celular `CEL`, cámara `CAM`, televisor `TV`, router `RTR`, switch `SW`, access point `AP` (formato ej. `PC-1`).
+- **Exclusiones**: lotes con `cantidad != 1`, monitores anidados del agente CyberWatch, servidores, NVRs, internos IP y máquinas de tesorería.
+
+### Persistencia y Resiliencia
+
+- **Asignación no destructiva**: la clave `codigo_interno` se persiste en cada colección mediante `set(..., SetOptions.merge())` de un único campo. No pisa el documento original ni genera renglones en el historial de computadoras.
+- **Backfill reanudable**: `CodigoInternoBackfillRunner` corre al arrancar el backend (`app.stock.codigo-interno.backfill=true`). Detecta el valor máximo existente por prefijo y asigna códigos únicamente a las unidades faltantes. Si se interrumpe, continúa en el siguiente arranque sin duplicar números.
+
+### API
+
+- `GET /api/stock/unidades` — devuelve `List<UnidadStockDTO>` con 9 campos proyectados (`codigo`, `tipo`, `marca`, `modelo`, `serieOImei`, `condicion`, `estadoDeposito`, `fechaIngreso`, `ubicacion`). Sin dato se normaliza a `""` (no inventa marca en PCs ni fechas de ingreso). Solo incluye unidades con código asignado.
+
+
