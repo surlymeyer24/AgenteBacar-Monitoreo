@@ -721,3 +721,28 @@ El listado web usa caché de consultas, carga el progreso en segundo plano y
 pagina de a 50 estaciones para evitar bloquear la tabla o renderizar todo el
 inventario de una vez.
 
+---
+
+## 29. Historial inmutable de computadoras (etapa 1)
+
+Cada cambio que una persona hace sobre una computadora deja un renglón que no se pisa. Plan completo: [`docs/plan-historial-cambios.md`](docs/plan-historial-cambios.md).
+
+### Persistencia
+
+- Campo `historial` (lista append-only de `RenglonHistorial`) dentro del documento de `computadoras`. Cada renglón guarda tipo, `acto_id`, fecha, estado y estado anterior, motivo, quién (`quien_uid`, `quien_nombre`), origen y la lista de `cambios` (antes/después por campo).
+- La ficha y el renglón se escriben en **la misma transacción**. Si el renglón no se guarda, la ficha queda como estaba y la API responde error (`HistorialNoGuardadoException`) con el id de la ficha.
+- El alta manual y el primer reporte válido del agente (`POST /api/computadoras/reporte-agente`) también dejan renglón. Los campos que pisa el agente en reportes posteriores no generan renglón.
+- `historialEstados` **no se borra**: sigue existiendo para compatibilidad.
+
+### Migración
+
+- `POST /api/computadoras/migracion-historial?limite=5` (solo `ADMINISTRADOR`): pasa los tramos de `historialEstados` al historial nuevo, o deja un renglón «Migración inicial» si no había. Marca `historial_migrado` y es idempotente.
+
+### Frontend
+
+- `ComputadoraDetail.jsx` muestra el historial en el detalle de la PC.
+
+### Deuda anotada
+
+- El listado que borra el documento de la PC no deja renglón. Queda para otra rama.
+

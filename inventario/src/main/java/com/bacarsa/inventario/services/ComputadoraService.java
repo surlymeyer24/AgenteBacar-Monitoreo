@@ -2,7 +2,9 @@ package com.bacarsa.inventario.services;
 
 import java.time.Instant;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
@@ -19,15 +21,8 @@ import com.bacarsa.inventario.mapper.ComputadoraMapper;
 import com.bacarsa.inventario.models.Computadora;
 import com.bacarsa.inventario.models.DispositivoAudioFirestore;
 import com.bacarsa.inventario.models.DispositivoUsbFirestore;
-import com.bacarsa.inventario.models.Estado;
-import com.bacarsa.inventario.models.EstadoConciliacion;
-import com.bacarsa.inventario.models.EstadoOperativo;
-import com.bacarsa.inventario.models.EstadoPreparacion;
-import com.bacarsa.inventario.models.EstadoReporteAgente;
 import com.bacarsa.inventario.models.ImpresoraFirestore;
 import com.bacarsa.inventario.models.MonitorFirestore;
-import com.bacarsa.inventario.models.OrigenAlta;
-import com.bacarsa.inventario.models.TipoEquipo;
 import com.bacarsa.inventario.models.Ubicacion;
 import com.bacarsa.inventario.repository.ComputadoraRepository;
 
@@ -36,11 +31,14 @@ public class ComputadoraService {
 
     private final ComputadoraRepository computadoraRepository;
     private final ResponsableService responsableService;
+    private final ComputadoraHistorialService historialService;
 
     public ComputadoraService(ComputadoraRepository computadoraRepository,
-            ResponsableService responsableService) {
+            ResponsableService responsableService,
+            ComputadoraHistorialService historialService) {
         this.computadoraRepository = computadoraRepository;
         this.responsableService = responsableService;
+        this.historialService = historialService;
     }
 
     public List<ComputadoraListadoDTO> getAllComputadoras() throws ExecutionException, InterruptedException {
@@ -79,49 +77,23 @@ public class ComputadoraService {
         return dto;
     }
 
-    public ComputadoraDTO crear(ComputadoraCreateDTO dto) throws ExecutionException, InterruptedException {
+    public ComputadoraDTO crear(ComputadoraCreateDTO dto, String uid) throws ExecutionException, InterruptedException {
         if (dto.getHostname() == null || dto.getHostname().isBlank()) {
             throw new IllegalArgumentException("El hostname es obligatorio");
         }
+        validarUbicacionSiViene(dto.getUbicacion());
 
-        Computadora pc = new Computadora();
-        pc.setUuid(UUID.randomUUID().toString());
-        pc.setHostname(dto.getHostname().trim());
-        pc.setUsuarioActual(blankToNull(dto.getUsuarioActual()));
-        pc.setSistemaOperativo(blankToNull(dto.getSistemaOperativo()));
-        pc.setArquitectura(blankToNull(dto.getArquitectura()));
-
-        if (dto.getUbicacion() != null && !dto.getUbicacion().isBlank()) {
-            try {
-                pc.setUbicacion(Ubicacion.valueOf(dto.getUbicacion().trim()));
-            } catch (IllegalArgumentException ex) {
-                throw new IllegalArgumentException("Ubicación inválida: " + dto.getUbicacion(), ex);
-            }
-        }
-
-        String tipoEquipoRaw = blankToNull(dto.getTipoEquipo());
-        if (tipoEquipoRaw != null) {
-            TipoEquipo te = new TipoEquipo();
-            te.setTipo(tipoEquipoRaw);
-            pc.setTipoEquipo(te);
-        }
-        pc.setCondicion(blankToNull(dto.getCondicion()));
-        pc.setOrigenAlta(OrigenAlta.STOCK);
-        pc.setEstadoConciliacion(EstadoConciliacion.SIN_BASELINE);
-        pc.setEstadoPreparacion(EstadoPreparacion.SIN_ARMAR);
-        pc.setEstadoReporteAgente(EstadoReporteAgente.SIN_REPORTE);
-
-        computadoraRepository.create(pc);
-
-        String motivoAlta = (dto.getMotivo() != null && !dto.getMotivo().isBlank())
-                ? dto.getMotivo().trim()
-                : "Alta de equipo";
-        CambiarEstadoDTO estadoDto = new CambiarEstadoDTO();
-        estadoDto.setEstado("DERIVAR_ASIGNACION");
-        estadoDto.setMotivo(motivoAlta);
-        cambiarEstado(pc.getUuid(), estadoDto);
-
-        return getByUuid(pc.getUuid());
+        String uuid = UUID.randomUUID().toString();
+        Map<String, Object> cuerpo = new LinkedHashMap<>();
+        cuerpo.put("hostname", dto.getHostname().trim());
+        poner(cuerpo, "usuarioActual", dto.getUsuarioActual());
+        poner(cuerpo, "ubicacion", dto.getUbicacion());
+        poner(cuerpo, "sistemaOperativo", dto.getSistemaOperativo());
+        poner(cuerpo, "arquitectura", dto.getArquitectura());
+        poner(cuerpo, "tipoEquipo", dto.getTipoEquipo());
+        poner(cuerpo, "condicion", dto.getCondicion());
+        historialService.altaManual(uuid, cuerpo, dto.getMotivo(), uid);
+        return getByUuid(uuid);
     }
 
     public ComputadoraDTO agregarImpresora(String uuid, ImpresoraFirestore impresora)
@@ -163,29 +135,33 @@ public class ComputadoraService {
         return (s == null || s.isBlank()) ? null : s.trim();
     }
 
-    public ComputadoraDTO actualizarDatosStock(String uuid, ComputadoraStockUpdateDTO dto)
+    public ComputadoraDTO actualizarDatosStock(String uuid, ComputadoraStockUpdateDTO dto, String uid)
             throws ExecutionException, InterruptedException {
         if (computadoraRepository.findByUuid(uuid) == null) {
             return null;
         }
-
-        Ubicacion ubicacion = null;
-        if (dto.getUbicacion() != null && !dto.getUbicacion().isBlank()) {
-            try {
-                ubicacion = Ubicacion.valueOf(dto.getUbicacion().trim());
-            } catch (IllegalArgumentException ex) {
-                throw new IllegalArgumentException("Ubicación inválida: " + dto.getUbicacion(), ex);
-            }
+        validarUbicacionSiViene(dto.getUbicacion());
+        Map<String, Object> cuerpo = new LinkedHashMap<>();
+        if (dto.getSistemaOperativo() != null) {
+            cuerpo.put("sistemaOperativo", dto.getSistemaOperativo());
         }
-
-        Computadora actualizada = computadoraRepository.actualizarDatosStock(uuid, dto, ubicacion);
-        if (actualizada == null) {
-            return null;
+        if (dto.getTipoEquipo() != null) {
+            cuerpo.put("tipoEquipo", dto.getTipoEquipo());
         }
-        return ComputadoraMapper.toDTO(actualizada);
+        if (dto.getCondicion() != null) {
+            cuerpo.put("condicion", dto.getCondicion());
+        }
+        if (dto.getUbicacion() != null) {
+            cuerpo.put("ubicacion", dto.getUbicacion());
+        }
+        if (dto.getUbicacionStock() != null) {
+            cuerpo.put("ubicacionStock", dto.getUbicacionStock());
+        }
+        historialService.editarFicha(uuid, cuerpo, uid);
+        return getByUuid(uuid);
     }
 
-    public ComputadoraDTO ingresarStock(String uuid, IngresarStockDTO dto)
+    public ComputadoraDTO ingresarStock(String uuid, IngresarStockDTO dto, String uid)
             throws ExecutionException, InterruptedException {
         var pc = computadoraRepository.findByUuid(uuid);
         if (pc == null) {
@@ -196,21 +172,29 @@ public class ComputadoraService {
         String hostname = pc.getHostname();
         String ubicacionPc = pc.getUbicacion() == null ? null : pc.getUbicacion().name();
 
-        Ubicacion ubicacion = null;
-        if (dto.getUbicacion() != null && !dto.getUbicacion().isBlank()) {
-            try {
-                ubicacion = Ubicacion.valueOf(dto.getUbicacion().trim());
-            } catch (IllegalArgumentException ex) {
-                throw new IllegalArgumentException("Ubicación inválida: " + dto.getUbicacion(), ex);
-            }
-        }
-
         String motivo = blankToNull(dto.getMotivo());
         if (motivo == null) {
             motivo = "Ingreso a stock";
         }
+        validarUbicacionSiViene(dto.getUbicacion());
 
-        computadoraRepository.ingresarStock(uuid, dto, ubicacion, motivo);
+        Map<String, Object> ficha = new LinkedHashMap<>();
+        if (dto.getSistemaOperativo() != null) {
+            ficha.put("sistemaOperativo", dto.getSistemaOperativo());
+        }
+        if (dto.getTipoEquipo() != null) {
+            ficha.put("tipoEquipo", dto.getTipoEquipo());
+        }
+        if (dto.getCondicion() != null) {
+            ficha.put("condicion", dto.getCondicion());
+        }
+        if (dto.getUbicacion() != null) {
+            ficha.put("ubicacion", dto.getUbicacion());
+        }
+        if (dto.getUbicacionStock() != null) {
+            ficha.put("ubicacionStock", dto.getUbicacionStock());
+        }
+        historialService.cambiarEstado(uuid, "SIN_ASIGNAR", motivo, ficha, uid);
 
         ComputadoraDTO result = getByUuid(uuid);
 
@@ -222,63 +206,40 @@ public class ComputadoraService {
         return result;
     }
 
-    public ComputadoraDTO actualizarUbicacion(String uuid, String ubicacionRaw)
+    public ComputadoraDTO actualizarUbicacion(String uuid, String ubicacionRaw, String uid)
             throws ExecutionException, InterruptedException {
-        Ubicacion ubicacion;
-        try {
-            ubicacion = Ubicacion.valueOf(ubicacionRaw.trim());
-        } catch (IllegalArgumentException ex) {
-            throw new IllegalArgumentException("Ubicación inválida: " + ubicacionRaw, ex);
+        validarUbicacionSiViene(ubicacionRaw);
+        if (ubicacionRaw == null || ubicacionRaw.isBlank()) {
+            throw new IllegalArgumentException("La ubicación es obligatoria");
         }
         if (computadoraRepository.findByUuid(uuid) == null) {
             return null;
         }
-        computadoraRepository.updateUbicacion(uuid, ubicacion);
+        historialService.editarFicha(uuid, Map.of("ubicacion", ubicacionRaw.trim()), uid);
         return getByUuid(uuid);
     }
 
-    public ComputadoraDTO cambiarEstado(String uuid, CambiarEstadoDTO dto)
+    public ComputadoraDTO editarFicha(String uuid, Map<String, Object> cuerpo, String uid)
             throws ExecutionException, InterruptedException {
         var pc = computadoraRepository.findByUuid(uuid);
         if (pc == null) {
             return null;
         }
-        String trimmed = dto.getEstado() == null ? "" : dto.getEstado().trim();
-        EstadoOperativo estadoOperativo;
-        if ("DERIVAR_ASIGNACION".equalsIgnoreCase(trimmed)) {
-            estadoOperativo = EstadoOperativo.inferirAsignacionDesdeTexto(pc.getResponsableInventario());
-        } else {
-            try {
-                estadoOperativo = EstadoOperativo.valueOf(trimmed);
-            } catch (IllegalArgumentException ex) {
-                throw new IllegalArgumentException("Estado inválido: " + dto.getEstado(), ex);
+        if (cuerpo != null && cuerpo.containsKey("hostname")) {
+            Object hostname = cuerpo.get("hostname");
+            if (hostname == null || String.valueOf(hostname).isBlank()) {
+                throw new IllegalArgumentException("El hostname es obligatorio");
             }
         }
-
+        if (cuerpo != null && cuerpo.get("ubicacion") != null) {
+            validarUbicacionSiViene(String.valueOf(cuerpo.get("ubicacion")));
+        }
         String riAnterior = pc.getResponsableInventario();
         String hostname = pc.getHostname();
         String ubicacionPc = pc.getUbicacion() == null ? null : pc.getUbicacion().name();
-
-        String ubicacionStock = null;
-        String responsableInventario = null;
-        boolean limpiarResponsable = false;
-
-        if (estadoOperativo == EstadoOperativo.SIN_ASIGNAR) {
-            ubicacionStock = blankToNull(dto.getUbicacionStock());
-            limpiarResponsable = true;
-        }
-        if (estadoOperativo == EstadoOperativo.ASIGNADA && dto.getResponsableInventario() != null) {
-            responsableInventario = blankToNull(dto.getResponsableInventario());
-        }
-
-        Estado estado = new Estado();
-        estado.setNombre(estadoOperativo.getNombre());
-        estado.setDescripcion(estadoOperativo.getDescripcion());
-        String riParaRepo = limpiarResponsable ? "" : responsableInventario;
-        computadoraRepository.cambiarEstado(uuid, estado, dto.getMotivo(),
-                ubicacionStock, riParaRepo);
+        historialService.editarFicha(uuid, cuerpo, uid);
         ComputadoraDTO result = getByUuid(uuid);
-        if (!"DERIVAR_ASIGNACION".equalsIgnoreCase(trimmed)) {
+        if (cuerpo != null && cuerpo.containsKey("responsableInventario")) {
             responsableService.sincronizarAsignacionPc(
                     uuid,
                     riAnterior,
@@ -286,6 +247,34 @@ public class ComputadoraService {
                     hostname,
                     ubicacionPc);
         }
+        return result;
+    }
+
+    public ComputadoraDTO cambiarEstado(String uuid, CambiarEstadoDTO dto, String uid)
+            throws ExecutionException, InterruptedException {
+        var pc = computadoraRepository.findByUuid(uuid);
+        if (pc == null) {
+            return null;
+        }
+        String riAnterior = pc.getResponsableInventario();
+        String hostname = pc.getHostname();
+        String ubicacionPc = pc.getUbicacion() == null ? null : pc.getUbicacion().name();
+
+        Map<String, Object> ficha = new LinkedHashMap<>();
+        if (dto.getUbicacionStock() != null) {
+            ficha.put("ubicacionStock", dto.getUbicacionStock());
+        }
+        if (dto.getResponsableInventario() != null) {
+            ficha.put("responsableInventario", dto.getResponsableInventario());
+        }
+        historialService.cambiarEstado(uuid, dto.getEstado(), dto.getMotivo(), ficha, uid);
+        ComputadoraDTO result = getByUuid(uuid);
+        responsableService.sincronizarAsignacionPc(
+                uuid,
+                riAnterior,
+                result != null ? result.getResponsableInventario() : null,
+                hostname,
+                ubicacionPc);
         return result;
     }
 
@@ -302,23 +291,28 @@ public class ComputadoraService {
         return ok;
     }
 
-    public ComputadoraDTO actualizarResponsableInventario(String uuid, String nuevoRIRaw)
+    public ComputadoraDTO actualizarResponsableInventario(String uuid, String nuevoRIRaw, String uid)
             throws ExecutionException, InterruptedException {
-        Computadora pc = computadoraRepository.findByUuid(uuid);
-        if (pc == null) {
-            return null;
+        Map<String, Object> cuerpo = new LinkedHashMap<>();
+        cuerpo.put("responsableInventario", nuevoRIRaw);
+        return editarFicha(uuid, cuerpo, uid);
+    }
+
+    private static void validarUbicacionSiViene(String ubicacionRaw) {
+        if (ubicacionRaw == null || ubicacionRaw.isBlank()) {
+            return;
         }
-        String riAnterior = pc.getResponsableInventario();
-        String hostname = pc.getHostname();
-        String ubicacionPc = pc.getUbicacion() == null ? null : pc.getUbicacion().name();
-        String nuevoRI = blankToNull(nuevoRIRaw);
-        computadoraRepository.actualizarResponsableInventario(uuid, nuevoRI);
-        CambiarEstadoDTO dto = new CambiarEstadoDTO();
-        dto.setEstado("DERIVAR_ASIGNACION");
-        dto.setMotivo("Cambio de responsable de inventario a: " + nuevoRI);
-        ComputadoraDTO result = cambiarEstado(uuid, dto);
-        responsableService.sincronizarAsignacionPc(uuid, riAnterior, nuevoRI, hostname, ubicacionPc);
-        return result;
+        try {
+            Ubicacion.valueOf(ubicacionRaw.trim());
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalArgumentException("Ubicación inválida: " + ubicacionRaw, ex);
+        }
+    }
+
+    private static void poner(Map<String, Object> cuerpo, String clave, String valor) {
+        if (valor != null && !valor.isBlank()) {
+            cuerpo.put(clave, valor.trim());
+        }
     }
 
     /**

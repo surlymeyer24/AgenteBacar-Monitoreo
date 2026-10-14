@@ -24,6 +24,7 @@ import com.bacarsa.inventario.dto.ComputadoraListadoDTO;
 import com.bacarsa.inventario.dto.ComputadoraStockUpdateDTO;
 import com.bacarsa.inventario.dto.ComputadoraTimelineItemDTO;
 import com.bacarsa.inventario.dto.IngresarStockDTO;
+import com.bacarsa.inventario.dto.MigracionHistorialResultDTO;
 import com.bacarsa.inventario.dto.PerifericoManualDTO;
 import com.bacarsa.inventario.dto.ResponsableInventarioDTO;
 import com.bacarsa.inventario.dto.UbicacionUpdateDTO;
@@ -32,10 +33,12 @@ import com.bacarsa.inventario.models.DispositivoUsbFirestore;
 import com.bacarsa.inventario.models.ImpresoraFirestore;
 import com.bacarsa.inventario.models.MonitorFirestore;
 import com.bacarsa.inventario.services.ArmadoComboService;
+import com.bacarsa.inventario.services.ComputadoraHistorialService;
 import com.bacarsa.inventario.services.ComputadoraService;
 import com.bacarsa.inventario.services.ComputadoraTimelineService;
 import com.bacarsa.inventario.services.PerifericoManualService;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
 @RestController
@@ -45,15 +48,18 @@ public class ComputadoraController {
     private final ComputadoraService computadoraService;
     private final ArmadoComboService armadoComboService;
     private final PerifericoManualService perifericoManualService;
+    private final ComputadoraHistorialService historialService;
     private final ComputadoraTimelineService computadoraTimelineService;
 
     public ComputadoraController(ComputadoraService computadoraService,
                                  ArmadoComboService armadoComboService,
                                  PerifericoManualService perifericoManualService,
+                                 ComputadoraHistorialService historialService,
                                  ComputadoraTimelineService computadoraTimelineService) {
         this.computadoraService = computadoraService;
         this.armadoComboService = armadoComboService;
         this.perifericoManualService = perifericoManualService;
+        this.historialService = historialService;
         this.computadoraTimelineService = computadoraTimelineService;
     }
 
@@ -76,14 +82,39 @@ public class ComputadoraController {
     }
 
     @PostMapping
-    public ResponseEntity<ComputadoraDTO> crear(@Valid @RequestBody ComputadoraCreateDTO body)
+    public ResponseEntity<ComputadoraDTO> crear(@Valid @RequestBody ComputadoraCreateDTO body,
+            HttpServletRequest request)
             throws ExecutionException, InterruptedException {
         try {
-            ComputadoraDTO creada = computadoraService.crear(body);
+            ComputadoraDTO creada = computadoraService.crear(body, uid(request));
             return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED).body(creada);
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().build();
         }
+    }
+
+    @PostMapping("/reporte-agente")
+    public ResponseEntity<ComputadoraDTO> reporteAgente(@RequestBody Map<String, Object> body)
+            throws ExecutionException, InterruptedException {
+        if (body == null || body.get("uuid") == null || String.valueOf(body.get("uuid")).isBlank()) {
+            return ResponseEntity.badRequest().build();
+        }
+        String uuid = String.valueOf(body.get("uuid")).trim();
+        historialService.registrarReporteAgente(body);
+        ComputadoraDTO dto = computadoraService.getByUuid(uuid);
+        return dto == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(dto);
+    }
+
+    @PostMapping("/migracion-historial")
+    public ResponseEntity<?> migrarHistorial(
+            @RequestParam(name = "limite", defaultValue = "5") int limite,
+            HttpServletRequest request) throws ExecutionException, InterruptedException {
+        if (!"ADMINISTRADOR".equals(request.getAttribute("rol"))) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "Requiere rol de administrador"));
+        }
+        MigracionHistorialResultDTO result = historialService.migrarLote(limite);
+        return ResponseEntity.ok(result);
     }
 
     @GetMapping("/{uuid}")
@@ -152,9 +183,10 @@ public class ComputadoraController {
     @PostMapping("/{uuid}/datos-stock")
     public ResponseEntity<ComputadoraDTO> actualizarDatosStock(
             @PathVariable String uuid,
-            @RequestBody ComputadoraStockUpdateDTO body) throws ExecutionException, InterruptedException {
+            @RequestBody ComputadoraStockUpdateDTO body,
+            HttpServletRequest request) throws ExecutionException, InterruptedException {
         try {
-            ComputadoraDTO dto = computadoraService.actualizarDatosStock(uuid, body);
+            ComputadoraDTO dto = computadoraService.actualizarDatosStock(uuid, body, uid(request));
             if (dto == null) {
                 return ResponseEntity.notFound().build();
             }
@@ -177,9 +209,26 @@ public class ComputadoraController {
     @PostMapping("/{uuid}/ingresar-stock")
     public ResponseEntity<ComputadoraDTO> ingresarStock(
             @PathVariable String uuid,
-            @Valid @RequestBody IngresarStockDTO body) throws ExecutionException, InterruptedException {
+            @Valid @RequestBody IngresarStockDTO body,
+            HttpServletRequest request) throws ExecutionException, InterruptedException {
         try {
-            ComputadoraDTO dto = computadoraService.ingresarStock(uuid, body);
+            ComputadoraDTO dto = computadoraService.ingresarStock(uuid, body, uid(request));
+            if (dto == null) {
+                return ResponseEntity.notFound().build();
+            }
+            return ResponseEntity.ok(dto);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @PostMapping("/{uuid}/ficha")
+    public ResponseEntity<ComputadoraDTO> editarFicha(
+            @PathVariable String uuid,
+            @RequestBody Map<String, Object> body,
+            HttpServletRequest request) throws ExecutionException, InterruptedException {
+        try {
+            ComputadoraDTO dto = computadoraService.editarFicha(uuid, body, uid(request));
             if (dto == null) {
                 return ResponseEntity.notFound().build();
             }
@@ -192,9 +241,10 @@ public class ComputadoraController {
     @PostMapping("/{uuid}/ubicacion")
     public ResponseEntity<ComputadoraDTO> actualizarUbicacion(
             @PathVariable String uuid,
-            @Valid @RequestBody UbicacionUpdateDTO body) throws ExecutionException, InterruptedException {
+            @Valid @RequestBody UbicacionUpdateDTO body,
+            HttpServletRequest request) throws ExecutionException, InterruptedException {
         try {
-            ComputadoraDTO dto = computadoraService.actualizarUbicacion(uuid, body.getUbicacion());
+            ComputadoraDTO dto = computadoraService.actualizarUbicacion(uuid, body.getUbicacion(), uid(request));
             if (dto == null) {
                 return ResponseEntity.notFound().build();
             }
@@ -207,9 +257,10 @@ public class ComputadoraController {
     @PostMapping("/{uuid}/estado")
     public ResponseEntity<ComputadoraDTO> actualizarEstado(
             @PathVariable String uuid,
-            @Valid @RequestBody CambiarEstadoDTO body) throws ExecutionException, InterruptedException {
+            @Valid @RequestBody CambiarEstadoDTO body,
+            HttpServletRequest request) throws ExecutionException, InterruptedException {
         try {
-            ComputadoraDTO dto = computadoraService.cambiarEstado(uuid, body);
+            ComputadoraDTO dto = computadoraService.cambiarEstado(uuid, body, uid(request));
             if (dto == null) {
                 return ResponseEntity.notFound().build();
             }
@@ -228,12 +279,14 @@ public class ComputadoraController {
     @PostMapping("/{uuid}/responsable-inventario")
     public ResponseEntity<ComputadoraDTO> actualizarResponsableInventario(
         @PathVariable String uuid,
-        @Valid @RequestBody ResponsableInventarioDTO body)
+        @Valid @RequestBody ResponsableInventarioDTO body,
+        HttpServletRequest request)
         throws ExecutionException, InterruptedException {
             try {
                 ComputadoraDTO dto = computadoraService.actualizarResponsableInventario(
                     uuid,
-                    body != null ? body.getResponsableInventario() : null
+                    body != null ? body.getResponsableInventario() : null,
+                    uid(request)
                 );
                 if (dto == null) {
                     return ResponseEntity.notFound().build();
@@ -291,6 +344,11 @@ public class ComputadoraController {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.ok(perifericoManualService.listarPorComputadoraUuid(uuid));
+    }
+
+    private static String uid(HttpServletRequest request) {
+        Object uid = request.getAttribute("uid");
+        return uid == null ? null : String.valueOf(uid);
     }
 
 }

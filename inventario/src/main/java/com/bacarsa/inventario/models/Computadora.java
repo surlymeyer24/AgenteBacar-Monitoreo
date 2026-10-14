@@ -27,6 +27,15 @@ public class Computadora {
     private String arquitectura;
     private Estado estadoActual;
     private List<CambioEstado> historialEstados;
+
+    /** Historial nuevo, append-only. No reemplaza a {@code historialEstados}. */
+    private List<RenglonHistorial> historial;
+
+    @Getter(onMethod_ = @PropertyName("historial_migrado"))
+    @Setter(onMethod_ = @PropertyName("historial_migrado"))
+    private Boolean historialMigrado;
+
+    private String notas;
     private List<Disco> discos;
     @Getter(onMethod_ = @PropertyName("modulos_ram"))
     @Setter(onMethod_ = @PropertyName("modulos_ram"))
@@ -173,6 +182,7 @@ public class Computadora {
 
     public Computadora() {
         this.historialEstados = new ArrayList<>();
+        this.historial = new ArrayList<>();
         this.discos = new ArrayList<>();
         this.modulos = new ArrayList<>();
     }
