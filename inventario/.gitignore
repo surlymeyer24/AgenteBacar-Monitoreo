@@ -37,3 +37,6 @@ build/
 **/serviceAccountKey.json
 # Credenciales fuera de target (misma ruta que firebase.config.path por defecto)
 /auth/
+
+### Contexto de sesión ###
+CLAUDE.local.md
