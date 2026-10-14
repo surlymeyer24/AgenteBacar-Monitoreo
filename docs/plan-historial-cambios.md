@@ -2,7 +2,7 @@
 
 Fecha: 2026-10-09  
 Sistema: Inventario Agente Bacar (este repo, en producción)  
-Estado: análisis cerrado, sin implementación
+Estado: etapa 1 implementada (computadoras, 2026-10-14)
 
 El historial se construye en este sistema, por etapas. No es un proyecto nuevo.
 
