@@ -17,6 +17,7 @@ import com.google.cloud.firestore.DocumentSnapshot;
 import com.google.cloud.firestore.Firestore;
 import com.google.cloud.firestore.QueryDocumentSnapshot;
 import com.google.cloud.firestore.QuerySnapshot;
+import com.google.cloud.firestore.SetOptions;
 
 @Repository
 public class TelevisorRepository {
@@ -65,6 +66,15 @@ public class TelevisorRepository {
     @CacheEvict(value = "televisores", allEntries = true)
     public void deleteById(String id) throws ExecutionException, InterruptedException {
         firestore.collection(collectionName).document(id).delete().get();
+    }
+
+    @CacheEvict(value = "televisores", allEntries = true)
+    public void mergeCodigoInterno(String id, String codigo) throws ExecutionException, InterruptedException {
+        if (id == null || id.isBlank() || codigo == null || codigo.isBlank()) {
+            return;
+        }
+        firestore.collection(collectionName).document(id)
+                .set(MergeCodigoInterno.unSoloCampo(codigo), SetOptions.merge()).get();
     }
 
     private static Televisor snapshotToTelevisor(DocumentSnapshot doc) {

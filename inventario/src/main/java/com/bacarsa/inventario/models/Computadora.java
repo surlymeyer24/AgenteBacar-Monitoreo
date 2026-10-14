@@ -15,6 +15,9 @@ import lombok.Setter;
 public class Computadora {
 
     private String uuid;
+    @Getter(onMethod_ = @PropertyName("codigo_interno"))
+    @Setter(onMethod_ = @PropertyName("codigo_interno"))
+    private String codigoInterno;
     private String hostname;
     private String usuarioActual;
     private Ubicacion ubicacion;

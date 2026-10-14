@@ -16,6 +16,10 @@ public class Router {
     @DocumentId
     private String id;
 
+    @Getter(onMethod_ = @PropertyName("codigo_interno"))
+    @Setter(onMethod_ = @PropertyName("codigo_interno"))
+    private String codigoInterno;
+
     private String nombre;
     private String marca;
     private String modelo;

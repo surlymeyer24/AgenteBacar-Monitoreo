@@ -13,6 +13,10 @@ public class Celular {
     @DocumentId
     private String id;
 
+    @Getter(onMethod_ = @PropertyName("codigo_interno"))
+    @Setter(onMethod_ = @PropertyName("codigo_interno"))
+    private String codigoInterno;
+
     private String marca;
     private String modelo;
     private String imei;

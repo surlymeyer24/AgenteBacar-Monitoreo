@@ -68,6 +68,15 @@ public class CelularRepository {
         firestore.collection(collectionName).document(id).delete().get();
     }
 
+    @CacheEvict(value = "celulares", allEntries = true)
+    public void mergeCodigoInterno(String id, String codigo) throws ExecutionException, InterruptedException {
+        if (id == null || id.isBlank() || codigo == null || codigo.isBlank()) {
+            return;
+        }
+        firestore.collection(collectionName).document(id)
+                .set(MergeCodigoInterno.unSoloCampo(codigo), SetOptions.merge()).get();
+    }
+
     private static Celular snapshotToCelular(DocumentSnapshot doc) {
         Celular celular = doc.toObject(Celular.class);
         if (celular == null) {
