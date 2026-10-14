@@ -126,6 +126,18 @@ service cloud.firestore {
     }
 
     // -------------------------------------------------------------------------
+    // sesion_bloqueos/ — historial de bloqueos de sesión Windows (backend crea)
+    // -------------------------------------------------------------------------
+    match /sesion_bloqueos/{bloqueoId} {
+      allow read:  if esUsuarioInventarioActivo();
+      allow write: if false;
+    }
+
+    match /sesion_estado_tracker/{docId} {
+      allow read, write: if false;
+    }
+
+    // -------------------------------------------------------------------------
     // eventos_hardware/ — auditoría de cambios HW (agente crea; IT gestiona workflow)
     // -------------------------------------------------------------------------
     // Create: solo Admin SDK del agente (service account). El front usa API REST;

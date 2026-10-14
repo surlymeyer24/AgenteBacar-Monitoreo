@@ -17,6 +17,12 @@ public class Celular {
     private String modelo;
     private String imei;
 
+    @Getter(onMethod_ = @PropertyName("con_cargador"))
+    @Setter(onMethod_ = @PropertyName("con_cargador"))
+    private Boolean conCargador;
+
+    private String condicion;
+
     @Getter(onMethod_ = @PropertyName("linea_numero"))
     @Setter(onMethod_ = @PropertyName("linea_numero"))
     private String lineaNumero;

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { Suspense, useState, useMemo } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { useEventosHardware } from '../hooks/useQueries';
 import TableFilters from '../components/TableFilters';
@@ -74,6 +74,14 @@ function fmtEstado(estado) {
   return found ? found.label : estado ?? '—';
 }
 
+function EventosHardwareOutlet() {
+  return (
+    <Suspense fallback={null}>
+      <Outlet />
+    </Suspense>
+  );
+}
+
 function EventosHardwareList() {
   const navigate = useNavigate();
   const [filtroEstado, setFiltroEstado] = useState('pendiente');
@@ -104,8 +112,8 @@ function EventosHardwareList() {
     return result;
   }, [eventos, filtroComponente, buscar]);
 
-  if (isLoading) return <><StudioLoading /><Outlet /></>;
-  if (error) return <><StudioError message="No se pudieron cargar los eventos de hardware" /><Outlet /></>;
+  if (isLoading) return <><StudioLoading /><EventosHardwareOutlet /></>;
+  if (error) return <><StudioError message="No se pudieron cargar los eventos de hardware" /><EventosHardwareOutlet /></>;
 
   return (
     <>
@@ -204,7 +212,7 @@ function EventosHardwareList() {
         </div>
       )}
     </StudioPageShell>
-    <Outlet />
+    <EventosHardwareOutlet />
     </>
   );
 }

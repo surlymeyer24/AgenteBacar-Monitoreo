@@ -1,16 +1,21 @@
-import { useCallback, useMemo } from 'react';
-import { Outlet } from 'react-router-dom';
+import { useCallback, useEffect, useMemo } from 'react';
+import { Outlet, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useComputadoras } from '../hooks/useQueries';
 import { ComputadorasListContext } from '../context/ComputadorasListContext';
+import { useCatalogo } from '../hooks/useCatalogo';
+import { useEditPcStock } from '../hooks/useEditPcStock';
+import EditPcStockModal from '../components/EditPcStockModal';
+import { editPcStockModalProps } from '../utils/editPcStockModalProps';
+import { fetchComputadora } from '../api/computadoraApi';
 
 const LISTADO_FIELDS = [
   'uuid', 'hostname', 'tipoEquipo', 'usuarioActual', 'ubicacion',
   'sistemaOperativo', 'arquitectura', 'estadoActual', 'estadoConexion',
   'estadoAgente', 'ultimaSincronizacion', 'procesadorNombre',
   'responsableInventario', 'anydeskId', 'ubicacionStock',
-  'condicion', 'origenAlta', 'estadoConciliacion', 'comboEsperadoId',
-  'especificacionEsperada', 'loteOrigenId',
+  'condicion', 'origenAlta', 'estadoConciliacion', 'estadoPreparacion', 'estadoReporteAgente', 'comboEsperadoId',
+  'especificacionEsperada', 'descripcionStock', 'loteOrigenId',
 ];
 
 function pickListadoFields(dto) {
@@ -34,8 +39,13 @@ function pickListadoFields(dto) {
 
 export default function ComputadorasListLayout() {
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { data: todas = [], isLoading: cargando, error: queryError } = useComputadoras();
   const error = queryError ? 'No se pudo conectar con el servidor' : null;
+
+  const { items: ubicCompItems } = useCatalogo('ubicaciones_computadora');
+  const { items: tiposEquipoItems } = useCatalogo('tipos_equipo');
+  const { items: condicionesItems } = useCatalogo('condiciones_equipo');
 
   const setTodas = useCallback(
     updater => {
@@ -52,7 +62,7 @@ export default function ComputadorasListLayout() {
     [queryClient],
   );
 
-  const mergeEnListado = useCallback(dto => {
+  const mergeEnListado = useCallback((dto) => {
     if (!dto?.uuid) return;
     const safe = pickListadoFields(dto);
     setTodas(prev => {
@@ -64,10 +74,39 @@ export default function ComputadorasListLayout() {
     });
   }, [setTodas]);
 
-  const removeEnListado = useCallback(uuid => {
+  const removeEnListado = useCallback((uuid) => {
     if (!uuid) return;
     setTodas(prev => prev.filter(p => p.uuid !== uuid));
   }, [setTodas]);
+
+  const editPcStock = useEditPcStock({
+    tiposEquipoItems,
+    condicionesItems,
+    ubicCompItems,
+    onUpdated: mergeEnListado,
+    onDeleted: removeEnListado,
+  });
+
+  useEffect(() => {
+    const uuidEditar = searchParams.get('editarPc');
+    if (!uuidEditar) return undefined;
+
+    let cancel = false;
+    fetchComputadora(uuidEditar)
+      .then((pc) => {
+        if (cancel || !pc) return;
+        editPcStock.handleOpenEditPc(pc);
+        const next = new URLSearchParams(searchParams);
+        next.delete('editarPc');
+        setSearchParams(next, { replace: true });
+      })
+      .catch(() => {
+        if (!cancel) editPcStock.setEditPcError('No se pudo abrir la PC para editar.');
+      });
+
+    return () => { cancel = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- abrir solo cuando llega editarPc por URL
+  }, [searchParams.get('editarPc')]);
 
   const value = useMemo(
     () => ({
@@ -78,13 +117,17 @@ export default function ComputadorasListLayout() {
       recargar,
       mergeEnListado,
       removeEnListado,
+      openEditPc: editPcStock.handleOpenEditPc,
     }),
-    [todas, setTodas, cargando, error, recargar, mergeEnListado, removeEnListado],
+    [todas, setTodas, cargando, error, recargar, mergeEnListado, removeEnListado, editPcStock.handleOpenEditPc],
   );
 
   return (
     <ComputadorasListContext.Provider value={value}>
       <Outlet />
+      <EditPcStockModal
+        {...editPcStockModalProps(editPcStock, { tiposEquipoItems, condicionesItems, ubicCompItems })}
+      />
     </ComputadorasListContext.Provider>
   );
 }

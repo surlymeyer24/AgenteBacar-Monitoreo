@@ -16,7 +16,7 @@ public class DashboardStatsDTO {
     private int totalNvrs;
     /** Monitores reportados por el agente en todas las PCs. */
     private int totalMonitores;
-    /** Suma de USB, monitores y dispositivos de audio (salida) en todas las PCs. Sin micrófonos ni impresoras. */
+    /** Suma de USB y monitores en todas las PCs. Sin parlantes, micrófonos ni impresoras. */
     private int totalPerifericos;
     /** Conteos por tipo (Monitores, Teclados, …) alineados al inventario front. Sin impresoras. */
     private Map<String, Integer> perifericosPorTipo;

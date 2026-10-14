@@ -22,6 +22,7 @@ import com.bacarsa.inventario.dto.ComputadoraCreateDTO;
 import com.bacarsa.inventario.dto.ComputadoraDTO;
 import com.bacarsa.inventario.dto.ComputadoraListadoDTO;
 import com.bacarsa.inventario.dto.ComputadoraStockUpdateDTO;
+import com.bacarsa.inventario.dto.ComputadoraTimelineItemDTO;
 import com.bacarsa.inventario.dto.IngresarStockDTO;
 import com.bacarsa.inventario.dto.MigracionHistorialResultDTO;
 import com.bacarsa.inventario.dto.PerifericoManualDTO;
@@ -34,6 +35,7 @@ import com.bacarsa.inventario.models.MonitorFirestore;
 import com.bacarsa.inventario.services.ArmadoComboService;
 import com.bacarsa.inventario.services.ComputadoraHistorialService;
 import com.bacarsa.inventario.services.ComputadoraService;
+import com.bacarsa.inventario.services.ComputadoraTimelineService;
 import com.bacarsa.inventario.services.PerifericoManualService;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -47,15 +49,18 @@ public class ComputadoraController {
     private final ArmadoComboService armadoComboService;
     private final PerifericoManualService perifericoManualService;
     private final ComputadoraHistorialService historialService;
+    private final ComputadoraTimelineService computadoraTimelineService;
 
     public ComputadoraController(ComputadoraService computadoraService,
                                  ArmadoComboService armadoComboService,
                                  PerifericoManualService perifericoManualService,
-                                 ComputadoraHistorialService historialService) {
+                                 ComputadoraHistorialService historialService,
+                                 ComputadoraTimelineService computadoraTimelineService) {
         this.computadoraService = computadoraService;
         this.armadoComboService = armadoComboService;
         this.perifericoManualService = perifericoManualService;
         this.historialService = historialService;
+        this.computadoraTimelineService = computadoraTimelineService;
     }
 
     @GetMapping("/recientes")
@@ -123,6 +128,18 @@ public class ComputadoraController {
         return ResponseEntity.ok(dto);
     }
 
+    @GetMapping("/{uuid}/timeline")
+    public ResponseEntity<List<ComputadoraTimelineItemDTO>> timeline(
+            @PathVariable String uuid,
+            @RequestParam(name = "limit", required = false) Integer limit)
+            throws ExecutionException, InterruptedException {
+        List<ComputadoraTimelineItemDTO> items = computadoraTimelineService.timeline(uuid, limit);
+        if (items == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(items);
+    }
+
     @PostMapping("/{uuid}/perifericos/impresoras")
     public ResponseEntity<ComputadoraDTO> agregarImpresora(
             @PathVariable String uuid,
@@ -177,6 +194,16 @@ public class ComputadoraController {
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().build();
         }
+    }
+
+    @PostMapping("/{uuid}/sacar-de-pipeline")
+    public ResponseEntity<Map<String, Object>> sacarDePipeline(@PathVariable String uuid)
+            throws ExecutionException, InterruptedException {
+        PerifericoManualDTO lote = perifericoManualService.devolverUnidadALote(uuid);
+        if (lote == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(Map.of("ok", true, "loteId", lote.getId() != null ? lote.getId() : ""));
     }
 
     @PostMapping("/{uuid}/ingresar-stock")

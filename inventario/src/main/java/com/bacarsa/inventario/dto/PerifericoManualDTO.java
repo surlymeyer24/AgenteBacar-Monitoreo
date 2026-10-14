@@ -28,5 +28,6 @@ public class PerifericoManualDTO {
     private String comboNombre;
     private EspecificacionStockDTO especificacionStock;
     private String numeroSerie;
+    private String loteOrigenId;
     private List<CambioEstadoDTO> historialEstados;
 }

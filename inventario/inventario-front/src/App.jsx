@@ -45,6 +45,7 @@ const PerifericosMicrofonosList = lazy(() => import('./pages/PerifericosMicrofon
 const PerifericoManualList = lazy(() => import('./pages/PerifericoManualList'));
 const PerifericoManualNuevo = lazy(() => import('./pages/PerifericoManualNuevo'));
 const PerifericoManualDetail = lazy(() => import('./pages/PerifericoManualDetail'));
+const AsignacionesStock = lazy(() => import('./pages/AsignacionesStock'));
 const CamaraList = lazy(() => import('./pages/CamaraList'));
 const CamaraNueva = lazy(() => import('./pages/CamaraNueva'));
 const CamaraDetail = lazy(() => import('./pages/CamaraDetail'));
@@ -75,6 +76,7 @@ const ConciliacionesList = lazy(() => import('./pages/ConciliacionesList'));
 const EventoHardwareDetail = lazy(() => import('./pages/EventoHardwareDetail'));
 const ResponsablesList = lazy(() => import('./pages/ResponsablesList'));
 const ResponsableDetail = lazy(() => import('./pages/ResponsableDetail'));
+const InvestigacionSesiones = lazy(() => import('./pages/InvestigacionSesiones'));
 
 function RouteFallback() {
   return (
@@ -229,6 +231,7 @@ function AppRoutes() {
         <Route path="/perifericos/microfonos" element={<PerifericosMicrofonosList />} />
         <Route path="/perifericos/televisores" element={<TelevisorList />} />
         <Route path="/perifericos/celulares" element={<CelularList />} />
+        <Route path="/asignaciones-stock" element={<AsignacionesStock />} />
         <Route path="/perifericos/stock" element={<PerifericoManualList />}>
           <Route path=":id" element={<PerifericoManualDetail />} />
         </Route>
@@ -262,6 +265,7 @@ function AppRoutes() {
         <Route path="/system" element={<RequireAdmin><System /></RequireAdmin>} />
         <Route path="/admin/usuarios" element={<RequireAdmin><UsuariosAdmin /></RequireAdmin>} />
         <Route path="/admin/catalogos" element={<RequireAdmin><CatalogosAdmin /></RequireAdmin>} />
+        <Route path="/investigacion" element={<InvestigacionSesiones />} />
         <Route path="/perfil" element={<MiPerfil />} />
       </Route>
     </Routes>

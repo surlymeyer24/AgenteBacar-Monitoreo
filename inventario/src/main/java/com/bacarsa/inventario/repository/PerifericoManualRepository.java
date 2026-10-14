@@ -56,15 +56,24 @@ public class PerifericoManualRepository {
         return snapshotToPeriferico(doc);
     }
 
+    @Deprecated
     @Cacheable(value = "perifericosManuales", key = "'hostname:' + #hostname.toLowerCase()")
     public List<PerifericoManual> findByComputadoraHostname(String hostname)
             throws ExecutionException, InterruptedException {
-        ApiFuture<QuerySnapshot> future = firestore.collection(collectionName)
-                .whereEqualTo("computadoraHostname", hostname)
-                .get();
         List<PerifericoManual> result = new ArrayList<>();
-        for (QueryDocumentSnapshot doc : future.get().getDocuments()) {
+        ApiFuture<QuerySnapshot> futureNew = firestore.collection(collectionName)
+                .whereEqualTo("computadora_hostname", hostname)
+                .get();
+        for (QueryDocumentSnapshot doc : futureNew.get().getDocuments()) {
             result.add(snapshotToPeriferico(doc));
+        }
+        if (result.isEmpty()) {
+            ApiFuture<QuerySnapshot> futureLegacy = firestore.collection(collectionName)
+                    .whereEqualTo("computadoraHostname", hostname)
+                    .get();
+            for (QueryDocumentSnapshot doc : futureLegacy.get().getDocuments()) {
+                result.add(snapshotToPeriferico(doc));
+            }
         }
         return result;
     }
@@ -111,19 +120,30 @@ public class PerifericoManualRepository {
     }
 
     @CacheEvict(value = "perifericosManuales", allEntries = true)
-    public void updateComputadoraHostname(String id, String hostname)
-            throws ExecutionException, InterruptedException {
-        firestore.collection(collectionName).document(id)
-                .update("computadoraHostname", hostname).get();
-    }
-
-    @CacheEvict(value = "perifericosManuales", allEntries = true)
     public void updateAsignacionPc(String id, String computadoraUuid, String hostname)
             throws ExecutionException, InterruptedException {
         Map<String, Object> updates = new HashMap<>();
         updates.put("computadora_uuid", computadoraUuid);
-        updates.put("computadoraHostname", hostname);
+        updates.put("computadora_hostname", hostname);
         firestore.collection(collectionName).document(id).update(updates).get();
+    }
+
+    @CacheEvict(value = "perifericosManuales", allEntries = true)
+    public void limpiarAsignacion(String id, String ubicacionDeposito)
+            throws ExecutionException, InterruptedException {
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("computadora_uuid", FieldValue.delete());
+        updates.put("computadora_hostname", FieldValue.delete());
+        updates.put("computadoraHostname", FieldValue.delete());
+        updates.put("ubicacion", ubicacionDeposito);
+        firestore.collection(collectionName).document(id).update(updates).get();
+    }
+
+    @CacheEvict(value = "perifericosManuales", allEntries = true)
+    public void updateUbicacion(String id, String ubicacion)
+            throws ExecutionException, InterruptedException {
+        firestore.collection(collectionName).document(id)
+                .update("ubicacion", ubicacion).get();
     }
 
     @CacheEvict(value = "perifericosManuales", allEntries = true)
@@ -177,6 +197,12 @@ public class PerifericoManualRepository {
             p = new PerifericoManual();
         }
         p.setId(doc.getId());
+        if (p.getComputadoraHostname() == null) {
+            String legacy = doc.getString("computadoraHostname");
+            if (legacy != null && !legacy.isBlank()) {
+                p.setComputadoraHostname(legacy);
+            }
+        }
         EspecificacionStock spec = EspecificacionStockMapper.fromFirestoreMap(doc.get("especificacion_stock"));
         spec = EspecificacionStockMapper.enrichFromNombre(spec, doc.getString("nombre"));
         p.setEspecificacionStock(spec);

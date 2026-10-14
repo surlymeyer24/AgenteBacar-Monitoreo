@@ -29,6 +29,7 @@ public class PerifericoManualMapper {
         dto.setComboNombre(p.getComboNombre());
         dto.setEspecificacionStock(EspecificacionStockMapper.toDTO(p.getEspecificacionStock()));
         dto.setNumeroSerie(p.getNumeroSerie());
+        dto.setLoteOrigenId(p.getLoteOrigenId());
         dto.setHistorialEstados(CambioEstadoMapper.toDTOList(p.getHistorialEstados()));
         return dto;
     }

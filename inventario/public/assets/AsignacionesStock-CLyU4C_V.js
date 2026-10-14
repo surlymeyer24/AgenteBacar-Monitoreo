@@ -1,0 +1,1 @@
+import{Vt as e}from"./vendor-czSTcAI0.js";import{r as t}from"./motion-KUxhZmh6.js";var n=t();function r(){return(0,n.jsx)(e,{to:`/perifericos/stock?vista=asignaciones`,replace:!0})}export{r as default};

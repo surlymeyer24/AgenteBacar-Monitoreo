@@ -29,12 +29,14 @@ function KpiCard({ label, value, color = 'text-slate-900', sub }) {
   );
 }
 
-function ChartCard({ titulo, subtitulo, children, className = '' }) {
+const CHART_HEIGHT = 360;
+
+function ChartCard({ titulo, subtitulo, children, className = '', chart = true }) {
   return (
-    <div className={`bg-white rounded-xl border border-slate-200 shadow-xs p-5 space-y-3 ${className}`}>
-      <div className="border-b border-slate-100 pb-2">
+    <div className={`bg-white rounded-xl border border-slate-200 shadow-xs p-6 space-y-4 ${chart ? 'min-h-[420px]' : ''} ${className}`}>
+      <div className="border-b border-slate-100 pb-3">
         <h2 className="text-base font-semibold text-slate-900">{titulo}</h2>
-        {subtitulo ? <p className="text-sm text-slate-500 m-0 mt-0.5">{subtitulo}</p> : null}
+        {subtitulo ? <p className="text-sm text-slate-500 m-0 mt-1">{subtitulo}</p> : null}
       </div>
       {children}
     </div>
@@ -43,28 +45,29 @@ function ChartCard({ titulo, subtitulo, children, className = '' }) {
 
 function BarChartSimple({ data, color = BAR_COLOR, layout = 'vertical' }) {
   if (!data.length) {
-    return <p className="text-xs text-slate-500 m-0 py-8 text-center">Sin datos.</p>;
+    return <p className="text-sm text-slate-500 m-0 py-16 text-center">Sin datos.</p>;
   }
   const isHorizontal = layout === 'horizontal';
+  const height = isHorizontal ? Math.max(CHART_HEIGHT, data.length * 40) : CHART_HEIGHT;
   return (
-    <ResponsiveContainer width="100%" height={Math.max(180, data.length * 32)}>
+    <ResponsiveContainer width="100%" height={height}>
       <BarChart
         data={data}
         layout={isHorizontal ? 'vertical' : 'horizontal'}
-        margin={{ top: 4, right: 8, left: isHorizontal ? 80 : 4, bottom: 4 }}
+        margin={{ top: 8, right: 16, left: isHorizontal ? 100 : 8, bottom: 8 }}
       >
         <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
         {isHorizontal ? (
           <>
-            <XAxis type="number" tick={{ fontSize: 10 }} allowDecimals={false} />
-            <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={76} />
-            <Bar dataKey="value" fill={color} radius={[0, 4, 4, 0]} />
+            <XAxis type="number" tick={{ fontSize: 12 }} allowDecimals={false} />
+            <YAxis type="category" dataKey="name" tick={{ fontSize: 12 }} width={96} />
+            <Bar dataKey="value" fill={color} radius={[0, 6, 6, 0]} barSize={28} />
           </>
         ) : (
           <>
-            <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} angle={data.length > 4 ? -25 : 0} textAnchor={data.length > 4 ? 'end' : 'middle'} height={data.length > 4 ? 50 : 30} />
-            <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
-            <Bar dataKey="value" fill={color} radius={[4, 4, 0, 0]} />
+            <XAxis dataKey="name" tick={{ fontSize: 12 }} interval={0} angle={data.length > 4 ? -25 : 0} textAnchor={data.length > 4 ? 'end' : 'middle'} height={data.length > 4 ? 56 : 36} />
+            <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
+            <Bar dataKey="value" fill={color} radius={[6, 6, 0, 0]} barSize={48} />
           </>
         )}
         <Tooltip formatter={v => [v, 'Cantidad']} />
@@ -205,12 +208,12 @@ export default function Reportes() {
           </div>
 
           {/* Fila 1: donuts */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <ChartCard titulo="PCs activas / inactivas" subtitulo="Según última sincronización del agente (solo registradas)">
               {pieActivas.length ? (
-                <ResponsiveContainer width="100%" height={220}>
+                <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
                   <PieChart>
-                    <Pie data={pieActivas} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3}>
+                    <Pie data={pieActivas} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={70} outerRadius={110} paddingAngle={3}>
                       {pieActivas.map((_, i) => (
                         <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
                       ))}
@@ -220,15 +223,15 @@ export default function Reportes() {
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
-                <p className="text-xs text-slate-500 py-8 text-center m-0">Sin datos de sync.</p>
+                <p className="text-sm text-slate-500 py-16 text-center m-0">Sin datos de sync.</p>
               )}
             </ChartCard>
 
             <ChartCard titulo="Computadoras por estado" subtitulo="Incluye stock manual tipo computadora">
               {pieEstados.length ? (
-                <ResponsiveContainer width="100%" height={220}>
+                <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
                   <PieChart>
-                    <Pie data={pieEstados} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3}>
+                    <Pie data={pieEstados} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={70} outerRadius={110} paddingAngle={3}>
                       {pieEstados.map((_, i) => (
                         <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
                       ))}
@@ -238,13 +241,13 @@ export default function Reportes() {
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
-                <p className="text-xs text-slate-500 py-8 text-center m-0">Sin datos.</p>
+                <p className="text-sm text-slate-500 py-16 text-center m-0">Sin datos.</p>
               )}
             </ChartCard>
           </div>
 
           {/* Fila 2: área + tipo */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <ChartCard titulo="PCs por área" subtitulo="Distribución por ubicación">
               <BarChartSimple data={dataArea} color={BAR_COLOR} layout="horizontal" />
             </ChartCard>
@@ -254,7 +257,7 @@ export default function Reportes() {
           </div>
 
           {/* Fila 3: arquitectura + procesador */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <ChartCard titulo="Por arquitectura">
               <BarChartSimple data={dataArq} color="#36b37e" layout="horizontal" />
             </ChartCard>
@@ -264,7 +267,7 @@ export default function Reportes() {
           </div>
 
           {/* Fila 4: periféricos + infra */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <ChartCard titulo="Periféricos con PC — por tipo" subtitulo="Detectados por agente">
               <BarChartSimple data={dataPerif} color="#00a3bf" layout="horizontal" />
             </ChartCard>
@@ -274,7 +277,7 @@ export default function Reportes() {
           </div>
 
           {/* Fila 5: routers+switches + tesorería + perif stock */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
             <ChartCard
               titulo="Routers y Switches"
               subtitulo={`${fmt(r.infraestructura.totalRouters + r.infraestructura.totalSwitches)} equipos en total`}
@@ -287,7 +290,7 @@ export default function Reportes() {
             >
               <BarChartSimple data={dataMaquinasTes} color="#ffab00" layout="vertical" />
             </ChartCard>
-            <ChartCard titulo="Periféricos en stock manual" subtitulo={`${fmt(r.perifericos.stockManual)} disponibles · ${fmt(r.perifericos.asignadosManual)} asignados`}>
+            <ChartCard chart={false} titulo="Periféricos en stock manual" subtitulo={`${fmt(r.perifericos.stockManual)} disponibles · ${fmt(r.perifericos.asignadosManual)} asignados`}>
               <div className="grid grid-cols-2 gap-2 pt-2">
                 <div className="rounded-lg bg-emerald-50 border border-emerald-100 p-3 text-center">
                   <span className="text-[10px] font-semibold text-emerald-700 uppercase block">En stock</span>
@@ -306,6 +309,7 @@ export default function Reportes() {
 
           {/* Tabla detalle */}
           <ChartCard
+            chart={false}
             titulo="Detalle de computadoras"
             subtitulo={`Mostrando ${detalle.length} equipos registrados por agente`}
             className="overflow-hidden"

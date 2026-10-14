@@ -121,6 +121,33 @@ export function resolveSpecFromItem(item) {
   return mergeSpecFields(stored, fromNombre);
 }
 
+/** Spec resuelta para computadora trazable (especificacion_esperada o hostname legacy). */
+export function resolveSpecFromComputadora(pc) {
+  const stored = pc?.especificacionEsperada;
+  const fromHostname = hasStoredSpec(stored)
+    ? { cpuModelo: '', ramTotalGb: '', discoResumen: '' }
+    : parseSpecFromNombre(pc?.hostname);
+  return mergeSpecFields(
+    stored ? {
+      cpuModelo: stored.cpuModelo,
+      ramTotalGb: stored.ramTotalGb != null ? String(stored.ramTotalGb) : '',
+      discoResumen: stored.discoResumen,
+      tipoEquipo: stored.tipoEquipo,
+      condicion: stored.condicion,
+    } : null,
+    fromHostname,
+  );
+}
+
+/** Descripción libre de una PC trazable (independiente de la etiqueta auto). */
+export function descripcionFromComputadora(pc) {
+  if (pc?.descripcionStock?.trim()) return pc.descripcionStock.trim();
+  return descripcionFromItem({
+    nombre: pc?.hostname,
+    especificacionStock: pc?.especificacionEsperada,
+  });
+}
+
 /** Etiqueta visual auto-generada (CPU + RAM + disco). Independiente de la descripción. */
 export function etiquetaFromItem(item) {
   const spec = resolveSpecFromItem(item);
@@ -182,11 +209,11 @@ export function buildDefaultHostname(lote) {
   const cpu = resolved.cpuModelo?.trim();
   if (cpu) {
     const slug = cpu.replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 28);
-    const sufijo = (lote?.id ?? '0000').slice(-4);
+    const sufijo = crypto.randomUUID().slice(0, 8);
     return `PC-${slug}-${sufijo}`;
   }
   const nombre = (lote?.nombre ?? 'PC-STOCK').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 20);
-  return `${nombre}-${(lote?.id ?? '0000').slice(-4)}`;
+  return `${nombre}-${crypto.randomUUID().slice(0, 8)}`;
 }
 
 export function computadoraDesdeSacarUnidad(dto, lote) {
@@ -201,6 +228,8 @@ export function computadoraDesdeSacarUnidad(dto, lote) {
     condicion: dto.condicion ?? dto.especificacionEsperada?.condicion ?? specLote.condicion ?? null,
     origenAlta: dto.origenAlta ?? 'STOCK',
     estadoConciliacion: dto.estadoConciliacion ?? 'SIN_BASELINE',
+    estadoPreparacion: dto.estadoPreparacion ?? 'SIN_ARMAR',
+    estadoReporteAgente: dto.estadoReporteAgente ?? 'SIN_REPORTE',
     ubicacionStock: dto.ubicacionStock ?? lote?.ubicacion ?? 'stock',
     especificacionEsperada: dto.especificacionEsperada ?? specPayload ?? null,
     loteOrigenId: dto.loteOrigenId ?? lote?.id ?? null,

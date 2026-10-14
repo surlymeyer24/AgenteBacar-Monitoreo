@@ -1,8 +1,11 @@
 package com.bacarsa.inventario.controller;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -23,6 +26,8 @@ import jakarta.validation.Valid;
 @RestController
 @RequestMapping("/api/celulares")
 public class CelularController {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(CelularController.class);
 
     private final CelularService celularService;
 
@@ -46,18 +51,18 @@ public class CelularController {
     }
 
     @PostMapping
-    public ResponseEntity<CelularDTO> crear(@Valid @RequestBody CelularCreateDTO body)
+    public ResponseEntity<?> crear(@Valid @RequestBody CelularCreateDTO body)
             throws ExecutionException, InterruptedException {
         try {
             CelularDTO creado = celularService.crear(body);
             return ResponseEntity.status(HttpStatus.CREATED).body(creado);
         } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().build();
+            return respuestaError(ex);
         }
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<CelularDTO> actualizar(
+    public ResponseEntity<?> actualizar(
             @PathVariable String id,
             @Valid @RequestBody CelularCreateDTO dto)
             throws ExecutionException, InterruptedException {
@@ -65,8 +70,16 @@ public class CelularController {
             CelularDTO actualizado = celularService.update(id, dto);
             return ResponseEntity.ok(actualizado);
         } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().build();
+            return respuestaError(ex);
         }
+    }
+
+    private ResponseEntity<Map<String, String>> respuestaError(IllegalArgumentException ex) {
+        LOGGER.warn("Solicitud de celular rechazada: {}", ex.getMessage());
+        HttpStatus status = ex.getMessage() != null && ex.getMessage().startsWith("Ya existe un celular con el IMEI")
+                ? HttpStatus.CONFLICT
+                : HttpStatus.BAD_REQUEST;
+        return ResponseEntity.status(status).body(Map.of("error", ex.getMessage()));
     }
 
     @DeleteMapping("/{id}")

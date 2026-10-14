@@ -1,14 +1,16 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useDashboardStats, useComputadorasRecientes, useCamarasRecientes } from '../hooks/useQueries';
-import { nivelActividadSync, syncDotInlineStyle, tituloSyncDot } from '../utils/syncActividad';
+import { useDashboardStats, useComputadoras } from '../hooks/useQueries';
 import {
-  Monitor, Camera, CheckCircle2, Smartphone, ArrowRight, Laptop, Package, Video, Tv,
+  Monitor, Camera, CheckCircle2, Smartphone, Laptop, Video, Tv,
 } from 'lucide-react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import ComputadorasEstadoModal from '../components/ComputadorasEstadoModal';
 import { labelUbicacion } from '../constants/ubicaciones';
-import { useCatalogo, labelDeCatalogo } from '../hooks/useCatalogo';
+import { useCatalogo } from '../hooks/useCatalogo';
+import { chartDataDesdeMapa, esNotebook } from '../utils/reporteInventario';
+import { filtrarPcsInventarioOperativo } from '../utils/pipelinePcHelpers';
+import { nivelActividadSync } from '../utils/syncActividad';
 
 const ACCENT = '#BA1814';
 const SYNC_COLORS = {
@@ -17,46 +19,65 @@ const SYNC_COLORS = {
   inactivas: '#ef4444',
 };
 
-function badgeEstadoCamara(estado, items) {
-  const raw = String(estado ?? '').trim();
-  if (!raw) return { label: 'SIN ESTADO', className: 'bg-slate-100 text-slate-600' };
-  const label = labelDeCatalogo(items, raw);
-  const up = raw.toUpperCase();
-  if (up === 'ACTIVA' || up === 'ASIGNADA' || up === 'ONLINE' || up === 'OPERATIVO') {
-    return { label: up === 'ACTIVA' || up === 'ONLINE' ? 'ONLINE' : label.toUpperCase(), className: 'bg-emerald-100 text-emerald-800' };
-  }
-  if (up === 'EN_MANTENIMIENTO' || up === 'SIN_ASIGNAR') {
-    return { label: label.toUpperCase(), className: 'bg-amber-100 text-amber-800' };
-  }
-  return { label: label.toUpperCase(), className: 'bg-rose-100 text-rose-800' };
+const WIN_COLORS = { 'Windows 11': '#0c66e4', 'Windows 10': '#6554c0', Otros: '#94a3b8' };
+
+function clasificarWindows(so) {
+  const s = (so ?? '').toLowerCase();
+  if (s.includes('11')) return 'Windows 11';
+  if (s.includes('10')) return 'Windows 10';
+  return 'Otros';
 }
 
 function Dashboard() {
   const navigate = useNavigate();
-  const { items: estadoItems } = useCatalogo('estados_operativos');
   const { items: ubicCompItems } = useCatalogo('ubicaciones_computadora');
   const [modalPcsOpen, setModalPcsOpen] = useState(false);
 
   const { data: stats, isLoading: cargando, error: statsError } = useDashboardStats();
-  const { data: pcsRecientes = [] } = useComputadorasRecientes();
-  const { data: camsPreview = [] } = useCamarasRecientes();
+  const { data: computadoras = [] } = useComputadoras();
+
+  const pcsOperativas = useMemo(
+    () => filtrarPcsInventarioOperativo(computadoras),
+    [computadoras],
+  );
+
+  const metricasOperativas = useMemo(() => {
+    if (!pcsOperativas.length) return null;
+    let activas = 0;
+    let intermedio = 0;
+    let inactivas = 0;
+    for (const c of pcsOperativas) {
+      const n = nivelActividadSync(c);
+      if (n === 'activo') activas += 1;
+      else if (n === 'intermedio') intermedio += 1;
+      else inactivas += 1;
+    }
+    const notebooks = pcsOperativas.filter(esNotebook).length;
+    return {
+      total: pcsOperativas.length,
+      activas,
+      intermedio,
+      inactivas,
+      notebooks,
+      desktops: pcsOperativas.length - notebooks,
+    };
+  }, [pcsOperativas]);
 
   const error = statsError ? 'No se pudo cargar el dashboard. Verificá que el servidor esté en ejecución.' : null;
 
   const s = stats ?? {};
-  const totalPcAgente = Number(s.totalComputadoras ?? 0);
+  const totalPcAgente = metricasOperativas?.total ?? Number(s.totalComputadoras ?? 0);
   const totalCamaras = Number(s.totalCamaras ?? 0);
   const totalNvrs = Number(s.totalNvrs ?? 0);
   const totalMonitores = Number(s.totalMonitores ?? 0);
   const totalTelefonos = Number(s.totalTelefonos ?? 0);
-  const activas = Number(s.computadorasSyncMenos10Min ?? 0);
-  const intermedio = Number(s.computadorasSyncEntre10MinY1h ?? 0);
-  const inactivasRaw = Number(s.computadorasSinActividadMas1h ?? 0);
+  const activas = metricasOperativas?.activas ?? Number(s.computadorasSyncMenos10Min ?? 0);
+  const intermedio = metricasOperativas?.intermedio ?? Number(s.computadorasSyncEntre10MinY1h ?? 0);
+  const inactivasRaw = metricasOperativas?.inactivas ?? Number(s.computadorasSinActividadMas1h ?? 0);
   const inactivas = Math.max(0, inactivasRaw || (totalPcAgente - activas - intermedio));
 
-  const notebooks = Number(s.totalNotebooks ?? 0);
-  const desktops = Number(s.totalDesktops ?? totalPcAgente);
-  const totalStock = Number(s.stockPcsSinAsignar ?? 0);
+  const notebooks = metricasOperativas?.notebooks ?? Number(s.totalNotebooks ?? 0);
+  const desktops = metricasOperativas?.desktops ?? Number(s.totalDesktops ?? totalPcAgente);
   const totalPc = totalPcAgente;
 
   const pieData = useMemo(() => {
@@ -73,15 +94,48 @@ function Dashboard() {
     ];
   }, [activas, intermedio, inactivas, totalPc]);
 
-  const porAreaData = useMemo(() => (
-    Object.entries(s.porUbicacionComputadoras ?? {})
+  const porAreaData = useMemo(() => {
+    const map = {};
+    if (pcsOperativas.length) {
+      for (const pc of pcsOperativas) {
+        if (!pc.ubicacion) continue;
+        map[pc.ubicacion] = (map[pc.ubicacion] ?? 0) + 1;
+      }
+    } else {
+      Object.assign(map, s.porUbicacionComputadoras ?? {});
+    }
+    return Object.entries(map)
       .filter(([, n]) => Number(n) > 0)
       .map(([key, value]) => ({
         area: labelUbicacion(key, ubicCompItems),
         cantidad: Number(value) || 0,
       }))
-      .sort((a, b) => b.cantidad - a.cantidad)
-  ), [s.porUbicacionComputadoras, ubicCompItems]);
+      .sort((a, b) => b.cantidad - a.cantidad);
+  }, [pcsOperativas, s.porUbicacionComputadoras, ubicCompItems]);
+
+  const windowsData = useMemo(() => {
+    const counts = { 'Windows 11': 0, 'Windows 10': 0, Otros: 0 };
+    for (const pc of pcsOperativas) {
+      counts[clasificarWindows(pc.sistemaOperativo)] += 1;
+    }
+    return ['Windows 11', 'Windows 10', 'Otros']
+      .map((name) => ({ name, cantidad: counts[name], fill: WIN_COLORS[name] }))
+      .filter((row) => row.cantidad > 0);
+  }, [pcsOperativas]);
+
+  const procesadorData = useMemo(() => {
+    const map = {};
+    for (const pc of pcsOperativas) {
+      const raw = pc.procesadorNombre;
+      const key = raw != null && String(raw).trim() ? String(raw).trim() : 'Sin dato';
+      map[key] = (map[key] ?? 0) + 1;
+    }
+    return chartDataDesdeMapa(map, 8).map((row) => ({
+      procesador: row.name.length > 42 ? `${row.name.slice(0, 40)}…` : row.name,
+      procesadorFull: row.name,
+      cantidad: row.value,
+    }));
+  }, [pcsOperativas]);
 
   if (cargando && !stats) {
     return <div className="p-8 text-center text-slate-500">Cargando dashboard...</div>;
@@ -134,11 +188,6 @@ function Dashboard() {
               <span className="inline-flex items-center gap-1 text-xs text-slate-500">
                 <Laptop className="w-3 h-3" />{notebooks} Notebook
               </span>
-              {totalStock > 0 && (
-                <span className="inline-flex items-center gap-1 text-xs text-amber-600 font-semibold">
-                  <Package className="w-3 h-3" />{totalStock} en stock
-                </span>
-              )}
             </div>
           </div>
           <div className="p-2 bg-blue-50 rounded-lg text-blue-600 shrink-0">
@@ -304,140 +353,71 @@ function Dashboard() {
         </div>
       </div>
 
-      {/* Tablas PCs + Cámaras */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm p-5 space-y-3">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="text-base font-bold text-slate-800 uppercase tracking-wide">
-              Computadoras Detectadas Recientemente
-            </h2>
-            <button
-              type="button"
-              onClick={() => navigate('/computadoras')}
-              className="text-sm font-bold text-blue-600 hover:text-blue-800 inline-flex items-center gap-1 shrink-0"
-            >
-              Ver todas
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-          <div className="overflow-x-auto overflow-y-auto max-h-[280px] border border-slate-100 rounded-lg">
-            <table className="w-full text-left text-[15px] whitespace-nowrap">
-              <thead className="bg-slate-50 sticky top-0 text-slate-500 font-semibold text-xs uppercase tracking-wide">
-                <tr>
-                  <th className="px-3 py-2.5">Hostname</th>
-                  <th className="px-3 py-2.5">Conexión</th>
-                  <th className="px-3 py-2.5 hidden sm:table-cell">Procesador</th>
-                  <th className="px-3 py-2.5 text-right">Ubicación</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {pcsRecientes.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="px-3 py-8 text-center text-slate-400">Sin datos</td>
-                  </tr>
-                ) : (
-                  pcsRecientes.map((c) => {
-                    const nivel = nivelActividadSync(c);
-                    return (
-                      <tr
-                        key={c.uuid}
-                        className="hover:bg-slate-50 cursor-pointer transition-colors"
-                        onClick={() => navigate(`/computadoras/${c.uuid}`)}
-                      >
-                        <td className="px-3 py-2.5 font-medium text-slate-800">
-                          <span className="inline-flex items-center gap-2">
-                            <Monitor className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                            {c.hostname ?? '—'}
-                          </span>
-                        </td>
-                        <td className="px-3 py-2.5">
-                          <span
-                            className="inline-block"
-                            style={syncDotInlineStyle(nivel)}
-                            title={tituloSyncDot(nivel)}
-                          />
-                        </td>
-                        <td className="px-3 py-2.5 text-slate-500 hidden sm:table-cell max-w-[180px] truncate">
-                          {c.procesadorNombre ?? '—'}
-                        </td>
-                        <td className="px-3 py-2.5 text-right text-slate-600">
-                          {c.ubicacion ? labelUbicacion(c.ubicacion, ubicCompItems) : '—'}
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+      {/* Windows + Procesadores */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm p-6 space-y-4 min-h-[420px] flex flex-col">
+          <h2 className="text-base font-bold text-slate-800 uppercase tracking-wide">
+            Windows 11 vs Windows 10
+          </h2>
+          {windowsData.length === 0 ? (
+            <p className="text-sm text-slate-400 py-16 text-center flex-1 flex items-center justify-center">Sin datos de sistema operativo.</p>
+          ) : (
+            <div className="flex-1 h-[360px]">
+              <ResponsiveContainer width="100%" height={360}>
+                <BarChart data={windowsData} margin={{ left: 8, right: 20, top: 12, bottom: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="name" tick={{ fontSize: 13, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 13, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                  <Tooltip
+                    cursor={{ fill: 'rgba(186, 24, 20, 0.04)' }}
+                    contentStyle={{ borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13 }}
+                    formatter={(value) => [value, 'Equipos']}
+                  />
+                  <Bar dataKey="cantidad" radius={[6, 6, 0, 0]} barSize={64}>
+                    {windowsData.map((entry) => (
+                      <Cell key={entry.name} fill={entry.fill} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
 
-        <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm p-5 space-y-3">
-          <div className="flex items-center justify-between gap-2">
+        <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm p-6 space-y-4 min-h-[420px] flex flex-col">
+          <div>
             <h2 className="text-base font-bold text-slate-800 uppercase tracking-wide">
-              Circuito de Cámaras
+              Procesadores
             </h2>
-            <button
-              type="button"
-              onClick={() => navigate('/camaras')}
-              className="text-sm font-bold text-blue-600 hover:text-blue-800 inline-flex items-center gap-1 shrink-0"
-            >
-              Administrar circuito
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
+            <p className="text-xs text-slate-500 mt-1">Top 8 modelos detectados por el agente</p>
           </div>
-          <div className="overflow-x-auto overflow-y-auto max-h-[280px] border border-slate-100 rounded-lg">
-            <table className="w-full text-left text-[15px] whitespace-nowrap">
-              <thead className="bg-slate-50 sticky top-0 text-slate-500 font-semibold text-xs uppercase tracking-wide">
-                <tr>
-                  <th className="px-3 py-2.5">Nombre Cámara</th>
-                  <th className="px-3 py-2.5">Tipo</th>
-                  <th className="px-3 py-2.5 hidden sm:table-cell">Ubicación</th>
-                  <th className="px-3 py-2.5 text-right">Canal Estado</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {camsPreview.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="px-3 py-8 text-center text-slate-400">Sin datos</td>
-                  </tr>
-                ) : (
-                  camsPreview.map((cam, i) => {
-                    const badge = badgeEstadoCamara(cam.estado, estadoItems);
-                    return (
-                      <tr
-                        key={cam.id ?? i}
-                        className="hover:bg-slate-50 cursor-pointer transition-colors"
-                        onClick={() =>
-                          navigate(
-                            cam.nvrId
-                              ? `/nvrs/${encodeURIComponent(cam.nvrId)}`
-                              : `/camaras/${encodeURIComponent(cam.id ?? '')}`,
-                          )
-                        }
-                      >
-                        <td className="px-3 py-2.5 font-medium text-slate-800">
-                          <span className="inline-flex items-center gap-2">
-                            <Camera className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                            {cam.nombre ?? '—'}
-                          </span>
-                        </td>
-                        <td className="px-3 py-2.5 text-slate-500">{cam.tipo ?? '—'}</td>
-                        <td className="px-3 py-2.5 text-slate-600 hidden sm:table-cell">
-                          {cam.ubicacion ? labelUbicacion(cam.ubicacion) : '—'}
-                        </td>
-                        <td className="px-3 py-2.5 text-right">
-                          <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-bold tracking-wide ${badge.className}`}>
-                            {badge.label}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+          {procesadorData.length === 0 ? (
+            <p className="text-sm text-slate-400 py-16 text-center flex-1 flex items-center justify-center">Sin datos de procesador.</p>
+          ) : (
+            <div className="flex-1 h-[360px]">
+              <ResponsiveContainer width="100%" height={360}>
+                <BarChart data={procesadorData} layout="vertical" margin={{ left: 8, right: 20, top: 8, bottom: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
+                  <XAxis type="number" allowDecimals={false} tick={{ fontSize: 13, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                  <YAxis
+                    type="category"
+                    dataKey="procesador"
+                    width={160}
+                    tick={{ fontSize: 12, fill: '#64748b' }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip
+                    cursor={{ fill: 'rgba(186, 24, 20, 0.04)' }}
+                    contentStyle={{ borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13 }}
+                    labelFormatter={(_, payload) => payload?.[0]?.payload?.procesadorFull ?? ''}
+                    formatter={(value) => [value, 'Equipos']}
+                  />
+                  <Bar dataKey="cantidad" fill="#ff5630" radius={[0, 6, 6, 0]} barSize={28} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
       </div>
 

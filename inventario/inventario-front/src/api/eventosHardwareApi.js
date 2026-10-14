@@ -20,12 +20,15 @@ export function fetchEventosHardware(params = {}) {
   });
 }
 
-export function fetchEventoHardware(id) {
-  return apiFetch(`${BASE_URL}/${encId(id)}`).then(res => {
-    if (res.status === 404) return null;
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
-  });
+export async function fetchEventoHardware(id) {
+  const res = await apiFetch(`${BASE_URL}/${encId(id)}`);
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    let msg = `HTTP ${res.status}`;
+    try { const body = await res.json(); if (body.error) msg = body.error; } catch {}
+    throw new Error(msg);
+  }
+  return res.json();
 }
 
 export function fetchPendientesCount() {

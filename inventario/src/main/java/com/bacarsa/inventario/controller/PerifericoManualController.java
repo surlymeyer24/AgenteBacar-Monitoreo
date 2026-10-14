@@ -15,7 +15,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.bacarsa.inventario.dto.ActualizarPerifericoDTO;
 import com.bacarsa.inventario.dto.AsignarPerifericoDTO;
+import com.bacarsa.inventario.dto.AsignarUbicacionDTO;
 import com.bacarsa.inventario.dto.CambiarEstadoDTO;
+import com.bacarsa.inventario.dto.DevolverStockDTO;
 import com.bacarsa.inventario.dto.ComboCreateDTO;
 import com.bacarsa.inventario.dto.PerifericoManualCreateDTO;
 import com.bacarsa.inventario.dto.PerifericoManualDTO;
@@ -94,6 +96,35 @@ public class PerifericoManualController {
             throws ExecutionException, InterruptedException {
         try {
             PerifericoManualDTO dto = service.asignar(id, body.getComputadoraUuid(), body.getMotivo());
+            if (dto == null) return ResponseEntity.notFound().build();
+            return ResponseEntity.ok(dto);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @PostMapping("/{id}/asignar-ubicacion")
+    public ResponseEntity<PerifericoManualDTO> asignarUbicacion(
+            @PathVariable String id,
+            @Valid @RequestBody AsignarUbicacionDTO body)
+            throws ExecutionException, InterruptedException {
+        try {
+            PerifericoManualDTO dto = service.asignarUbicacion(id, body.getUbicacion(), body.getMotivo());
+            if (dto == null) return ResponseEntity.notFound().build();
+            return ResponseEntity.ok(dto);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(null);
+        }
+    }
+
+    @PostMapping("/{id}/devolver-stock")
+    public ResponseEntity<PerifericoManualDTO> devolverStock(
+            @PathVariable String id,
+            @RequestBody(required = false) DevolverStockDTO body)
+            throws ExecutionException, InterruptedException {
+        try {
+            String motivo = body != null ? body.getMotivo() : null;
+            PerifericoManualDTO dto = service.devolverStock(id, motivo);
             if (dto == null) return ResponseEntity.notFound().build();
             return ResponseEntity.ok(dto);
         } catch (IllegalArgumentException ex) {

@@ -98,6 +98,32 @@ export function deletePerifericoM(id) {
   });
 }
 
+export function asignarUbicacionM(id, ubicacion, motivo) {
+  return apiFetch(`${BASE_URL}/${encodeURIComponent(id)}/asignar-ubicacion`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ubicacion, motivo }),
+  }).then(res => {
+    if (res.status === 404) return null;
+    if (res.status === 400) throw new Error('Datos inválidos');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  });
+}
+
+export function devolverStockM(id, motivo) {
+  return apiFetch(`${BASE_URL}/${encodeURIComponent(id)}/devolver-stock`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ motivo: motivo || undefined }),
+  }).then(res => {
+    if (res.status === 404) return null;
+    if (res.status === 400) throw new Error('No se pudo devolver a stock');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  });
+}
+
 export function sacarUnidadStockM(loteId, body = {}) {
   return apiFetch(`${BASE_URL}/${encodeURIComponent(loteId)}/sacar-unidad`, {
     method: 'POST',

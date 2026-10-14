@@ -22,49 +22,57 @@ const DISPONIBILIDAD_CLS = {
   Inactiva: 'bg-slate-100 text-slate-600 border-slate-200',
 };
 
+const DISPONIBILIDAD_CLS_DARK = {
+  'En depósito': 'bg-emerald-900/40 text-emerald-300 border-emerald-700/50',
+  Asignada: 'bg-indigo-900/40 text-indigo-300 border-indigo-700/50',
+  'En mantenimiento': 'bg-amber-900/40 text-amber-300 border-amber-700/50',
+  Baja: 'bg-red-900/40 text-red-300 border-red-700/50',
+  Activa: 'bg-blue-900/40 text-blue-300 border-blue-700/50',
+  Inactiva: 'bg-slate-700/50 text-slate-300 border-slate-600',
+};
+
 const PREPARACION_MAP = {
-  SIN_BASELINE: { label: 'Sin armar', cls: 'bg-slate-100 text-slate-600 border-slate-200' },
-  NO_APLICA: { label: 'Sin armar', cls: 'bg-slate-100 text-slate-600 border-slate-200' },
-  BASELINE_LISTO: { label: 'Combo armado', cls: 'bg-violet-50 text-violet-700 border-violet-200' },
-  PENDIENTE: { label: 'Combo armado', cls: 'bg-violet-50 text-violet-700 border-violet-200' },
-  COINCIDE: { label: 'Combo armado', cls: 'bg-violet-50 text-violet-700 border-violet-200' },
-  DISCREPANCIA: { label: 'Combo armado', cls: 'bg-violet-50 text-violet-700 border-violet-200' },
+  SIN_ARMAR: { label: 'Sin armar', cls: 'bg-slate-100 text-slate-600 border-slate-200', clsDark: 'bg-slate-700/50 text-slate-300 border-slate-600' },
+  ARMADO: { label: 'Combo armado', cls: 'bg-violet-50 text-violet-700 border-violet-200', clsDark: 'bg-cyan-900/40 text-cyan-300 border-cyan-700/50' },
+  NO_APLICA: { label: 'No aplica', cls: 'bg-slate-100 text-slate-400 border-slate-200', clsDark: 'bg-slate-700/50 text-slate-400 border-slate-600' },
 };
 
-const AGENTE_MAP = {
-  SIN_BASELINE: { label: 'Sin reporte', cls: 'bg-slate-100 text-slate-500 border-slate-200' },
-  NO_APLICA: { label: 'No aplica', cls: 'bg-slate-100 text-slate-400 border-slate-200' },
-  BASELINE_LISTO: { label: 'Sin reporte', cls: 'bg-slate-100 text-slate-500 border-slate-200' },
-  PENDIENTE: { label: 'Match sugerido', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
-  COINCIDE: { label: 'Confirmada', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-  DISCREPANCIA: { label: 'Discrepancia', cls: 'bg-red-50 text-red-700 border-red-200' },
+const REPORTE_AGENTE_MAP = {
+  SIN_REPORTE: { label: 'Sin reporte', cls: 'bg-slate-100 text-slate-500 border-slate-200', clsDark: 'bg-slate-700/50 text-slate-300 border-slate-600' },
+  MATCH_SUGERIDO: { label: 'Match sugerido', cls: 'bg-amber-50 text-amber-700 border-amber-200', clsDark: 'bg-amber-900/40 text-amber-300 border-amber-700/50' },
+  CONFIRMADA: { label: 'Confirmada', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200', clsDark: 'bg-emerald-900/40 text-emerald-300 border-emerald-700/50' },
+  DISCREPANCIA: { label: 'Discrepancia', cls: 'bg-red-50 text-red-700 border-red-200', clsDark: 'bg-red-900/40 text-red-300 border-red-700/50' },
+  NO_APLICA: { label: 'No aplica', cls: 'bg-slate-100 text-slate-400 border-slate-200', clsDark: 'bg-slate-700/50 text-slate-400 border-slate-600' },
 };
 
-function Badge({ label, cls, title }) {
+function Badge({ label, cls, title, variant = 'light' }) {
+  const shape = variant === 'dark' ? 'rounded' : 'rounded-full';
+  const size = variant === 'dark' ? 'text-[11px]' : 'text-[10px]';
   return (
     <span
       title={title}
-      className={`px-2 py-0.5 rounded-full text-[10px] font-bold border whitespace-nowrap ${cls}`}
+      className={`px-2 py-0.5 ${shape} ${size} font-bold border whitespace-nowrap ${cls}`}
     >
       {label}
     </span>
   );
 }
 
-export function BadgeDisponibilidad({ estadoActual, estadoLabels }) {
+export function BadgeDisponibilidad({ estadoActual, estadoLabels, variant = 'light' }) {
   const label = labelDisponibilidad(estadoActual, estadoLabels);
-  const cls = DISPONIBILIDAD_CLS[label] ?? 'bg-slate-100 text-slate-600 border-slate-200';
-  return <Badge label={label} cls={cls} title="Disponibilidad: ¿dónde está el ítem?" />;
+  const map = variant === 'dark' ? DISPONIBILIDAD_CLS_DARK : DISPONIBILIDAD_CLS;
+  const cls = map[label] ?? (variant === 'dark' ? 'bg-slate-700/50 text-slate-300 border-slate-600' : 'bg-slate-100 text-slate-600 border-slate-200');
+  return <Badge label={label} cls={cls} title="Disponibilidad: ¿dónde está el ítem?" variant={variant} />;
 }
 
-export function BadgePreparacion({ estadoConciliacion }) {
-  const cfg = PREPARACION_MAP[estadoConciliacion] ?? PREPARACION_MAP.SIN_BASELINE;
-  return <Badge label={cfg.label} cls={cfg.cls} title="Preparación: ¿tiene combo/baseline armado?" />;
+export function BadgePreparacion({ estadoPreparacion, variant = 'light' }) {
+  const cfg = PREPARACION_MAP[estadoPreparacion] ?? PREPARACION_MAP.SIN_ARMAR;
+  return <Badge label={cfg.label} cls={variant === 'dark' ? cfg.clsDark : cfg.cls} title="Preparación: ¿tiene combo/baseline armado?" variant={variant} />;
 }
 
-export function BadgeAgente({ estadoConciliacion }) {
-  const cfg = AGENTE_MAP[estadoConciliacion] ?? AGENTE_MAP.SIN_BASELINE;
-  return <Badge label={cfg.label} cls={cfg.cls} title="Agente: ¿ya reportó CyberWatch?" />;
+export function BadgeAgente({ estadoReporteAgente, variant = 'light' }) {
+  const cfg = REPORTE_AGENTE_MAP[estadoReporteAgente] ?? REPORTE_AGENTE_MAP.SIN_REPORTE;
+  return <Badge label={cfg.label} cls={variant === 'dark' ? cfg.clsDark : cfg.cls} title="Agente: ¿ya reportó AgenteBacar?" variant={variant} />;
 }
 
 export function BadgeLoteInventario() {
@@ -88,12 +96,12 @@ export function BadgeUnidadTrazable({ reingreso = false }) {
 }
 
 /** Tres badges ortogonales para una computadora trazable en stock. */
-export function StockEstadosUnidad({ pc, estadoLabels }) {
+export function StockEstadosUnidad({ pc, estadoLabels, variant = 'light', className = '' }) {
   return (
-    <div className="flex flex-wrap gap-1 mt-1.5">
-      <BadgeDisponibilidad estadoActual={pc.estadoActual} estadoLabels={estadoLabels} />
-      <BadgePreparacion estadoConciliacion={pc.estadoConciliacion} />
-      <BadgeAgente estadoConciliacion={pc.estadoConciliacion} />
+    <div className={`flex flex-wrap gap-1 mt-1.5 ${className}`}>
+      <BadgeDisponibilidad estadoActual={pc.estadoActual} estadoLabels={estadoLabels} variant={variant} />
+      <BadgePreparacion estadoPreparacion={pc.estadoPreparacion} variant={variant} />
+      <BadgeAgente estadoReporteAgente={pc.estadoReporteAgente} variant={variant} />
     </div>
   );
 }
@@ -159,7 +167,7 @@ function LeyendaDetalle({ className = '' }) {
       <div>
         <p className="font-bold text-blue-700 uppercase tracking-wide mb-2">Agente</p>
         <ul className="space-y-1 text-slate-600 font-medium">
-          <li><strong>Sin reporte</strong> — CyberWatch aún no sincronizó</li>
+          <li><strong>Sin reporte</strong> — AgenteBacar aún no sincronizó</li>
           <li><strong>Match sugerido</strong> — revisar en Conciliaciones</li>
           <li><strong>Confirmada / Discrepancia</strong> — conciliación cerrada</li>
         </ul>

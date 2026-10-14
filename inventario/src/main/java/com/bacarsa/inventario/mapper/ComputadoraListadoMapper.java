@@ -5,6 +5,8 @@ import java.util.Map;
 import com.bacarsa.inventario.dto.ComputadoraListadoDTO;
 import com.bacarsa.inventario.models.EspecificacionStock;
 import com.bacarsa.inventario.models.EstadoOperativo;
+import com.bacarsa.inventario.models.EstadoPreparacion;
+import com.bacarsa.inventario.models.EstadoReporteAgente;
 import com.bacarsa.inventario.models.Ubicacion;
 import com.google.cloud.Timestamp;
 import com.google.cloud.firestore.DocumentSnapshot;
@@ -84,10 +86,14 @@ public final class ComputadoraListadoMapper {
         dto.setCondicion(doc.getString("condicion"));
         dto.setOrigenAlta(doc.getString("origen_alta"));
         dto.setEstadoConciliacion(doc.getString("estado_conciliacion"));
+        dto.setEstadoPreparacion(doc.getString("estado_preparacion"));
+        dto.setEstadoReporteAgente(doc.getString("estado_reporte_agente"));
+        derivarDesdeEstadoConciliacionSiNulo(dto);
         dto.setComboEsperadoId(doc.getString("combo_esperado_id"));
 
         EspecificacionStock specEsperada = EspecificacionStockMapper.fromFirestoreMap(doc.get("especificacion_esperada"));
         dto.setEspecificacionEsperada(EspecificacionStockMapper.toDTO(specEsperada));
+        dto.setDescripcionStock(doc.getString("descripcion_stock"));
         dto.setLoteOrigenId(doc.getString("lote_origen_id"));
 
         return dto;
@@ -121,5 +127,27 @@ public final class ComputadoraListadoMapper {
             return "Desconectado";
         }
         return "ONLINE".equalsIgnoreCase(estadoConexion.trim()) ? "Activo" : "Desconectado";
+    }
+
+    private static void derivarDesdeEstadoConciliacionSiNulo(ComputadoraListadoDTO dto) {
+        if (dto.getEstadoPreparacion() != null && dto.getEstadoReporteAgente() != null) return;
+        String ec = dto.getEstadoConciliacion();
+        if (ec == null) return;
+        if (dto.getEstadoPreparacion() == null) {
+            dto.setEstadoPreparacion(switch (ec) {
+                case "SIN_BASELINE" -> EstadoPreparacion.SIN_ARMAR.name();
+                case "NO_APLICA" -> EstadoPreparacion.NO_APLICA.name();
+                default -> EstadoPreparacion.ARMADO.name();
+            });
+        }
+        if (dto.getEstadoReporteAgente() == null) {
+            dto.setEstadoReporteAgente(switch (ec) {
+                case "SIN_BASELINE", "BASELINE_LISTO" -> EstadoReporteAgente.SIN_REPORTE.name();
+                case "PENDIENTE" -> EstadoReporteAgente.MATCH_SUGERIDO.name();
+                case "COINCIDE" -> EstadoReporteAgente.CONFIRMADA.name();
+                case "DISCREPANCIA" -> EstadoReporteAgente.DISCREPANCIA.name();
+                default -> EstadoReporteAgente.NO_APLICA.name();
+            });
+        }
     }
 }

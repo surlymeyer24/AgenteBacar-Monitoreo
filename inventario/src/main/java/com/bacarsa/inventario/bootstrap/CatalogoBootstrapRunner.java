@@ -33,7 +33,7 @@ public class CatalogoBootstrapRunner implements ApplicationRunner {
 
     private static final String[][] SEED_TIPOS_STOCK = {
             { "computadora", "Computadora" },
-            { "camara_ip", "Camara IP" },
+            { "camara_ip", "Cámara IP" },
             { "teclado", "Teclado" },
             { "mouse", "Mouse" },
             { "monitor", "Monitor" },
@@ -41,6 +41,10 @@ public class CatalogoBootstrapRunner implements ApplicationRunner {
             { "webcam", "Webcam" },
             { "parlante", "Parlante" },
             { "microfono", "Micrófono" },
+            { "router", "Router" },
+            { "switch", "Switch" },
+            { "access_point", "Access Point" },
+            { "telefono_ip", "Teléfono IP" },
             { "otro", "Otro" },
     };
 

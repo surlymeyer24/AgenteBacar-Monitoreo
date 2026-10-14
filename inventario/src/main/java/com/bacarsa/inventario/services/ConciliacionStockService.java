@@ -20,6 +20,7 @@ import com.bacarsa.inventario.models.Computadora;
 import com.bacarsa.inventario.models.ConciliacionStock;
 import com.bacarsa.inventario.models.DecisionConciliacion;
 import com.bacarsa.inventario.models.EstadoConciliacion;
+import com.bacarsa.inventario.models.EstadoReporteAgente;
 import com.bacarsa.inventario.models.EstadoOperativo;
 import com.bacarsa.inventario.util.ConciliacionComparador;
 import com.bacarsa.inventario.util.ConciliacionComparador.ComparacionResult;
@@ -95,6 +96,7 @@ public class ConciliacionStockService {
 
         Map<String, Object> stockUpdates = new HashMap<>(merge.getUpdates());
         stockUpdates.put("estado_conciliacion", comparacion.getEstado().name());
+        stockUpdates.put("estado_reporte_agente", comparacion.getEstadoReporte().name());
         stockUpdates.put("score_conciliacion", sugerencia.getScore());
         stockUpdates.put("fecha_conciliacion", Timestamp.now());
         stockUpdates.put("historialEstados",
@@ -124,6 +126,7 @@ public class ConciliacionStockService {
             if (stock != null && stock.getEstadoConciliacion() == EstadoConciliacion.PENDIENTE) {
                 Map<String, Object> updates = new HashMap<>();
                 updates.put("estado_conciliacion", EstadoConciliacion.BASELINE_LISTO.name());
+                updates.put("estado_reporte_agente", EstadoReporteAgente.SIN_REPORTE.name());
                 computadoraRepository.updateMatchingFields(stock.getUuid(), updates);
             }
         }
@@ -190,6 +193,7 @@ public class ConciliacionStockService {
         nueva.put("motivo", motivo);
         nueva.put("fechaHoraInicio", ahora);
         nueva.put("fechaHoraFin", null);
+        nueva.put("origen_cambio", "CONCILIACION");
         historial.add(nueva);
         return historial;
     }
