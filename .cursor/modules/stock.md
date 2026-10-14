@@ -58,13 +58,18 @@ Fuera de esta lista, para no tocarlos: `Nvr`, `Servidor`, `InternoIp`, `MaquinaT
 Este módulo usa: los `findAll` y el merge de un campo de las ocho colecciones.
 Este módulo es usado por: nadie todavía. Stock 2 y Stock 4 quedan fuera.
 
-## Rutas de esta feat
+## Rutas de este módulo
 
-- `GET /api/stock/unidades` → `StockController` → `StockUnidadesService.listar` (no escribe)
+- `GET /api/stock/unidades` → `StockController.listar` → `StockUnidadesService.listar` (proyección en solo lectura)
+- `GET /api/stock/unidades/{codigo}` → `StockController.obtenerPorCodigo` → `StockUnidadesService.obtenerPorCodigo`
+- `POST /api/stock/unidades` → `StockController.alta` → `StockAbmService.alta` (alta en stock con cálculo de código y set+merge, historial en PC)
+- `PATCH /api/stock/unidades/{codigo}` → `StockController.modificar` → `StockAbmService.modificar` (modificación parcial set+merge, diff en historial de PC)
+- `POST /api/stock/unidades/{codigo}/baja` → `StockController.baja` → `StockAbmService.darDeBaja` (baja con motivo obligatorio, estado BAJA y registro en historial)
 - Backfill interno: `CodigoInternoBackfillRunner` al arrancar (`app.stock.codigo-interno.backfill`, default activo) → `StockUnidadesService.backfill` → `CodigoInternoBackfill`
 - Proyección: `ProyeccionStock`, ficha `FichaLectura`, DTO `UnidadStockDTO`
-- Merge de un campo: `MergeCodigoInterno` + `mergeCodigoInterno` en los repositorios (en computadoras, `mergeUpdates`)
-- Tests: `StockProyeccionTest`, `StockUnidadesServiceTest` (documento en memoria, sin emulador)
+- DTOs ABM: `AltaUnidadStockDTO`, `ModificarUnidadStockDTO`, `BajaUnidadStockDTO`
+- Merge de un campo / parcial: `actualizar(id, campos)` con `SetOptions.merge()` en los 8 repositorios (en computadoras `aplicarHistorial` y `mergeUpdates`)
+- Tests: `StockProyeccionTest`, `StockUnidadesServiceTest`, `StockAbmServiceTest` (en memoria, sin emulador)
 
 ## Notas
 

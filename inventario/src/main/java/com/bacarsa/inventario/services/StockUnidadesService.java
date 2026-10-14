@@ -99,7 +99,19 @@ public class StockUnidadesService {
         }
     }
 
-    private List<FichaLectura> leerFichas() {
+    public UnidadStockDTO obtenerPorCodigo(String codigo) {
+        if (codigo == null || codigo.isBlank()) {
+            throw new IllegalArgumentException("El código no puede estar vacío");
+        }
+        for (FichaLectura ficha : leerFichas()) {
+            if (codigo.trim().equalsIgnoreCase(ficha.getCodigoInterno())) {
+                return ficha.aDto();
+            }
+        }
+        throw new IllegalArgumentException("Unidad de stock no encontrada con código: " + codigo);
+    }
+
+    public List<FichaLectura> leerFichas() {
         List<FichaLectura> fichas = new ArrayList<>();
         for (Computadora computadora : leer(ColeccionesStock.COMPUTADORAS, computadoraRepository::findAll)) {
             if (computadora != null) {

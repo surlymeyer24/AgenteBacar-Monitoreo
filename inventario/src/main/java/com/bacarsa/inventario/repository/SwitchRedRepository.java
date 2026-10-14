@@ -131,6 +131,11 @@ public class SwitchRedRepository {
     }
 
     @CacheEvict(value = "switches", allEntries = true)
+    public void actualizar(String id, Map<String, Object> campos) throws ExecutionException, InterruptedException {
+        firestore.collection(collectionName).document(id).set(campos, SetOptions.merge()).get();
+    }
+
+    @CacheEvict(value = "switches", allEntries = true)
     public void deleteById(String id) throws ExecutionException, InterruptedException {
         firestore.collection(collectionName).document(id).delete().get();
     }
