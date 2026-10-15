@@ -1,1 +1,0 @@
-import{r as e}from"./motion-KUxhZmh6.js";import t from"./RoutersSwitchesList-4TWX1F-k.js";var n=e();function r(){return(0,n.jsx)(t,{defaultTab:`switch`})}export{r as default};

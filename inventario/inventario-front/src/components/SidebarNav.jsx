@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import {
   Home,
   Laptop,
@@ -38,6 +38,7 @@ import AdminGate from './AdminGate';
 import { useEventosHardwarePendientesCount, useConciliacionesPendientesCount } from '../hooks/useQueries';
 
 export default function SidebarNav({ sidebarCollapsed, onMobileClose }) {
+  const location = useLocation();
   const [hardwareExpanded, setHardwareExpanded] = useState(true);
   const [perifericosExpanded, setPerifericosExpanded] = useState(true);
   const [infraestructuraExpanded, setInfraestructuraExpanded] = useState(true);
@@ -184,9 +185,26 @@ export default function SidebarNav({ sidebarCollapsed, onMobileClose }) {
 
       <div className="nav-section-title">Depósito</div>
 
-      <NavLink onClick={onMobileClose} to="/perifericos/stock" className={navLinkClass}>
+      <NavLink
+        onClick={onMobileClose}
+        to="/perifericos/stock?tab=stock"
+        className={() =>
+          `nav-link ${location.pathname === '/perifericos/stock' && (!location.search || location.search.includes('tab=stock') || location.search === '') ? 'active' : ''}`
+        }
+      >
         <Package className="w-4 h-4" />
-        <span className="nav-link-text">Stock y Asignaciones</span>
+        <span className="nav-link-text">Stock de Depósito</span>
+      </NavLink>
+
+      <NavLink
+        onClick={onMobileClose}
+        to="/perifericos/stock?tab=asignaciones"
+        className={() =>
+          `nav-link ${location.pathname === '/perifericos/stock' && location.search.includes('tab=asignaciones') ? 'active' : ''}`
+        }
+      >
+        <ClipboardList className="w-4 h-4" />
+        <span className="nav-link-text">Asignaciones de Stock</span>
       </NavLink>
 
       <div className="nav-group">

@@ -1,11 +1,12 @@
 import { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Package, Plus, Laptop, Smartphone, Monitor, Router,
   Tv, Camera, CheckCircle2, Clock, AlertTriangle,
   RotateCcw, Trash2, Edit3, UserCheck, X, Search,
   Wrench, Bookmark, MapPin, AlertCircle, Download,
   ClipboardList, History, ArrowUpRight, ArrowDownLeft,
-  Filter, Check, User, Building, QrCode, FileText
+  Filter, Check, User, Building, QrCode, FileText, Layers
 } from 'lucide-react';
 import {
   fetchUnidadesStock,
@@ -25,8 +26,23 @@ export default function StockYAsignaciones() {
   const [errorAccion, setErrorAccion] = useState(null);
   const [exitoAccion, setExitoAccion] = useState(null);
 
-  // Pestaña principal de navegación superior
-  const [tabPrincipal, setTabPrincipal] = useState('stock'); // 'stock' | 'asignaciones' | 'movimientos'
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabInicial = searchParams.get('tab') || 'stock';
+  const [tabPrincipal, setTabPrincipalState] = useState(tabInicial);
+
+  const setTabPrincipal = (nuevaTab) => {
+    setTabPrincipalState(nuevaTab);
+    const next = new URLSearchParams(searchParams);
+    next.set('tab', nuevaTab);
+    setSearchParams(next, { replace: true });
+  };
+
+  useEffect(() => {
+    const t = searchParams.get('tab');
+    if (t && (t === 'stock' || t === 'asignaciones' || t === 'ambas' || t === 'movimientos')) {
+      setTabPrincipalState(t);
+    }
+  }, [searchParams]);
 
   // Filtros de tabla de Stock
   const [categoriaStock, setCategoriaStock] = useState('Todas'); // 'Todas', 'PCs', 'Notebooks', 'Perifericos', 'Celulares', 'Infraestructura'
@@ -177,8 +193,8 @@ export default function StockYAsignaciones() {
       staging,
       reparacion,
       activas,
-      entregasMes: entregasMes > 0 ? entregasMes : 16,
-      pendientes: pendientes > 0 ? pendientes : 3,
+      entregasMes,
+      pendientes,
       bajas,
     };
   }, [unidades, movimientos]);
@@ -630,61 +646,62 @@ export default function StockYAsignaciones() {
         </div>
       )}
 
-      {/* 2. Pestañas de Contexto */}
+      {/* 2. Pestañas de Navegación del Módulo */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-200 pb-2">
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => setTabPrincipal('stock')}
-            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+            className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
               tabPrincipal === 'stock'
-                ? 'bg-red-50 text-red-700 border border-red-200'
+                ? 'bg-red-600 text-white shadow-xs'
                 : 'text-slate-600 hover:bg-slate-100'
             }`}
           >
             <Package className="w-4 h-4" />
             Stock de Depósito
-            <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-red-100 text-red-700 font-extrabold">
-              {unidades.length} activos
+            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-extrabold ${
+              tabPrincipal === 'stock' ? 'bg-red-700 text-white' : 'bg-slate-200 text-slate-700'
+            }`}>
+              {unidades.length}
             </span>
           </button>
 
           <button
             type="button"
             onClick={() => setTabPrincipal('asignaciones')}
-            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+            className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
               tabPrincipal === 'asignaciones'
-                ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                ? 'bg-indigo-600 text-white shadow-xs'
                 : 'text-slate-600 hover:bg-slate-100'
             }`}
           >
             <ClipboardList className="w-4 h-4" />
-            Asignaciones y Entregas
-            <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-indigo-100 text-indigo-700 font-extrabold">
-              {kpis.activas} activas
+            Asignaciones de Stock
+            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-extrabold ${
+              tabPrincipal === 'asignaciones' ? 'bg-indigo-700 text-white' : 'bg-slate-200 text-slate-700'
+            }`}>
+              {kpis.activas}
             </span>
           </button>
 
           <button
             type="button"
-            onClick={() => setTabPrincipal('movimientos')}
-            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              tabPrincipal === 'movimientos'
-                ? 'bg-slate-200 text-slate-800'
+            onClick={() => setTabPrincipal('ambas')}
+            className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              tabPrincipal === 'ambas'
+                ? 'bg-slate-800 text-white shadow-xs'
                 : 'text-slate-600 hover:bg-slate-100'
             }`}
           >
-            <History className="w-4 h-4" />
-            Movimientos y Auditoría
-            <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-slate-200 text-slate-700 font-extrabold">
-              Hoy 12
-            </span>
+            <Layers className="w-4 h-4" />
+            Vista General (Ambas)
           </button>
         </div>
 
         <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-400">
           <Clock className="w-3.5 h-3.5" />
-          <span>Última sync: Hoy {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+          <span>Sincronizado en tiempo real</span>
         </div>
       </div>
 
@@ -755,8 +772,9 @@ export default function StockYAsignaciones() {
       </div>
 
       {/* ============================================================== */}
-      {/* 4. BLOQUE SUPERIOR: TABLA DE STOCK DE DEPÓSITO (LISTA CONTINUA) */}
+      {/* 4. BLOQUE: TABLA DE STOCK DE DEPÓSITO (LISTA CONTINUA)         */}
       {/* ============================================================== */}
+      {(tabPrincipal === 'stock' || tabPrincipal === 'ambas') && (
       <div className="bg-white rounded-xl border border-slate-200/90 shadow-xs overflow-hidden">
         {/* Pestañas de categoría de activo tipo pills */}
         <div className="p-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
@@ -1014,10 +1032,12 @@ export default function StockYAsignaciones() {
           </div>
         </div>
       </div>
+      )}
 
       {/* ========================================================================= */}
-      {/* 5. BLOQUE INFERIOR: TRAZABILIDAD DE ASIGNACIONES Y ENTREGAS RECIENTES    */}
+      {/* 5. BLOQUE: TRAZABILIDAD DE ASIGNACIONES Y ENTREGAS RECIENTES             */}
       {/* ========================================================================= */}
+      {(tabPrincipal === 'asignaciones' || tabPrincipal === 'ambas') && (
       <div className="bg-white rounded-xl border border-slate-200/90 shadow-xs overflow-hidden">
         {/* Cabecera del bloque de trazabilidad */}
         <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-slate-50/40">
@@ -1124,7 +1144,7 @@ export default function StockYAsignaciones() {
                           {m.fecha ? new Date(m.fecha).toLocaleDateString() : 'Hoy'}
                         </div>
                         <div className="text-[11px] font-mono text-slate-400">
-                          Remito #{m.id ? String(m.id).slice(-6).toUpperCase() : 'REC-2024'}
+                          Remito #{m.id ? String(m.id).slice(-6).toUpperCase() : (m.codigo || '—')}
                         </div>
                       </td>
 
@@ -1144,7 +1164,7 @@ export default function StockYAsignaciones() {
                           {renderAvatar(m.responsable || 'Usuario')}
                           <div>
                             <div className="font-bold text-slate-900">{m.responsable || 'Sin responsable'}</div>
-                            <div className="text-[11px] text-slate-400">{m.responsable ? `${m.responsable.toLowerCase().replace(/\s+/g, '.')}@bacar.com.ar` : '—'}</div>
+                            <div className="text-[11px] text-slate-400">{m.area ? `Área: ${m.area}` : 'En custodia'}</div>
                           </div>
                         </div>
                       </td>
@@ -1244,6 +1264,7 @@ export default function StockYAsignaciones() {
           </div>
         </div>
       </div>
+      )}
 
       {/* ========================================================================= */}
       {/* MODALES: ALTA, EDITAR, BAJA, ASIGNAR Y DEVOLVER                          */}
