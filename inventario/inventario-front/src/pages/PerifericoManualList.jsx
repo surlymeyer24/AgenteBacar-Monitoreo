@@ -1,13 +1,14 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Outlet, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
-  Package, Plus, Laptop, UserCheck, ChevronDown, Layers, Router, ClipboardList, Smartphone,
+  Package, Plus, Laptop, UserCheck, ChevronDown, Layers, Router, ClipboardList, Smartphone, Download, Upload,
 } from 'lucide-react';
 import { fetchComputadora, sacarDePipeline } from '../api/computadoraApi';
 import PerifericosTab from '../components/stock/PerifericosTab';
 import StockLotesTab from '../components/stock/StockLotesTab';
 import StockUnidadesTab from '../components/stock/StockUnidadesTab';
+import StockUnidadesLibroTab from '../components/stock/StockUnidadesLibroTab';
 import StockInfraTab from '../components/stock/StockInfraTab';
 import StockAsignacionesTab from '../components/stock/StockAsignacionesTab';
 import StockCelularesTab from '../components/stock/StockCelularesTab';
@@ -38,10 +39,11 @@ export default function PerifericoManualList() {
   const estadoLabels = useMemo(() => labelsEnumCatalogo(estadoItems), [estadoItems]);
 
   const vista = searchParams.get('vista') === 'asignaciones' ? 'asignaciones' : 'stock';
-  const [activeTab, setActiveTab] = useState('perifericos');
+  const [activeTab, setActiveTab] = useState('unidades');
   const [buscar, setBuscar] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [sacandoUuid, setSacandoUuid] = useState(null);
+  const registrarActivoRef = useRef(null);
 
   const setVista = (nextVista) => {
     const next = new URLSearchParams(searchParams);
@@ -106,7 +108,7 @@ export default function PerifericoManualList() {
     if (!uuidEditar) return undefined;
 
     const tab = searchParams.get('tab');
-    if (tab === 'perifericos' || tab === 'lotes-pc' || tab === 'unidades') {
+    if (tab === 'perifericos' || tab === 'lotes-pc' || tab === 'unidades' || tab === 'pcs') {
       setActiveTab(tab);
     }
 
@@ -301,7 +303,7 @@ export default function PerifericoManualList() {
       </>
     );
   }
-  if (activeTab === 'unidades' && cargandoPcs) {
+  if (activeTab === 'pcs' && cargandoPcs) {
     return (
       <>
         <StudioLoading />
@@ -309,7 +311,7 @@ export default function PerifericoManualList() {
       </>
     );
   }
-  if (activeTab === 'unidades' && errorPcs) {
+  if (activeTab === 'pcs' && errorPcs) {
     return (
       <>
         <StudioError message={errorPcs} />
@@ -336,9 +338,10 @@ export default function PerifericoManualList() {
 
   const tabDescriptions = {
     stock: {
-      perifericos: 'Periféricos disponibles en bodega: teclados, monitores, mouse y otros componentes.',
+      unidades: 'Libro común de stock: todas las unidades trazables en depósito con sus estados y movimientos.',
       'lotes-pc': 'Contás cuántas PCs hay de cada tipo (ej. 3× Ryzen 5600G 8GB). Stock por cantidad — sin hostname ni agente.',
-      unidades: 'Pipeline de PCs trazables: arrastrá entre columnas o usá las acciones de cada tarjeta.',
+      pcs: 'Pipeline de PCs trazables: arrastrá entre columnas o usá las acciones de cada tarjeta.',
+      perifericos: 'Periféricos disponibles en bodega: teclados, monitores, mouse y otros componentes.',
       infraestructura: 'Equipos de red en depósito: routers, switches y access points.',
       celulares: 'Celulares en stock de depósito: marca, modelo, IMEI, cargador y condición. Asigná a un responsable para sacarlos del stock.',
     },
@@ -347,98 +350,63 @@ export default function PerifericoManualList() {
 
   return (
     <div className="flex flex-col flex-1 min-h-0 space-y-6 p-4 sm:p-6 lg:p-8 animate-in fade-in duration-500">
+      {/* Header Stock de Depósito según Prototipo */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-            <span>Inventario IT y Control de Suministros</span>
-          </h1>
-          <p className="text-sm text-slate-500 font-medium mt-1">
-            {vista === 'asignaciones'
-              ? tabDescriptions.asignaciones
-              : tabDescriptions.stock[activeTab]}
-          </p>
+        <div className="flex items-start gap-3">
+          <div className="w-1.5 h-12 bg-red-600 rounded-full shrink-0" />
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">
+                Stock de Depósito
+              </h1>
+              <span className="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                INV-ALM-01
+              </span>
+            </div>
+            <p className="text-sm text-slate-500 font-medium mt-0.5">
+              Equipos y periféricos disponibles, en preparación, reparación o baja.
+            </p>
+          </div>
         </div>
 
-        {vista === 'stock' && activeTab === 'perifericos' && (
-          <div className="flex items-center gap-2 ml-auto sm:ml-0">
-            <button
-              type="button"
-              onClick={itemForm.handleOpenAdd}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-sm transition-colors shadow-sm whitespace-nowrap"
-            >
-              <Plus className="w-4 h-4" />
-              Nuevo
-            </button>
-            <button
-              type="button"
-              onClick={comboForm.handleOpenCombo}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-lg font-bold text-sm transition-colors shadow-sm whitespace-nowrap"
-            >
-              <Layers className="w-4 h-4" />
-              Combo
-            </button>
-          </div>
-        )}
-
-        {vista === 'stock' && activeTab === 'lotes-pc' && (
+        <div className="flex flex-wrap items-center gap-2 ml-auto sm:ml-0">
           <button
             type="button"
-            onClick={itemForm.handleOpenAddLotePc}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-bold text-sm transition-colors shadow-sm whitespace-nowrap ml-auto sm:ml-0"
+            className="inline-flex items-center gap-1.5 px-3 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold transition-colors shadow-xs"
           >
-            <Plus className="w-4 h-4" />
-            Cargar al stock
+            <Download className="w-3.5 h-3.5 text-slate-500" />
+            Exportar
           </button>
-        )}
-
-        {vista === 'stock' && activeTab === 'infraestructura' && (
           <button
             type="button"
-            onClick={() => itemForm.handleOpenAddInfra('router')}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-bold text-sm transition-colors shadow-sm whitespace-nowrap ml-auto sm:ml-0"
+            className="inline-flex items-center gap-1.5 px-3 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold transition-colors shadow-xs"
+          >
+            <Upload className="w-3.5 h-3.5 text-slate-500" />
+            Importar
+          </button>
+          <button
+            type="button"
+            onClick={comboForm.handleOpenCombo}
+            className="inline-flex items-center gap-1.5 px-3 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold transition-colors shadow-xs"
+          >
+            <Layers className="w-3.5 h-3.5 text-slate-500" />
+            Armar combo
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (registrarActivoRef.current) {
+                registrarActivoRef.current();
+              } else {
+                setActiveTab('unidades');
+              }
+            }}
+            className="inline-flex items-center gap-2 px-3.5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition-colors shadow-xs whitespace-nowrap"
           >
             <Plus className="w-4 h-4" />
-            Nuevo equipo
+            Registrar activo
           </button>
-        )}
-
-        {vista === 'stock' && activeTab === 'unidades' && (
-          <div className="relative ml-auto sm:ml-0">
-            <button
-              type="button"
-              onClick={() => pcModals.setPcMenuOpen(prev => !prev)}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-sm transition-colors shadow-sm whitespace-nowrap"
-            >
-              <Plus className="w-4 h-4" />
-              Nueva Asignación
-              <ChevronDown className={`w-4 h-4 transition-transform ${pcModals.pcMenuOpen ? 'rotate-180' : ''}`} />
-            </button>
-            {pcModals.pcMenuOpen && (
-              <>
-                <div className="fixed inset-0 z-30" onClick={() => pcModals.setPcMenuOpen(false)} />
-                <div className="absolute right-0 mt-2 w-56 bg-white border border-slate-200 rounded-xl shadow-lg z-40 overflow-hidden">
-                  <button
-                    type="button"
-                    onClick={() => { pcModals.setPcMenuOpen(false); pcModals.setNuevaPcOpen(true); }}
-                    className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 transition-colors"
-                  >
-                    <Laptop className="w-4 h-4 text-blue-600" />
-                    Nueva computadora
-                  </button>
-                  <div className="border-t border-slate-100" />
-                  <button
-                    type="button"
-                    onClick={() => { pcModals.setPcMenuOpen(false); pcModals.setAsignarDesdeListaOpen(true); }}
-                    className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 transition-colors"
-                  >
-                    <UserCheck className="w-4 h-4 text-indigo-600" />
-                    Asignar PC existente
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        )}
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -479,6 +447,48 @@ export default function PerifericoManualList() {
       <div className="flex flex-wrap gap-1 bg-slate-100 p-1 rounded-lg w-fit">
         <button
           type="button"
+          onClick={() => setActiveTab('unidades')}
+          className={`px-4 py-2 rounded-md text-sm font-bold transition-all flex items-center gap-2 ${
+            activeTab === 'unidades'
+              ? 'bg-white text-slate-900 shadow-sm'
+              : 'text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <Package className="w-4 h-4" />
+          Unidades
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('lotes-pc')}
+          className={`px-4 py-2 rounded-md text-sm font-bold transition-all flex items-center gap-2 ${
+            activeTab === 'lotes-pc'
+              ? 'bg-white text-slate-900 shadow-sm'
+              : 'text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <Layers className="w-4 h-4" />
+          Lotes
+          {totalUnidadesLotes > 0 && (
+            <span className="px-1.5 py-0.5 text-[10px] font-bold bg-teal-100 text-teal-700 rounded-full">{totalUnidadesLotes}</span>
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('pcs')}
+          className={`px-4 py-2 rounded-md text-sm font-bold transition-all flex items-center gap-2 ${
+            activeTab === 'pcs'
+              ? 'bg-white text-slate-900 shadow-sm'
+              : 'text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <Laptop className="w-4 h-4" />
+          PCs
+          {pcsPipeline.length > 0 && (
+            <span className="px-1.5 py-0.5 text-[10px] font-bold bg-blue-100 text-blue-700 rounded-full">{pcsPipeline.length}</span>
+          )}
+        </button>
+        <button
+          type="button"
           onClick={() => setActiveTab('perifericos')}
           className={`px-4 py-2 rounded-md text-sm font-bold transition-all flex items-center gap-2 ${
             activeTab === 'perifericos'
@@ -491,32 +501,17 @@ export default function PerifericoManualList() {
         </button>
         <button
           type="button"
-          onClick={() => setActiveTab('lotes-pc')}
+          onClick={() => setActiveTab('celulares')}
           className={`px-4 py-2 rounded-md text-sm font-bold transition-all flex items-center gap-2 ${
-            activeTab === 'lotes-pc'
+            activeTab === 'celulares'
               ? 'bg-white text-slate-900 shadow-sm'
               : 'text-slate-500 hover:text-slate-700'
           }`}
         >
-          <Layers className="w-4 h-4" />
-          Stock de PCs
-          {totalUnidadesLotes > 0 && (
-            <span className="px-1.5 py-0.5 text-[10px] font-bold bg-teal-100 text-teal-700 rounded-full">{totalUnidadesLotes}</span>
-          )}
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('unidades')}
-          className={`px-4 py-2 rounded-md text-sm font-bold transition-all flex items-center gap-2 ${
-            activeTab === 'unidades'
-              ? 'bg-white text-slate-900 shadow-sm'
-              : 'text-slate-500 hover:text-slate-700'
-          }`}
-        >
-          <Laptop className="w-4 h-4" />
-          Computadoras
-          {pcsPipeline.length > 0 && (
-            <span className="px-1.5 py-0.5 text-[10px] font-bold bg-blue-100 text-blue-700 rounded-full">{pcsPipeline.length}</span>
+          <Smartphone className="w-4 h-4" />
+          Celulares
+          {celularesEnStock.length > 0 && (
+            <span className="px-1.5 py-0.5 text-[10px] font-bold bg-sky-100 text-sky-700 rounded-full">{celularesEnStock.length}</span>
           )}
         </button>
         <button
@@ -534,22 +529,11 @@ export default function PerifericoManualList() {
             <span className="px-1.5 py-0.5 text-[10px] font-bold bg-orange-100 text-orange-700 rounded-full">{totalInfraUnidades}</span>
           )}
         </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('celulares')}
-          className={`px-4 py-2 rounded-md text-sm font-bold transition-all flex items-center gap-2 ${
-            activeTab === 'celulares'
-              ? 'bg-white text-slate-900 shadow-sm'
-              : 'text-slate-500 hover:text-slate-700'
-          }`}
-        >
-          <Smartphone className="w-4 h-4" />
-          Celulares
-          {celularesEnStock.length > 0 && (
-            <span className="px-1.5 py-0.5 text-[10px] font-bold bg-sky-100 text-sky-700 rounded-full">{celularesEnStock.length}</span>
-          )}
-        </button>
       </div>
+      )}
+
+      {vista === 'stock' && activeTab === 'unidades' && (
+        <StockUnidadesLibroTab onRegistrarActivoRef={registrarActivoRef} />
       )}
 
       {vista === 'stock' && activeTab === 'perifericos' && (
@@ -583,7 +567,7 @@ export default function PerifericoManualList() {
         />
       )}
 
-      {vista === 'stock' && activeTab === 'unidades' && (
+      {vista === 'stock' && activeTab === 'pcs' && (
         <StockUnidadesTab
           pcsPipeline={pcsPipelineFiltradas}
           buscarUnidad={pcModals.buscarUnidad}

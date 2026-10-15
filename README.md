@@ -804,6 +804,35 @@ Libro de asignaciones y bitácora de custodia donde cualquier unidad se asigna, 
 - `POST /api/stock/unidades/{codigo}/devolver` — devolución de unidad a disponible (body `DevolverUnidadStockDTO`).
 - `GET /api/stock/asignaciones` — listado unificado de movimientos y asignaciones (`List<MovimientoStockDTO>`).
 
+---
 
+## 33. Stock — Pantallas de Depósito y Asignaciones (Stock 4)
 
+Implementación y unificación visual del libro común de stock de depósito y asignaciones de custodia en el frontend, conectadas a las APIs de Stock 2 y Stock 3.
 
+### Pantallas y Componentes
+
+- **`StockUnidadesLibroTab.jsx`**:
+  - **KPIs (5 contadores)**: Disponibles, En preparación, En reparación, Reservados y Bajas.
+  - **Filtros**: Buscador libre (código, modelo, marca, serie, etc.), Tipo de activo, Estado operativo, Condición física y Ubicación.
+  - **Libro común**: Tabla con código interno, equipo, tipo, serie/imei, ubicación, condición, estado, asignado y menú de acciones.
+  - **Acciones y Modales**:
+    - *Alta de unidad*: creación de activos (monitores, notebooks, celulares, etc.) con selección de condición y ubicación.
+    - *Edición rápida*: actualización de serie, ubicación, condición o notas.
+    - *Baja con motivo*: baja lógica de la unidad con motivo obligatorio requerido por el backend.
+    - *Asignación a persona*: asignación con nombre de responsable y área de destino.
+    - *Devolución*: reingreso a Disponible / sin asignar.
+- **`AsignacionesStock.jsx`**:
+  - **KPIs (4 contadores)**: Asignaciones Activas, Entregas Este Mes, Devoluciones Este Mes y Movimientos Pendientes.
+  - **Filtros**: Buscador libre por persona, código o equipo, filtro por acción (Asignación / Devolución / Liberación) y por estado (Activa / Finalizada / Pendiente).
+  - **Libro de custodia**: Tabla con fecha y hora, responsable (con avatar e iniciales), equipo/código, acción realizada, área y estado de movimiento.
+  - **Operaciones**: Botón "Devolver a Disponible" sobre asignaciones activas y modal "+ Nueva asignación / entrega".
+- **Integración en `PerifericoManualList.jsx`**:
+  - Header institucional `INV-ALM-01` con botón `+ Registrar activo`.
+  - Solapa por defecto `Unidades` que renderiza `StockUnidadesLibroTab`, coexistiendo con las solapas especializadas `Lotes`, `PCs`, `Periféricos`, `Celulares` e `Infraestructura`.
+- **Navegación (`SidebarNav.jsx` y `App.jsx`)**:
+  - Enlaces de primer nivel en sección *Depósito*: `/perifericos/stock` (Stock de Depósito) y `/asignaciones-stock` (Asignaciones de Stock).
+
+### Resiliencia y Manejo de Errores
+
+- Ante rechazo de la API o corte de red, las tablas no aplican cambios optimistas ficticios; se preserva el estado en pantalla y se muestra el mensaje de error provisto por el backend.
