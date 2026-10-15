@@ -186,12 +186,7 @@ export default function SidebarNav({ sidebarCollapsed, onMobileClose }) {
 
       <NavLink onClick={onMobileClose} to="/perifericos/stock" className={navLinkClass}>
         <Package className="w-4 h-4" />
-        <span className="nav-link-text">Stock de Depósito</span>
-      </NavLink>
-
-      <NavLink onClick={onMobileClose} to="/asignaciones-stock" className={navLinkClass}>
-        <ClipboardList className="w-4 h-4" />
-        <span className="nav-link-text">Asignaciones de Stock</span>
+        <span className="nav-link-text">Stock y Asignaciones</span>
       </NavLink>
 
       <div className="nav-group">

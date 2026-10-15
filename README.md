@@ -806,33 +806,36 @@ Libro de asignaciones y bitácora de custodia donde cualquier unidad se asigna, 
 
 ---
 
-## 33. Stock — Pantallas de Depósito y Asignaciones (Stock 4)
+## 33. Stock — Módulo Unificado de Depósito y Asignaciones (Stock 4)
 
-Implementación y unificación visual del libro común de stock de depósito y asignaciones de custodia en el frontend, conectadas a las APIs de Stock 2 y Stock 3.
+Consolidación visual y operativa de las existencias de depósito y la custodia de asignaciones en una única vista integral (`StockYAsignaciones.jsx`), eliminando el tablero Kanban de PCs en favor de una lista continua uniforme.
 
-### Pantallas y Componentes
+### Arquitectura y Pantallas
 
-- **`StockUnidadesLibroTab.jsx`**:
-  - **KPIs (5 contadores)**: Disponibles, En preparación, En reparación, Reservados y Bajas.
-  - **Filtros**: Buscador libre (código, modelo, marca, serie, etc.), Tipo de activo, Estado operativo, Condición física y Ubicación.
-  - **Libro común**: Tabla con código interno, equipo, tipo, serie/imei, ubicación, condición, estado, asignado y menú de acciones.
-  - **Acciones y Modales**:
-    - *Alta de unidad*: creación de activos (monitores, notebooks, celulares, etc.) con selección de condición y ubicación.
-    - *Edición rápida*: actualización de serie, ubicación, condición o notas.
-    - *Baja con motivo*: baja lógica de la unidad con motivo obligatorio requerido por el backend.
-    - *Asignación a persona*: asignación con nombre de responsable y área de destino.
-    - *Devolución*: reingreso a Disponible / sin asignar.
-- **`AsignacionesStock.jsx`**:
-  - **KPIs (4 contadores)**: Asignaciones Activas, Entregas Este Mes, Devoluciones Este Mes y Movimientos Pendientes.
-  - **Filtros**: Buscador libre por persona, código o equipo, filtro por acción (Asignación / Devolución / Liberación) y por estado (Activa / Finalizada / Pendiente).
-  - **Libro de custodia**: Tabla con fecha y hora, responsable (con avatar e iniciales), equipo/código, acción realizada, área y estado de movimiento.
-  - **Operaciones**: Botón "Devolver a Disponible" sobre asignaciones activas y modal "+ Nueva asignación / entrega".
-- **Integración en `PerifericoManualList.jsx`**:
-  - Header institucional `INV-ALM-01` con botón `+ Registrar activo`.
-  - Solapa por defecto `Unidades` que renderiza `StockUnidadesLibroTab`, coexistiendo con las solapas especializadas `Lotes`, `PCs`, `Periféricos`, `Celulares` e `Infraestructura`.
-- **Navegación (`SidebarNav.jsx` y `App.jsx`)**:
-  - Enlaces de primer nivel en sección *Depósito*: `/perifericos/stock` (Stock de Depósito) y `/asignaciones-stock` (Asignaciones de Stock).
+- **`StockYAsignaciones.jsx` (Módulo Unificado `INV-ALM-01`)**:
+  - **Encabezado institucional**: Título *Depósito: Stock y Asignaciones* con insignia de almacén, botón de exportación, `+ Registrar activo` y `+ Nueva asignación / entrega`.
+  - **KPIs Consolidados (5 indicadores)**:
+    - *Disponibles en Almacén* (con porcentaje sobre el total).
+    - *Taller / Preparación* (desglose Staging y Taller de reparación).
+    - *Asignaciones Activas* (equipos en nómina en campo).
+    - *Entregas del Mes* (métrica MoM).
+    - *Pendientes de Firma* (remitos o actas por regularizar).
+  - **Bloque Superior — Stock de Depósito (Lista Continua)**:
+    - Filtros por categoría de hardware con badges numéricos en tiempo real: *Todas, PCs, Notebooks, Periféricos, Celulares, Infraestructura*.
+    - Reemplazo del Kanban de computadoras: las PCs y notebooks se gestionan en formato lista uniforme con especificaciones, condición, estantería y acciones rápidas (`Asignar`, `Editar`, `Baja`).
+  - **Bloque Inferior — Trazabilidad de Asignaciones y Entregas Recientes**:
+    - Bitácora cronológica con remitente/responsable (avatar, nombre, correo), activo asignado, área/sector, tipo de movimiento y estado de custodia (*Activa*, *Pendiente*, *Reingresada*).
+    - Acción directa `Devolver` a disponible sobre activos activos.
+  - **Modales integrados**:
+    - Alta de activo físico con asignación de código unificado.
+    - Edición de serie, ubicación y notas.
+    - Baja con motivo obligatorio para trazabilidad.
+    - Asignación con responsable y área obligatorios.
+    - Devolución a almacén disponible.
+- **Navegación Unificada (`SidebarNav.jsx` y `App.jsx`)**:
+  - Un único ítem en la barra lateral bajo la sección *Depósito*: **Stock y Asignaciones** (`/perifericos/stock`).
+  - Redirección automática de `/asignaciones-stock` y `/stock` hacia la vista unificada.
 
 ### Resiliencia y Manejo de Errores
 
-- Ante rechazo de la API o corte de red, las tablas no aplican cambios optimistas ficticios; se preserva el estado en pantalla y se muestra el mensaje de error provisto por el backend.
+- Ante fallas de red o rechazo de API, no se aplican mutaciones optimistas. Las filas conservan su estado fidedigno y se despliegan avisos claros con la causa del error.

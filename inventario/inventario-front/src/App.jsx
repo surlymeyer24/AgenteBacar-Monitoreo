@@ -43,6 +43,7 @@ const PerifericosWebcamsList = lazy(() => import('./pages/PerifericosWebcamsList
 const PerifericosParlantesList = lazy(() => import('./pages/PerifericosParlantesList'));
 const PerifericosMicrofonosList = lazy(() => import('./pages/PerifericosMicrofonosList'));
 const PerifericoManualList = lazy(() => import('./pages/PerifericoManualList'));
+const StockYAsignaciones = lazy(() => import('./pages/StockYAsignaciones'));
 const PerifericoManualNuevo = lazy(() => import('./pages/PerifericoManualNuevo'));
 const PerifericoManualDetail = lazy(() => import('./pages/PerifericoManualDetail'));
 const AsignacionesStock = lazy(() => import('./pages/AsignacionesStock'));
@@ -231,8 +232,9 @@ function AppRoutes() {
         <Route path="/perifericos/microfonos" element={<PerifericosMicrofonosList />} />
         <Route path="/perifericos/televisores" element={<TelevisorList />} />
         <Route path="/perifericos/celulares" element={<CelularList />} />
-        <Route path="/asignaciones-stock" element={<AsignacionesStock />} />
-        <Route path="/perifericos/stock" element={<PerifericoManualList />}>
+        <Route path="/asignaciones-stock" element={<Navigate to="/perifericos/stock" replace />} />
+        <Route path="/stock" element={<Navigate to="/perifericos/stock" replace />} />
+        <Route path="/perifericos/stock" element={<StockYAsignaciones />}>
           <Route path=":id" element={<PerifericoManualDetail />} />
         </Route>
         <Route path="/perifericos/stock/nuevo" element={<RequireWrite><PerifericoManualNuevo /></RequireWrite>} />
