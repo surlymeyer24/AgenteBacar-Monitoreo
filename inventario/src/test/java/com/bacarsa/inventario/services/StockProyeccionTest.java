@@ -38,7 +38,7 @@ class StockProyeccionTest {
 
         assertEquals(8, lista.size());
         assertUnidad(lista.get(0), "PC-1", "desktop", "", "", "SN-PC", "usada", "En depósito", "", "SISTEMAS");
-        assertUnidad(lista.get(1), "TEC-4", "teclado", "Logitech", "", "SER-TEC", "", "Asignada", "2026-01-02", "sistemas");
+        assertUnidad(lista.get(1), "TEC-4", "teclado", "Logitech", "", "SER-TEC", "", "Sin Asignar", "2026-01-02", "sistemas");
         assertUnidad(lista.get(2), "CEL-2", "celular", "Samsung", "A15", "359999", "", "en_stock", "", "");
         assertUnidad(lista.get(3), "CAM-1", "camara", "Hikvision", "DS-2CD", "", "", "Activa", "2026-03-04", "Ingreso");
         assertUnidad(lista.get(4), "TV-1", "televisor", "LG", "55UP", "SER-TV", "", "activo", "", "");
@@ -147,6 +147,26 @@ class StockProyeccionTest {
         assertFalse(ProyeccionStock.desdeComputadora(pcAgente).entraEnListado());
         assertFalse(ProyeccionStock.desdeComputadora(pcSync).entraEnListado());
         assertFalse(ProyeccionStock.desdeComputadora(pcAsignada).entraEnListado());
+    }
+
+    @Test
+    void perifericosConectadosAPcOAsignadosNoEntranEnStock() {
+        PerifericoManual conUuid = teclado("p-uuid", "TEC-20");
+        conUuid.setComputadoraUuid("uuid-pc-1");
+
+        PerifericoManual conHost = teclado("p-host", "TEC-21");
+        conHost.setComputadoraHostname("PC-VENTAS-01");
+
+        PerifericoManual asignado = teclado("p-asig", "TEC-22");
+        asignado.setEstadoActual(estado("ASIGNADA"));
+
+        PerifericoManual libre = teclado("p-libre", "TEC-23");
+        libre.setEstadoActual(estado("Sin Asignar"));
+
+        assertFalse(ProyeccionStock.desdePeriferico(conUuid).entraEnListado());
+        assertFalse(ProyeccionStock.desdePeriferico(conHost).entraEnListado());
+        assertFalse(ProyeccionStock.desdePeriferico(asignado).entraEnListado());
+        assertTrue(ProyeccionStock.desdePeriferico(libre).entraEnListado());
     }
 
     @Test
@@ -282,7 +302,7 @@ class StockProyeccionTest {
         teclado.setNumeroSerie("SER-TEC");
         teclado.setFechaAlta("2026-01-02");
         teclado.setUbicacion("sistemas");
-        teclado.setEstadoActual(estado("Asignada"));
+        teclado.setEstadoActual(estado("Sin Asignar"));
         EspecificacionStock specPeriferico = new EspecificacionStock();
         specPeriferico.setCondicion("NO-COPIAR-SPEC");
         teclado.setEspecificacionStock(specPeriferico);

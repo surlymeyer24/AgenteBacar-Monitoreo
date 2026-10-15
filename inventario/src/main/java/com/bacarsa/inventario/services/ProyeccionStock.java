@@ -7,6 +7,7 @@ import com.bacarsa.inventario.models.Camara;
 import com.bacarsa.inventario.models.Celular;
 import com.bacarsa.inventario.models.Computadora;
 import com.bacarsa.inventario.models.Estado;
+import com.bacarsa.inventario.models.EstadoOperativo;
 import com.bacarsa.inventario.models.OrigenAlta;
 import com.bacarsa.inventario.models.PerifericoManual;
 import com.bacarsa.inventario.models.Router;
@@ -70,20 +71,40 @@ public final class ProyeccionStock {
     public static FichaLectura desdePeriferico(PerifericoManual periferico) {
         String prefijo = prefijoPeriferico(periferico.getTipo());
         String tipo = prefijo == null ? "" : periferico.getTipo().trim().toLowerCase(Locale.ROOT);
-        return armar(
+        String estadoTexto = estado(periferico.getEstadoActual(), null);
+        String motivo = motivo(periferico.getId(), prefijo, periferico.getCantidad());
+        if (motivo == null) {
+            motivo = motivoPerifericoEnUso(periferico, estadoTexto);
+        }
+        return FichaLectura.de(
                 ColeccionesStock.PERIFERICOS_MANUALES,
                 periferico.getId(),
                 periferico.getCodigoInterno(),
                 prefijo,
-                periferico.getCantidad(),
+                motivo,
                 tipo,
                 periferico.getFabricante(),
                 "",
                 periferico.getNumeroSerie(),
                 "",
-                estado(periferico.getEstadoActual(), null),
+                estadoTexto,
                 periferico.getFechaAlta(),
                 periferico.getUbicacion());
+    }
+
+    /** Periférico conectado a una PC o asignado: no está en depósito. */
+    static String motivoPerifericoEnUso(PerifericoManual periferico, String estadoTexto) {
+        if (tieneTexto(periferico.getComputadoraUuid()) || tieneTexto(periferico.getComputadoraHostname())) {
+            return "asignado_a_computadora";
+        }
+        if (estadoTexto != null && EstadoOperativo.ASIGNADA.getNombre().equalsIgnoreCase(estadoTexto.trim())) {
+            return "asignado_operativo";
+        }
+        return null;
+    }
+
+    private static boolean tieneTexto(String valor) {
+        return valor != null && !valor.isBlank();
     }
 
     public static FichaLectura desdeCelular(Celular celular) {

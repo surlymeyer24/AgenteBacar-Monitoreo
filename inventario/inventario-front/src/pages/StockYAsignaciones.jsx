@@ -7,7 +7,7 @@ import {
   Wrench, Bookmark, MapPin, AlertCircle, Download,
   ClipboardList, History, ArrowUpRight, ArrowDownLeft,
   Filter, Check, User, Building, QrCode, FileText, Layers,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ArrowUp
 } from 'lucide-react';
 import {
   fetchUnidadesStock,
@@ -38,12 +38,52 @@ export default function StockYAsignaciones() {
     setSearchParams(next, { replace: true });
   };
 
+  const scrollToSeccion = (id, nuevaTab) => {
+    setTabPrincipal(nuevaTab);
+    const elem = document.getElementById(id);
+    if (elem) {
+      elem.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
   useEffect(() => {
     const t = searchParams.get('tab');
     if (t && (t === 'stock' || t === 'asignaciones' || t === 'ambas' || t === 'movimientos')) {
       setTabPrincipalState(t);
+      const timer = setTimeout(() => {
+        if (t === 'asignaciones') {
+          document.getElementById('seccion-asignaciones')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else if (t === 'stock') {
+          document.getElementById('seccion-stock')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 150);
+      return () => clearTimeout(timer);
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            if (entry.target.id === 'seccion-stock') {
+              setTabPrincipalState('stock');
+            } else if (entry.target.id === 'seccion-asignaciones') {
+              setTabPrincipalState('asignaciones');
+            }
+          }
+        }
+      },
+      { threshold: 0.25 }
+    );
+
+    const secStock = document.getElementById('seccion-stock');
+    const secAsig = document.getElementById('seccion-asignaciones');
+    if (secStock) observer.observe(secStock);
+    if (secAsig) observer.observe(secAsig);
+
+    return () => observer.disconnect();
+  }, [unidades, movimientos]);
 
   // Filtros de tabla de Stock
   const [categoriaStock, setCategoriaStock] = useState('Todas'); // 'Todas', 'PCs', 'Notebooks', 'Perifericos', 'Celulares', 'Infraestructura'
@@ -301,7 +341,7 @@ export default function StockYAsignaciones() {
   const unidadesPaginadas = useMemo(() => {
     const inicio = (paginaStock - 1) * porPaginaStock;
     return unidadesFiltradas.slice(inicio, inicio + porPaginaStock);
-  }, [unidadesFiltradas, paginaStock]);
+  }, [unidadesFiltradas, paginaStock, porPaginaStock]);
 
   // Opciones únicas de ubicaciones para el filtro
   const ubicacionesUnicas = useMemo(() => {
@@ -337,7 +377,7 @@ export default function StockYAsignaciones() {
   const asignacionesPaginadas = useMemo(() => {
     const inicio = (paginaAsignacion - 1) * porPaginaAsignacion;
     return asignacionesFiltradas.slice(inicio, inicio + porPaginaAsignacion);
-  }, [asignacionesFiltradas, paginaAsignacion]);
+  }, [asignacionesFiltradas, paginaAsignacion, porPaginaAsignacion]);
 
   const areasUnicas = useMemo(() => {
     const s = new Set();
@@ -686,7 +726,7 @@ export default function StockYAsignaciones() {
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => setTabPrincipal('stock')}
+            onClick={() => scrollToSeccion('seccion-stock', 'stock')}
             className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
               tabPrincipal === 'stock'
                 ? 'bg-red-600 text-white shadow-xs'
@@ -704,7 +744,7 @@ export default function StockYAsignaciones() {
 
           <button
             type="button"
-            onClick={() => setTabPrincipal('asignaciones')}
+            onClick={() => scrollToSeccion('seccion-asignaciones', 'asignaciones')}
             className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
               tabPrincipal === 'asignaciones'
                 ? 'bg-indigo-600 text-white shadow-xs'
@@ -722,7 +762,7 @@ export default function StockYAsignaciones() {
 
           <button
             type="button"
-            onClick={() => setTabPrincipal('ambas')}
+            onClick={() => scrollToSeccion('seccion-stock', 'ambas')}
             className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
               tabPrincipal === 'ambas'
                 ? 'bg-slate-800 text-white shadow-xs'
@@ -809,8 +849,7 @@ export default function StockYAsignaciones() {
       {/* ============================================================== */}
       {/* 4. BLOQUE: TABLA DE STOCK DE DEPÓSITO (LISTA CONTINUA)         */}
       {/* ============================================================== */}
-      {(tabPrincipal === 'stock' || tabPrincipal === 'ambas') && (
-      <div className="bg-white rounded-xl border border-slate-200/90 shadow-xs overflow-hidden">
+      <div id="seccion-stock" className="bg-white rounded-xl border border-slate-200/90 shadow-xs overflow-hidden scroll-mt-6">
         {/* Pestañas de categoría de activo tipo pills */}
         <div className="p-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-1.5">
@@ -1117,13 +1156,11 @@ export default function StockYAsignaciones() {
           </div>
         </div>
       </div>
-      )}
 
       {/* ========================================================================= */}
       {/* 5. BLOQUE: TRAZABILIDAD DE ASIGNACIONES Y ENTREGAS RECIENTES             */}
       {/* ========================================================================= */}
-      {(tabPrincipal === 'asignaciones' || tabPrincipal === 'ambas') && (
-      <div className="bg-white rounded-xl border border-slate-200/90 shadow-xs overflow-hidden">
+      <div id="seccion-asignaciones" className="bg-white rounded-xl border border-slate-200/90 shadow-xs overflow-hidden scroll-mt-6">
         {/* Cabecera del bloque de trazabilidad */}
         <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-slate-50/40">
           <div>
@@ -1399,7 +1436,6 @@ export default function StockYAsignaciones() {
           </div>
         </div>
       </div>
-      )}
 
       {/* ========================================================================= */}
       {/* MODALES: ALTA, EDITAR, BAJA, ASIGNAR Y DEVOLVER                          */}
@@ -1812,6 +1848,57 @@ export default function StockYAsignaciones() {
           </div>
         </div>
       )}
+
+      {/* 6. Mini Dock Flotante: Navegación Rápida Subir / Bajar */}
+      <aside
+        aria-label="Navegación rápida de depósito"
+        className="fixed bottom-6 right-6 z-30 flex flex-col items-center gap-1.5 p-1.5 bg-white/95 backdrop-blur-xs border border-slate-300/80 rounded-2xl shadow-xl transition-all"
+      >
+        <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 px-1 pt-0.5 select-none">
+          Nav
+        </span>
+
+        <button
+          type="button"
+          onClick={() => scrollToSeccion('seccion-stock', 'stock')}
+          title="Subir a Stock de Depósito"
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-2xs group ${
+            tabPrincipal === 'stock'
+              ? 'bg-red-50 text-red-700 border border-red-200'
+              : 'text-slate-700 hover:text-red-600 hover:bg-red-50 border border-slate-200/60 hover:border-red-200'
+          }`}
+        >
+          <ChevronUp className="w-3.5 h-3.5 text-slate-400 group-hover:text-red-500 transition-colors" />
+          <Package className="w-3.5 h-3.5 text-red-600" />
+          <span className="hidden sm:inline">Stock</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => scrollToSeccion('seccion-asignaciones', 'asignaciones')}
+          title="Bajar a Asignaciones de Stock"
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-2xs group ${
+            tabPrincipal === 'asignaciones'
+              ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+              : 'text-slate-700 hover:text-indigo-600 hover:bg-indigo-50 border border-slate-200/60 hover:border-indigo-200'
+          }`}
+        >
+          <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-500 transition-colors" />
+          <ClipboardList className="w-3.5 h-3.5 text-indigo-600" />
+          <span className="hidden sm:inline">Asignaciones</span>
+        </button>
+
+        <div className="w-full h-px bg-slate-200 my-0.5" />
+
+        <button
+          type="button"
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          title="Volver arriba (Inicio de página)"
+          className="p-1.5 rounded-xl text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-all"
+        >
+          <ArrowUp className="w-3.5 h-3.5" />
+        </button>
+      </aside>
     </div>
   );
 }

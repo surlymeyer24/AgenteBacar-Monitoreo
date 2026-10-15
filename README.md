@@ -822,13 +822,18 @@ Consolidación visual y operativa de las existencias de depósito y la custodia 
     - *Pendientes de Firma* (remitos o actas por regularizar).
   - **Bloque Superior — Stock de Depósito (Lista Continua)**:
     - Filtros por categoría de hardware con badges numéricos en tiempo real: *Todas, PCs, Notebooks, Periféricos, Celulares, Infraestructura* (categorización por tipo y prefijo de código interno).
-    - Exclusión estricta de computadoras asignadas o detectadas por agente (`origenAlta` de agente o reporte activo en CyberWatch), proyectando únicamente equipos en depósito.
+    - Exclusión estricta de computadoras asignadas o detectadas por agente (`origenAlta` de agente o reporte activo en CyberWatch), y exclusión estricta de periféricos en uso (conectados a computadoras con `computadora_uuid` o `computadora_hostname`, o en estado `ASIGNADA`), proyectando en stock únicamente periféricos libres en almacén (`SIN_ASIGNAR`, `DISPONIBLE`, `STAGING`, `TALLER`).
     - Reemplazo del Kanban de computadoras: las PCs y notebooks se gestionan en formato lista uniforme con especificaciones, condición, estantería y acciones rápidas (`Asignar`, `Editar`, `Baja`).
     - Barra de navegación y paginación completa: leyenda `Mostrando X - Y de Z registros físicos`, selector de filas por página (5, 10, 25, 50) y botonera numerada con elipses (`Anterior`, `1`, `2`, `3`, ..., `N`, `Siguiente`).
   - **Bloque Inferior — Trazabilidad de Asignaciones y Entregas Recientes**:
     - Bitácora cronológica con remitente/responsable (avatar, nombre, correo), activo asignado, área/sector, tipo de movimiento y estado de custodia (*Activa*, *Pendiente*, *Reingresada*).
     - Acción directa `Devolver` a disponible sobre activos activos.
     - Barra de navegación y paginación sincronizada con selector de filas por página y números de página.
+  - **Convivencia y Navegación Rápida Vertical ("Nav para subir y bajar")**:
+    - Ambos bloques conviven siempre en la misma pantalla continua con anclas de desplazamiento suave (`#seccion-stock` y `#seccion-asignaciones`).
+    - Pestañas superiores y barra lateral saltan a la sección elegida mediante `scrollIntoView({ behavior: 'smooth' })`.
+    - Detección activa de sección en pantalla mediante `IntersectionObserver` para mantener sincronizada la pestaña activa.
+    - Mini-dock flotante en la esquina inferior derecha con botones de navegación rápida: `↑ Stock`, `↓ Asignaciones` y `↑ Inicio de página`.
   - **Modales integrados**:
     - Alta de activo físico con asignación de código unificado.
     - Edición de serie, ubicación y notas.
@@ -836,8 +841,8 @@ Consolidación visual y operativa de las existencias de depósito y la custodia 
     - Asignación con responsable y área obligatorios.
     - Devolución a almacén disponible.
 - **Navegación Unificada (`SidebarNav.jsx` y `App.jsx`)**:
-  - Un único ítem en la barra lateral bajo la sección *Depósito*: **Stock y Asignaciones** (`/perifericos/stock`).
-  - Redirección automática de `/asignaciones-stock` y `/stock` hacia la vista unificada.
+    - Acceso directo en la barra lateral bajo la sección *Depósito*: **Stock de Depósito** (`/perifericos/stock?tab=stock`) y **Asignaciones de Stock** (`/perifericos/stock?tab=asignaciones`), desplazando automáticamente a la sección correspondiente.
+    - Redirección automática de `/asignaciones-stock` y `/stock` hacia la vista unificada.
 
 ### Resiliencia y Manejo de Errores
 
