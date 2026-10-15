@@ -81,6 +81,7 @@ public final class ComputadoraHistorialReglas {
         Map<String, Object> doc = new LinkedHashMap<>();
         doc.put("uuid", uuid.trim());
         doc.put("hostname", hostname);
+        ponerSiTexto(doc, "codigo_interno", cuerpo.get("codigo_interno") != null ? cuerpo.get("codigo_interno") : cuerpo.get("codigoInterno"));
         ponerSiTexto(doc, "ubicacion", cuerpo.get("ubicacion"));
         ponerSiTexto(doc, "sistema_operativo", cuerpo.get("sistemaOperativo"));
         ponerSiTexto(doc, "arquitectura", cuerpo.get("arquitectura"));

@@ -104,6 +104,11 @@ public class CamaraRepository {
     }
 
     @CacheEvict(value = "camaras", allEntries = true)
+    public void actualizar(String id, Map<String, Object> campos) throws ExecutionException, InterruptedException {
+        firestore.collection(collectionName).document(id).set(campos, SetOptions.merge()).get();
+    }
+
+    @CacheEvict(value = "camaras", allEntries = true)
     public void cambiarEstado(String id, Estado nuevoEstado, String motivo) throws ExecutionException, InterruptedException {
         DocumentReference docRef = firestore.collection(collectionName).document(id);
         String motivoGuardado = motivo != null ? motivo : "";

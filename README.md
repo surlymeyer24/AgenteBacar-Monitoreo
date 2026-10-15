@@ -767,4 +767,24 @@ Proyección unificada de activos individuales de depósito y asignación idempot
 
 - `GET /api/stock/unidades` — devuelve `List<UnidadStockDTO>` con 9 campos proyectados (`codigo`, `tipo`, `marca`, `modelo`, `serieOImei`, `condicion`, `estadoDeposito`, `fechaIngreso`, `ubicacion`). Sin dato se normaliza a `""` (no inventa marca en PCs ni fechas de ingreso). Solo incluye unidades con código asignado.
 
+---
+
+## 31. Stock — ABM: Alta, Modificación y Baja con Motivo (Stock 2)
+
+Operaciones de escritura unificadas sobre el catálogo de unidades de depósito en las 8 colecciones (`computadoras`, `perifericos_manuales`, `celulares`, `camaras`, `televisores`, `routers`, `switches`, `access_points`).
+
+### Operaciones
+
+- **Alta (`POST /api/stock/unidades`)**: recibe tipo, atributos de equipo (marca, modelo, serie/imei, condición, ubicación) y motivo opcional. Deriva el prefijo según tipo (`PC`, `NB`, `MON`, `TEC`, `MOU`, `IMP`, `WEB`, `PAR`, `MIC`, `CEL`, `CAM`, `TV`, `RTR`, `SW`, `AP`), calcula el siguiente consecutivo de `codigo_interno` en base a las unidades existentes y persiste la unidad. En el caso de computadoras, la creación se realiza dentro de la misma transacción con `aplicarHistorial` generando el renglón `ALTA_MANUAL`.
+- **Modificación (`PATCH /api/stock/unidades/{codigo}`)**: permite editar atributos (marca, modelo, serie/imei, condición, ubicación, notas). Solo aplica cambios parciales mediante `set(..., SetOptions.merge())` sin sobreescribir el documento completo. En computadoras registra el diff campo a campo en el historial inmutable dentro de la misma transacción.
+- **Baja con motivo (`POST /api/stock/unidades/{codigo}/baja`)**: exige motivo obligatorio (`@NotBlank`). Actualiza el estado a `BAJA` y asienta el motivo, fecha y usuario responsable. En computadoras, ejecuta `cambiarEstado` con `BAJA` y motivo en una sola transacción Firestore.
+
+### API
+
+- `GET /api/stock/unidades/{codigo}` — detalle de la unidad de stock proyectada (`UnidadStockDTO`).
+- `POST /api/stock/unidades` — alta de unidad en stock (body `AltaUnidadStockDTO`).
+- `PATCH /api/stock/unidades/{codigo}` — actualización parcial de unidad (body `ModificarUnidadStockDTO`).
+- `POST /api/stock/unidades/{codigo}/baja` — baja con motivo obligatorio (body `BajaUnidadStockDTO`).
+
+
 
