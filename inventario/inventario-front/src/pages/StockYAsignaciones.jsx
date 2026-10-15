@@ -144,6 +144,44 @@ export default function StockYAsignaciones() {
   const [motivoDevolver, setMotivoDevolver] = useState('');
   const [guardando, setGuardando] = useState(false);
 
+  // Categorización unificada de unidades físicas (por tipo y por prefijo de código)
+  const getCategoriaUnidad = (u) => {
+    if (!u) return 'Periféricos';
+    const t = (u.tipo || '').toLowerCase();
+    const c = (u.codigo || '').toUpperCase();
+
+    if (t === 'pc' || t === 'computadora' || t === 'desktop' || c.startsWith('PC-') || c.startsWith('STK-PC-')) {
+      return 'PCs';
+    }
+    if (t === 'notebook' || t === 'laptop' || c.startsWith('NB-') || c.startsWith('STK-NB-')) {
+      return 'Notebooks';
+    }
+    if (t === 'celular' || t === 'smartphone' || c.startsWith('CEL-') || c.startsWith('STK-CEL-')) {
+      return 'Celulares';
+    }
+    if (
+      t === 'router' || t === 'switch' || t === 'access_point' || t === 'red' || t === 'infraestructura' ||
+      c.startsWith('RED-') || c.startsWith('STK-RED-') || c.startsWith('INFRA-')
+    ) {
+      return 'Infraestructura';
+    }
+    return 'Periféricos';
+  };
+
+  // Filtro estricto: periféricos libres en depósito (excluye asignados a PC o en uso)
+  const esUnidadValidaStock = (u) => {
+    if (!u) return false;
+    const cat = getCategoriaUnidad(u);
+    if (cat === 'Periféricos') {
+      if (u.computadoraUuid || u.computadoraHostname) return false;
+      const est = (u.estadoDeposito || u.estado || '').toLowerCase();
+      if (est.includes('asignad') || est.includes('en_uso') || est.includes('en uso')) {
+        return false;
+      }
+    }
+    return true;
+  };
+
   // Cargar datos conjuntos
   const cargarDatos = async () => {
     setCargando(true);
@@ -153,7 +191,8 @@ export default function StockYAsignaciones() {
         fetchUnidadesStock(),
         fetchAsignacionesStock(),
       ]);
-      setUnidades(Array.isArray(unidadesData) ? unidadesData : []);
+      const rawUnidades = Array.isArray(unidadesData) ? unidadesData : [];
+      setUnidades(rawUnidades.filter(esUnidadValidaStock));
       setMovimientos(Array.isArray(movsData) ? movsData : []);
     } catch (err) {
       setErrorGlobal(err.message || 'Error al cargar inventario y asignaciones');
@@ -240,29 +279,6 @@ export default function StockYAsignaciones() {
     };
   }, [unidades, movimientos]);
 
-  // Categorización unificada de unidades físicas (por tipo y por prefijo de código)
-  const getCategoriaUnidad = (u) => {
-    if (!u) return 'Periféricos';
-    const t = (u.tipo || '').toLowerCase();
-    const c = (u.codigo || '').toUpperCase();
-
-    if (t === 'pc' || t === 'computadora' || t === 'desktop' || c.startsWith('PC-') || c.startsWith('STK-PC-')) {
-      return 'PCs';
-    }
-    if (t === 'notebook' || t === 'laptop' || c.startsWith('NB-') || c.startsWith('STK-NB-')) {
-      return 'Notebooks';
-    }
-    if (t === 'celular' || t === 'smartphone' || c.startsWith('CEL-') || c.startsWith('STK-CEL-')) {
-      return 'Celulares';
-    }
-    if (
-      t === 'router' || t === 'switch' || t === 'access_point' || t === 'red' || t === 'infraestructura' ||
-      c.startsWith('RED-') || c.startsWith('STK-RED-') || c.startsWith('INFRA-')
-    ) {
-      return 'Infraestructura';
-    }
-    return 'Periféricos';
-  };
 
   // Helper para generar el rango numérico de páginas con elipses
   const getRangoPaginas = (actual, total) => {
@@ -308,6 +324,8 @@ export default function StockYAsignaciones() {
   // Filtrado de Unidades de Stock
   const unidadesFiltradas = useMemo(() => {
     return unidades.filter((u) => {
+      if (!esUnidadValidaStock(u)) return false;
+
       const cat = getCategoriaUnidad(u);
       if (categoriaStock !== 'Todas' && cat !== categoriaStock) return false;
 
@@ -339,9 +357,10 @@ export default function StockYAsignaciones() {
   // Paginación Stock
   const totalPaginasStock = Math.ceil(unidadesFiltradas.length / porPaginaStock) || 1;
   const unidadesPaginadas = useMemo(() => {
-    const inicio = (paginaStock - 1) * porPaginaStock;
+    const paginaAjustada = Math.min(Math.max(1, paginaStock), totalPaginasStock);
+    const inicio = (paginaAjustada - 1) * porPaginaStock;
     return unidadesFiltradas.slice(inicio, inicio + porPaginaStock);
-  }, [unidadesFiltradas, paginaStock, porPaginaStock]);
+  }, [unidadesFiltradas, paginaStock, porPaginaStock, totalPaginasStock]);
 
   // Opciones únicas de ubicaciones para el filtro
   const ubicacionesUnicas = useMemo(() => {
@@ -647,7 +666,7 @@ export default function StockYAsignaciones() {
   };
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 space-y-6 p-4 sm:p-6 lg:p-8 animate-in fade-in duration-500">
+    <div className="w-full space-y-6 p-4 sm:p-6 lg:p-8 animate-in fade-in duration-500 pb-16">
       {/* 1. Header Unificado con badges y botones de acción */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -1848,57 +1867,6 @@ export default function StockYAsignaciones() {
           </div>
         </div>
       )}
-
-      {/* 6. Mini Dock Flotante: Navegación Rápida Subir / Bajar */}
-      <aside
-        aria-label="Navegación rápida de depósito"
-        className="fixed bottom-6 right-6 z-30 flex flex-col items-center gap-1.5 p-1.5 bg-white/95 backdrop-blur-xs border border-slate-300/80 rounded-2xl shadow-xl transition-all"
-      >
-        <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 px-1 pt-0.5 select-none">
-          Nav
-        </span>
-
-        <button
-          type="button"
-          onClick={() => scrollToSeccion('seccion-stock', 'stock')}
-          title="Subir a Stock de Depósito"
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-2xs group ${
-            tabPrincipal === 'stock'
-              ? 'bg-red-50 text-red-700 border border-red-200'
-              : 'text-slate-700 hover:text-red-600 hover:bg-red-50 border border-slate-200/60 hover:border-red-200'
-          }`}
-        >
-          <ChevronUp className="w-3.5 h-3.5 text-slate-400 group-hover:text-red-500 transition-colors" />
-          <Package className="w-3.5 h-3.5 text-red-600" />
-          <span className="hidden sm:inline">Stock</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => scrollToSeccion('seccion-asignaciones', 'asignaciones')}
-          title="Bajar a Asignaciones de Stock"
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-2xs group ${
-            tabPrincipal === 'asignaciones'
-              ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
-              : 'text-slate-700 hover:text-indigo-600 hover:bg-indigo-50 border border-slate-200/60 hover:border-indigo-200'
-          }`}
-        >
-          <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-500 transition-colors" />
-          <ClipboardList className="w-3.5 h-3.5 text-indigo-600" />
-          <span className="hidden sm:inline">Asignaciones</span>
-        </button>
-
-        <div className="w-full h-px bg-slate-200 my-0.5" />
-
-        <button
-          type="button"
-          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-          title="Volver arriba (Inicio de página)"
-          className="p-1.5 rounded-xl text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-all"
-        >
-          <ArrowUp className="w-3.5 h-3.5" />
-        </button>
-      </aside>
     </div>
   );
 }

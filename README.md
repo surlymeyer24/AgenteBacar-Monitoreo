@@ -829,11 +829,10 @@ Consolidación visual y operativa de las existencias de depósito y la custodia 
     - Bitácora cronológica con remitente/responsable (avatar, nombre, correo), activo asignado, área/sector, tipo de movimiento y estado de custodia (*Activa*, *Pendiente*, *Reingresada*).
     - Acción directa `Devolver` a disponible sobre activos activos.
     - Barra de navegación y paginación sincronizada con selector de filas por página y números de página.
-  - **Convivencia y Navegación Rápida Vertical ("Nav para subir y bajar")**:
-    - Ambos bloques conviven siempre en la misma pantalla continua con anclas de desplazamiento suave (`#seccion-stock` y `#seccion-asignaciones`).
-    - Pestañas superiores y barra lateral saltan a la sección elegida mediante `scrollIntoView({ behavior: 'smooth' })`.
+  - **Convivencia y Navegación Vertical**:
+    - Ambos bloques conviven en la misma pantalla continua con scroll vertical nativo fluido en el contenedor principal (`.main-scroll`), con barra de desplazamiento estilizada y visible en el lateral derecho.
+    - Pestañas superiores y accesos de barra lateral navegan directamente a `#seccion-stock` y `#seccion-asignaciones` mediante desplazamiento suave (`scrollIntoView`).
     - Detección activa de sección en pantalla mediante `IntersectionObserver` para mantener sincronizada la pestaña activa.
-    - Mini-dock flotante en la esquina inferior derecha con botones de navegación rápida: `↑ Stock`, `↓ Asignaciones` y `↑ Inicio de página`.
   - **Modales integrados**:
     - Alta de activo físico con asignación de código unificado.
     - Edición de serie, ubicación y notas.
