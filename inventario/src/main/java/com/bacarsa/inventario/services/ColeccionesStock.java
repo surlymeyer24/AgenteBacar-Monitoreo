@@ -10,6 +10,7 @@ public final class ColeccionesStock {
     public static final String ROUTERS = "routers";
     public static final String SWITCHES = "switches";
     public static final String ACCESS_POINTS = "access_points";
+    public static final String MOVIMIENTOS_STOCK = "movimientos_stock";
 
     private ColeccionesStock() {
     }

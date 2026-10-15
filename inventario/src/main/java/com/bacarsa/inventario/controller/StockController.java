@@ -13,10 +13,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.bacarsa.inventario.dto.AltaUnidadStockDTO;
+import com.bacarsa.inventario.dto.AsignarUnidadStockDTO;
 import com.bacarsa.inventario.dto.BajaUnidadStockDTO;
+import com.bacarsa.inventario.dto.DevolverUnidadStockDTO;
 import com.bacarsa.inventario.dto.ModificarUnidadStockDTO;
+import com.bacarsa.inventario.dto.MovimientoStockDTO;
 import com.bacarsa.inventario.dto.UnidadStockDTO;
 import com.bacarsa.inventario.services.StockAbmService;
+import com.bacarsa.inventario.services.StockAsignacionesService;
 import com.bacarsa.inventario.services.StockUnidadesService;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -28,10 +32,15 @@ public class StockController {
 
     private final StockUnidadesService stockUnidadesService;
     private final StockAbmService stockAbmService;
+    private final StockAsignacionesService stockAsignacionesService;
 
-    public StockController(StockUnidadesService stockUnidadesService, StockAbmService stockAbmService) {
+    public StockController(
+            StockUnidadesService stockUnidadesService,
+            StockAbmService stockAbmService,
+            StockAsignacionesService stockAsignacionesService) {
         this.stockUnidadesService = stockUnidadesService;
         this.stockAbmService = stockAbmService;
+        this.stockAsignacionesService = stockAsignacionesService;
     }
 
     @GetMapping
@@ -77,6 +86,32 @@ public class StockController {
         try {
             UnidadStockDTO dadoDeBaja = stockAbmService.darDeBaja(codigo, dto, uid(request));
             return ResponseEntity.ok(dadoDeBaja);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @PostMapping("/{codigo}/asignar")
+    public ResponseEntity<MovimientoStockDTO> asignar(
+            @PathVariable String codigo,
+            @Valid @RequestBody AsignarUnidadStockDTO dto,
+            HttpServletRequest request) throws Exception {
+        try {
+            MovimientoStockDTO mov = stockAsignacionesService.asignar(codigo, dto, uid(request));
+            return ResponseEntity.ok(mov);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @PostMapping("/{codigo}/devolver")
+    public ResponseEntity<MovimientoStockDTO> devolver(
+            @PathVariable String codigo,
+            @RequestBody(required = false) DevolverUnidadStockDTO dto,
+            HttpServletRequest request) throws Exception {
+        try {
+            MovimientoStockDTO mov = stockAsignacionesService.devolver(codigo, dto, uid(request));
+            return ResponseEntity.ok(mov);
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().build();
         }

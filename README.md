@@ -786,5 +786,24 @@ Operaciones de escritura unificadas sobre el catálogo de unidades de depósito 
 - `PATCH /api/stock/unidades/{codigo}` — actualización parcial de unidad (body `ModificarUnidadStockDTO`).
 - `POST /api/stock/unidades/{codigo}/baja` — baja con motivo obligatorio (body `BajaUnidadStockDTO`).
 
+---
+
+## 32. Stock — Libro de Asignaciones con Nombre (Stock 3)
+
+Libro de asignaciones y bitácora de custodia donde cualquier unidad se asigna, libera o devuelve a una persona por nombre y área, registrando un movimiento que no se pisa.
+
+### Operaciones y Resiliencia
+
+- **Asignación (`POST /api/stock/unidades/{codigo}/asignar`)**: exige `responsable` obligatorio (`@NotBlank`). Aplica el principio de resiliencia: el movimiento se escribe primero en la colección Firestore `movimientos_stock` con estado `Pendiente`. Luego se actualiza la ficha del equipo en su colección respectiva (en computadoras asienta en el historial inmutable vía `cambiarEstado` con `ASIGNADA`, en celulares pasa a `activo`, etc.). Al confirmarse la actualización de la ficha, el movimiento se actualiza a `Activa`. Si la escritura de la ficha falla, el movimiento permanece `Pendiente` y la ficha no muta.
+- **Devolución a Disponible (`POST /api/stock/unidades/{codigo}/devolver`)**: actualiza la unidad para devolverla a `Disponible` / `SIN_ASIGNAR` sin responsable, cierra los movimientos activos previos marcándolos en `Finalizada` con `fechaDevolucion`, y genera el movimiento de acción `Devolución` en estado `Finalizada`.
+- **Libro unificado (`GET /api/stock/asignaciones`)**: expone el listado consolidado de movimientos históricos ordenados cronológicamente desc. Incluye la proyección transparente de PCs asignadas y celulares liberados preexistentes para que convivan en el mismo libro.
+
+### API
+
+- `POST /api/stock/unidades/{codigo}/asignar` — asignación de unidad con nombre y área obligatorios (body `AsignarUnidadStockDTO`).
+- `POST /api/stock/unidades/{codigo}/devolver` — devolución de unidad a disponible (body `DevolverUnidadStockDTO`).
+- `GET /api/stock/asignaciones` — listado unificado de movimientos y asignaciones (`List<MovimientoStockDTO>`).
+
+
 
 

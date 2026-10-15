@@ -40,7 +40,8 @@ public class CacheConfig {
                 buildCache("usuarios", 180, 500),
                 buildCache("progresoLogisticaResumen", 180, 500),
                 buildCache("catalogoItems", 300, 50),
-                buildCache("eventosHardware", 120, 500)
+                buildCache("eventosHardware", 120, 500),
+                buildCache("movimientosStock", 180, 500)
         ));
         return manager;
     }
