@@ -6,7 +6,8 @@ import {
   RotateCcw, Trash2, Edit3, UserCheck, X, Search,
   Wrench, Bookmark, MapPin, AlertCircle, Download,
   ClipboardList, History, ArrowUpRight, ArrowDownLeft,
-  Filter, Check, User, Building, QrCode, FileText, Layers
+  Filter, Check, User, Building, QrCode, FileText, Layers,
+  ChevronLeft, ChevronRight
 } from 'lucide-react';
 import {
   fetchUnidadesStock,
@@ -51,14 +52,14 @@ export default function StockYAsignaciones() {
   const [condicionStockFiltro, setCondicionStockFiltro] = useState('Todas');
   const [ubicacionStockFiltro, setUbicacionStockFiltro] = useState('Todas');
   const [paginaStock, setPaginaStock] = useState(1);
-  const porPaginaStock = 10;
+  const [porPaginaStock, setPorPaginaStock] = useState(5);
 
   // Filtros de tabla de Asignaciones
   const [buscarAsignacion, setBuscarAsignacion] = useState('');
   const [areaAsignacionFiltro, setAreaAsignacionFiltro] = useState('Todas');
   const [estadoAsignacionFiltro, setEstadoAsignacionFiltro] = useState('Todos');
   const [paginaAsignacion, setPaginaAsignacion] = useState(1);
-  const porPaginaAsignacion = 10;
+  const [porPaginaAsignacion, setPorPaginaAsignacion] = useState(10);
 
   // Modales
   const [modalAltaOpen, setModalAltaOpen] = useState(false);
@@ -199,6 +200,44 @@ export default function StockYAsignaciones() {
     };
   }, [unidades, movimientos]);
 
+  // Categorización unificada de unidades físicas (por tipo y por prefijo de código)
+  const getCategoriaUnidad = (u) => {
+    if (!u) return 'Periféricos';
+    const t = (u.tipo || '').toLowerCase();
+    const c = (u.codigo || '').toUpperCase();
+
+    if (t === 'pc' || t === 'computadora' || t === 'desktop' || c.startsWith('PC-') || c.startsWith('STK-PC-')) {
+      return 'PCs';
+    }
+    if (t === 'notebook' || t === 'laptop' || c.startsWith('NB-') || c.startsWith('STK-NB-')) {
+      return 'Notebooks';
+    }
+    if (t === 'celular' || t === 'smartphone' || c.startsWith('CEL-') || c.startsWith('STK-CEL-')) {
+      return 'Celulares';
+    }
+    if (
+      t === 'router' || t === 'switch' || t === 'access_point' || t === 'red' || t === 'infraestructura' ||
+      c.startsWith('RED-') || c.startsWith('STK-RED-') || c.startsWith('INFRA-')
+    ) {
+      return 'Infraestructura';
+    }
+    return 'Periféricos';
+  };
+
+  // Helper para generar el rango numérico de páginas con elipses
+  const getRangoPaginas = (actual, total) => {
+    if (total <= 7) {
+      return Array.from({ length: total }, (_, i) => i + 1);
+    }
+    if (actual <= 4) {
+      return [1, 2, 3, 4, 5, '...', total];
+    }
+    if (actual >= total - 3) {
+      return [1, '...', total - 4, total - 3, total - 2, total - 1, total];
+    }
+    return [1, '...', actual - 1, actual, actual + 1, '...', total];
+  };
+
   // Conteos por categoría de stock
   const conteosCategoria = useMemo(() => {
     let pcs = 0;
@@ -208,11 +247,11 @@ export default function StockYAsignaciones() {
     let infraestructura = 0;
 
     for (const u of unidades) {
-      const t = (u.tipo || '').toLowerCase();
-      if (t === 'pc' || t === 'computadora' || t === 'desktop') pcs++;
-      else if (t === 'notebook' || t === 'laptop') notebooks++;
-      else if (t === 'celular' || t === 'smartphone') celulares++;
-      else if (t === 'router' || t === 'switch' || t === 'access_point' || t === 'red') infraestructura++;
+      const cat = getCategoriaUnidad(u);
+      if (cat === 'PCs') pcs++;
+      else if (cat === 'Notebooks') notebooks++;
+      else if (cat === 'Celulares') celulares++;
+      else if (cat === 'Infraestructura') infraestructura++;
       else perifericos++;
     }
 
@@ -229,12 +268,8 @@ export default function StockYAsignaciones() {
   // Filtrado de Unidades de Stock
   const unidadesFiltradas = useMemo(() => {
     return unidades.filter((u) => {
-      const t = (u.tipo || '').toLowerCase();
-      if (categoriaStock === 'PCs' && !(t === 'pc' || t === 'computadora' || t === 'desktop')) return false;
-      if (categoriaStock === 'Notebooks' && !(t === 'notebook' || t === 'laptop')) return false;
-      if (categoriaStock === 'Celulares' && !(t === 'celular' || t === 'smartphone')) return false;
-      if (categoriaStock === 'Infraestructura' && !(t === 'router' || t === 'switch' || t === 'access_point' || t === 'red')) return false;
-      if (categoriaStock === 'Periféricos' && (t === 'pc' || t === 'computadora' || t === 'desktop' || t === 'notebook' || t === 'laptop' || t === 'celular' || t === 'router' || t === 'switch' || t === 'access_point')) return false;
+      const cat = getCategoriaUnidad(u);
+      if (categoriaStock !== 'Todas' && cat !== categoriaStock) return false;
 
       if (buscarStock.trim()) {
         const q = buscarStock.toLowerCase();
@@ -1009,25 +1044,75 @@ export default function StockYAsignaciones() {
         </div>
 
         {/* Paginación Stock */}
-        <div className="p-3 bg-white border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-          <span>Página {paginaStock} de {totalPaginasStock}</span>
-          <div className="flex items-center gap-1">
+        <div className="p-3.5 bg-white border-t border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs text-slate-500">
+          <div className="flex items-center gap-3">
+            <span>
+              Mostrando <strong className="text-slate-800">{unidadesFiltradas.length === 0 ? 0 : (paginaStock - 1) * porPaginaStock + 1}</strong> - <strong className="text-slate-800">{Math.min(paginaStock * porPaginaStock, unidadesFiltradas.length)}</strong> de <strong className="text-slate-800">{unidadesFiltradas.length}</strong> registros físicos
+            </span>
+            <div className="flex items-center gap-1.5 pl-3 border-l border-slate-200">
+              <span className="text-slate-400">Filas:</span>
+              <select
+                value={porPaginaStock}
+                onChange={(e) => {
+                  setPorPaginaStock(Number(e.target.value));
+                  setPaginaStock(1);
+                }}
+                className="border border-slate-200 rounded px-2 py-1 bg-white font-bold text-slate-700 focus:outline-hidden text-xs"
+              >
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1 self-center md:self-auto">
             <button
               type="button"
               disabled={paginaStock <= 1}
-              onClick={() => setPaginaStock(p => p - 1)}
-              className="px-2.5 py-1 border border-slate-200 rounded hover:bg-slate-50 disabled:opacity-40"
+              onClick={() => setPaginaStock((p) => Math.max(1, p - 1))}
+              className="inline-flex items-center gap-1 px-3 py-1.5 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed font-medium transition-colors"
             >
-              Anterior
+              <ChevronLeft className="w-3.5 h-3.5" />
+              <span>Anterior</span>
             </button>
-            <span className="px-2 font-bold text-slate-800">{paginaStock}</span>
+
+            <div className="flex items-center gap-1 px-1">
+              {getRangoPaginas(paginaStock, totalPaginasStock).map((item, idx) => {
+                if (item === '...') {
+                  return (
+                    <span key={`dots-stock-${idx}`} className="px-2 py-1 text-slate-400 select-none font-bold">
+                      ...
+                    </span>
+                  );
+                }
+                const esActiva = item === paginaStock;
+                return (
+                  <button
+                    key={`pag-stock-${item}`}
+                    type="button"
+                    onClick={() => setPaginaStock(item)}
+                    className={`min-w-[32px] h-8 px-2 text-xs font-bold rounded-lg border transition-colors ${
+                      esActiva
+                        ? 'bg-red-600 text-white border-red-600 shadow-xs'
+                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    {item}
+                  </button>
+                );
+              })}
+            </div>
+
             <button
               type="button"
               disabled={paginaStock >= totalPaginasStock}
-              onClick={() => setPaginaStock(p => p + 1)}
-              className="px-2.5 py-1 border border-slate-200 rounded hover:bg-slate-50 disabled:opacity-40"
+              onClick={() => setPaginaStock((p) => Math.min(totalPaginasStock, p + 1))}
+              className="inline-flex items-center gap-1 px-3 py-1.5 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed font-medium transition-colors"
             >
-              Siguiente
+              <span>Siguiente</span>
+              <ChevronRight className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
@@ -1236,30 +1321,80 @@ export default function StockYAsignaciones() {
           </table>
         </div>
 
-        {/* Footer de Trazabilidad */}
-        <div className="p-3 bg-white border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between text-xs text-slate-500 gap-2">
-          <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>Sincronización de trazabilidad en tiempo real con Active Directory y RRHH</span>
+        {/* Footer de Trazabilidad y Paginación */}
+        <div className="p-3.5 bg-white border-t border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs text-slate-500">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="font-medium">Trazabilidad en tiempo real</span>
+            </div>
+            <span className="sm:pl-3 sm:border-l sm:border-slate-200">
+              Mostrando <strong className="text-slate-800">{asignacionesFiltradas.length === 0 ? 0 : (paginaAsignacion - 1) * porPaginaAsignacion + 1}</strong> - <strong className="text-slate-800">{Math.min(paginaAsignacion * porPaginaAsignacion, asignacionesFiltradas.length)}</strong> de <strong className="text-slate-800">{asignacionesFiltradas.length}</strong> asignaciones
+            </span>
+            <div className="flex items-center gap-1.5 sm:pl-3 sm:border-l sm:border-slate-200">
+              <span className="text-slate-400">Filas:</span>
+              <select
+                value={porPaginaAsignacion}
+                onChange={(e) => {
+                  setPorPaginaAsignacion(Number(e.target.value));
+                  setPaginaAsignacion(1);
+                }}
+                className="border border-slate-200 rounded px-2 py-1 bg-white font-bold text-slate-700 focus:outline-hidden text-xs"
+              >
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+              </select>
+            </div>
           </div>
 
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 self-center md:self-auto">
             <button
               type="button"
               disabled={paginaAsignacion <= 1}
-              onClick={() => setPaginaAsignacion(p => p - 1)}
-              className="px-2.5 py-1 border border-slate-200 rounded hover:bg-slate-50 disabled:opacity-40"
+              onClick={() => setPaginaAsignacion((p) => Math.max(1, p - 1))}
+              className="inline-flex items-center gap-1 px-3 py-1.5 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed font-medium transition-colors"
             >
-              Anterior
+              <ChevronLeft className="w-3.5 h-3.5" />
+              <span>Anterior</span>
             </button>
-            <span className="px-2 font-bold text-slate-800">{paginaAsignacion}</span>
+
+            <div className="flex items-center gap-1 px-1">
+              {getRangoPaginas(paginaAsignacion, totalPaginasAsig).map((item, idx) => {
+                if (item === '...') {
+                  return (
+                    <span key={`dots-asig-${idx}`} className="px-2 py-1 text-slate-400 select-none font-bold">
+                      ...
+                    </span>
+                  );
+                }
+                const esActiva = item === paginaAsignacion;
+                return (
+                  <button
+                    key={`pag-asig-${item}`}
+                    type="button"
+                    onClick={() => setPaginaAsignacion(item)}
+                    className={`min-w-[32px] h-8 px-2 text-xs font-bold rounded-lg border transition-colors ${
+                      esActiva
+                        ? 'bg-red-600 text-white border-red-600 shadow-xs'
+                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    {item}
+                  </button>
+                );
+              })}
+            </div>
+
             <button
               type="button"
               disabled={paginaAsignacion >= totalPaginasAsig}
-              onClick={() => setPaginaAsignacion(p => p + 1)}
-              className="px-2.5 py-1 border border-slate-200 rounded hover:bg-slate-50 disabled:opacity-40"
+              onClick={() => setPaginaAsignacion((p) => Math.min(totalPaginasAsig, p + 1))}
+              className="inline-flex items-center gap-1 px-3 py-1.5 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed font-medium transition-colors"
             >
-              Siguiente
+              <span>Siguiente</span>
+              <ChevronRight className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>

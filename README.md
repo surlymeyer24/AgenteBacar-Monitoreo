@@ -821,11 +821,14 @@ Consolidación visual y operativa de las existencias de depósito y la custodia 
     - *Entregas del Mes* (métrica MoM).
     - *Pendientes de Firma* (remitos o actas por regularizar).
   - **Bloque Superior — Stock de Depósito (Lista Continua)**:
-    - Filtros por categoría de hardware con badges numéricos en tiempo real: *Todas, PCs, Notebooks, Periféricos, Celulares, Infraestructura*.
+    - Filtros por categoría de hardware con badges numéricos en tiempo real: *Todas, PCs, Notebooks, Periféricos, Celulares, Infraestructura* (categorización por tipo y prefijo de código interno).
+    - Exclusión estricta de computadoras asignadas o detectadas por agente (`origenAlta` de agente o reporte activo en CyberWatch), proyectando únicamente equipos en depósito.
     - Reemplazo del Kanban de computadoras: las PCs y notebooks se gestionan en formato lista uniforme con especificaciones, condición, estantería y acciones rápidas (`Asignar`, `Editar`, `Baja`).
+    - Barra de navegación y paginación completa: leyenda `Mostrando X - Y de Z registros físicos`, selector de filas por página (5, 10, 25, 50) y botonera numerada con elipses (`Anterior`, `1`, `2`, `3`, ..., `N`, `Siguiente`).
   - **Bloque Inferior — Trazabilidad de Asignaciones y Entregas Recientes**:
     - Bitácora cronológica con remitente/responsable (avatar, nombre, correo), activo asignado, área/sector, tipo de movimiento y estado de custodia (*Activa*, *Pendiente*, *Reingresada*).
     - Acción directa `Devolver` a disponible sobre activos activos.
+    - Barra de navegación y paginación sincronizada con selector de filas por página y números de página.
   - **Modales integrados**:
     - Alta de activo físico con asignación de código unificado.
     - Edición de serie, ubicación y notas.

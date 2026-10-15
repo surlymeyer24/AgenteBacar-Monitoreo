@@ -7,6 +7,7 @@ import com.bacarsa.inventario.models.Camara;
 import com.bacarsa.inventario.models.Celular;
 import com.bacarsa.inventario.models.Computadora;
 import com.bacarsa.inventario.models.Estado;
+import com.bacarsa.inventario.models.OrigenAlta;
 import com.bacarsa.inventario.models.PerifericoManual;
 import com.bacarsa.inventario.models.Router;
 import com.bacarsa.inventario.models.SwitchRed;
@@ -30,12 +31,12 @@ public final class ProyeccionStock {
             prefijo = "PC";
             tipo = "desktop";
         }
-        return armar(
+        return FichaLectura.de(
                 ColeccionesStock.COMPUTADORAS,
                 computadora.getUuid(),
                 computadora.getCodigoInterno(),
                 prefijo,
-                null,
+                motivoComputadora(computadora, prefijo),
                 tipo,
                 "",
                 "",
@@ -44,6 +45,26 @@ public final class ProyeccionStock {
                 estado(computadora.getEstadoActual(), null),
                 "",
                 ubicacion(computadora.getUbicacion()));
+    }
+
+    static String motivoComputadora(Computadora pc, String prefijo) {
+        if (pc == null || pc.getUuid() == null || pc.getUuid().isBlank()) {
+            return "sin_id";
+        }
+        OrigenAlta origen = pc.getOrigenAlta();
+        if (origen == OrigenAlta.DETECTADA_POR_AGENTE || origen == OrigenAlta.DETECTADA_VINCULADA_RETRO) {
+            return "agente_operativo";
+        }
+        if (pc.getUltimaSincronizacion() != null) {
+            return "agente_sincronizado";
+        }
+        if (pc.getUsuarioActual() != null && !pc.getUsuarioActual().isBlank() && origen != OrigenAlta.STOCK) {
+            return "asignada_operativa";
+        }
+        if (prefijo == null) {
+            return "tipo_desconocido";
+        }
+        return null;
     }
 
     public static FichaLectura desdePeriferico(PerifericoManual periferico) {

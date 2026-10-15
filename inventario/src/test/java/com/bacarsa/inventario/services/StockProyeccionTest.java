@@ -134,6 +134,22 @@ class StockProyeccionTest {
     }
 
     @Test
+    void maquinasDetectadasPorAgenteOConReporteNoEntranEnStock() {
+        Computadora pcAgente = desktop("pc-agente", "PC-10");
+        pcAgente.setOrigenAlta(com.bacarsa.inventario.models.OrigenAlta.DETECTADA_POR_AGENTE);
+
+        Computadora pcSync = desktop("pc-sync", "PC-11");
+        pcSync.setUltimaSincronizacion(com.google.cloud.Timestamp.now());
+
+        Computadora pcAsignada = desktop("pc-asig", "PC-12");
+        pcAsignada.setUsuarioActual("carlos.varela");
+
+        assertFalse(ProyeccionStock.desdeComputadora(pcAgente).entraEnListado());
+        assertFalse(ProyeccionStock.desdeComputadora(pcSync).entraEnListado());
+        assertFalse(ProyeccionStock.desdeComputadora(pcAsignada).entraEnListado());
+    }
+
+    @Test
     void cantidadDistintaDeUnoNoEntra() {
         PerifericoManual cero = teclado("p0", null);
         cero.setCantidad(0);
