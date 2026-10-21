@@ -115,7 +115,7 @@ public class PerifericoManualRepository {
     public void actualizar(String id, java.util.Map<String, Object> campos)
             throws ExecutionException, InterruptedException {
         if (campos.isEmpty()) return;
-        firestore.collection(collectionName).document(id).update(campos).get();
+        firestore.collection(collectionName).document(id).set(campos, SetOptions.merge()).get();
     }
 
     @CacheEvict(value = "perifericosManuales", allEntries = true)
@@ -214,7 +214,10 @@ public class PerifericoManualRepository {
             }
         }
         EspecificacionStock spec = EspecificacionStockMapper.fromFirestoreMap(doc.get("especificacion_stock"));
-        spec = EspecificacionStockMapper.enrichFromNombre(spec, doc.getString("nombre"));
+        String tipo = p.getTipo() != null ? p.getTipo().trim().toLowerCase(java.util.Locale.ROOT) : "";
+        if ("computadora".equals(tipo)) {
+            spec = EspecificacionStockMapper.enrichFromNombre(spec, doc.getString("nombre"));
+        }
         p.setEspecificacionStock(spec);
         return p;
     }

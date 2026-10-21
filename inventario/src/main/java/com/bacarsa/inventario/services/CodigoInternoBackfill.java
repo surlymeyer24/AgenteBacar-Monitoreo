@@ -10,7 +10,7 @@ import java.util.regex.Pattern;
 public final class CodigoInternoBackfill {
 
     private static final Pattern CODIGO = Pattern.compile(
-            "^(PC|NB|MON|TEC|MOU|IMP|WEB|PAR|MIC|CEL|CAM|TV|RTR|SW|AP)-(\\d+)$");
+            "^(PC|NB|MON|TEC|MOU|IMP|WEB|PAR|MIC|CEL|CAM|TV|RTR|SW|AP|TEL|OTR)-(\\d+)$");
 
     private CodigoInternoBackfill() {
     }

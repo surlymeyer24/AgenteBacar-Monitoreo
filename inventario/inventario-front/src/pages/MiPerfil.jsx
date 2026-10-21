@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getFirebaseAuth, initFirebase, COLLECTIONS } from '../lib/firebase';
-import { updatePassword, updateEmail } from 'firebase/auth';
+import { updatePassword, updateEmail, updateProfile } from 'firebase/auth';
 import { useFirebaseAuthUser } from '../hooks/useFirebaseAuth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { 
@@ -95,6 +95,16 @@ export default function MiPerfil() {
     localStorage.setItem('bacarsa_profile_role', roleInput);
     localStorage.setItem('bacarsa_profile_photo_color', avatarColor);
 
+    // Persist to Firebase Auth
+    try {
+      const auth = getFirebaseAuth();
+      if (auth?.currentUser) {
+        await updateProfile(auth.currentUser, { displayName: nameInput });
+      }
+    } catch (authErr) {
+      console.warn('No se pudo actualizar displayName en Auth:', authErr);
+    }
+
     // Persist to Firestore
     try {
       const db = initFirebase();
@@ -112,6 +122,9 @@ export default function MiPerfil() {
     } catch (err) {
       console.error('Error guardando perfil en Firestore:', err);
     }
+
+    // Dispatch reactive update event across components
+    window.dispatchEvent(new CustomEvent('bacarsa_profile_updated', { detail: { nombre: nameInput } }));
 
     setBannerMessage('¡Información de perfil actualizada correctamente!');
     setShowSuccessBanner(true);

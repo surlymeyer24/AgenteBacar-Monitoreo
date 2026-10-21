@@ -5,6 +5,7 @@ import { useResponsables } from '../hooks/useQueries';
 import { reconstruirResponsables } from '../api/responsableApi';
 import { StudioPageShell, StudioLoading, StudioError } from '../components/studio/StudioUi';
 import WriteGate from '../components/WriteGate';
+import { ModuleHeader } from '../components/layout';
 
 function fmtFecha(iso) {
   if (!iso) return '—';
@@ -45,11 +46,28 @@ export default function ResponsablesList() {
   if (error) return <StudioError message="No se pudo cargar la lista de responsables." />;
 
   return (
-    <StudioPageShell
-      title="Responsables de equipamiento"
-      subtitle={`${filtrados.length} persona(s) con equipos asignados en inventario.`}
-    >
-      <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-4 mb-4 space-y-3">
+    <div className="space-y-4">
+      {/* Header en Card Blanca Estándar */}
+      <ModuleHeader
+        title="Responsables y Áreas"
+        badge={`${filtrados.length} persona(s) con equipos asignados`}
+        description="Directorio de custodios y personal asignado a equipamiento del inventario."
+        actions={
+          <WriteGate>
+            <button
+              type="button"
+              onClick={handleReconstruir}
+              disabled={reconstruyendo}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#f1f5f9] hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 text-slate-500 ${reconstruyendo ? 'animate-spin' : ''}`} />
+              <span>Reconstruir índice</span>
+            </button>
+          </WriteGate>
+        }
+      />
+
+      <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-4 space-y-3">
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -57,32 +75,21 @@ export default function ResponsablesList() {
               type="search"
               value={buscar}
               onChange={e => setBuscar(e.target.value)}
-              placeholder="Buscar por nombre…"
-              className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-accent/20 focus:border-accent outline-none"
+              placeholder="Buscar por nombre de responsable o ID..."
+              className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-xs bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-red-500"
             />
           </div>
-          <WriteGate>
-            <button
-              type="button"
-              onClick={handleReconstruir}
-              disabled={reconstruyendo}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-bold border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50"
-            >
-              <RefreshCw className={`w-4 h-4 ${reconstruyendo ? 'animate-spin' : ''}`} />
-              Reconstruir índice
-            </button>
-          </WriteGate>
         </div>
         {msg && (
-          <p className={`text-sm font-medium ${msg.tipo === 'ok' ? 'text-emerald-700' : 'text-red-600'}`}>
+          <p className={`text-xs font-bold ${msg.tipo === 'ok' ? 'text-emerald-700' : 'text-red-600'}`}>
             {msg.texto}
           </p>
         )}
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden overflow-x-auto">
+        <table className="w-full text-left text-xs">
+          <thead className="bg-slate-50 text-slate-500 text-[11px] font-bold uppercase tracking-wider border-b border-slate-200">
             <tr>
               <th className="px-4 py-3">Responsable</th>
               <th className="px-4 py-3 text-center">Equipos</th>
@@ -101,27 +108,27 @@ export default function ResponsablesList() {
               </tr>
             ) : (
               filtrados.map(r => (
-                <tr key={r.id} className="hover:bg-slate-50">
+                <tr key={r.id} className="hover:bg-slate-50/70 transition-colors">
                   <td className="px-4 py-3">
-                    <span className="inline-flex items-center gap-2 font-semibold text-slate-900">
-                      <UserRound className="w-4 h-4 text-violet-600 shrink-0" />
+                    <span className="inline-flex items-center gap-2 font-bold text-slate-900">
+                      <UserRound className="w-4 h-4 text-red-600 shrink-0" />
                       {r.nombre ?? r.id}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <span className="inline-flex min-w-[2rem] justify-center px-2 py-0.5 rounded-full bg-violet-50 text-violet-800 font-bold text-xs">
+                    <span className="inline-flex min-w-[2rem] justify-center px-2 py-0.5 rounded-full bg-slate-100 text-slate-800 font-extrabold text-[11px]">
                       {r.cantidadEquipos ?? 0}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-slate-500 hidden md:table-cell text-xs">
+                  <td className="px-4 py-3 text-slate-500 hidden md:table-cell text-xs font-mono">
                     {fmtFecha(r.actualizadoAt)}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <Link
                       to={`/responsables/${encodeURIComponent(r.id)}`}
-                      className="text-sm font-bold text-accent hover:text-accent-hover"
+                      className="text-xs font-bold text-blue-600 hover:text-blue-800"
                     >
-                      Ver equipos
+                      Ver equipos &rarr;
                     </Link>
                   </td>
                 </tr>
@@ -130,6 +137,6 @@ export default function ResponsablesList() {
           </tbody>
         </table>
       </div>
-    </StudioPageShell>
+    </div>
   );
 }

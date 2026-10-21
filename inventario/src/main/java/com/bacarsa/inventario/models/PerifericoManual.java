@@ -54,6 +54,9 @@ public class PerifericoManual {
 
     private Estado estadoActual;
     private List<CambioEstado> historialEstados;
+    private String condicion;
+    private String responsable;
+    private String comentarios;
 
     public PerifericoManual() {
         this.historialEstados = new ArrayList<>();

@@ -19,4 +19,6 @@ public class AltaUnidadStockDTO {
     private String hostname;
     private String notas;
     private String motivo;
+    private Integer cantidad;
+    private String comentarios;
 }

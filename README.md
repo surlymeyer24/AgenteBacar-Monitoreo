@@ -472,6 +472,11 @@ Objetivo: crear la entidad **Nvr** como maestro y vincular cada cámara a su NVR
 
 ### Frontend
 
+- **`NvrsCamarasList.jsx`**: Vista unificada consolidada para `/camaras` y `/nvrs` según diseño Stitch:
+  - Fila de 4 KPIs superiores (CCTV Terminales, Servidores NVR, Almacenamiento RAID y Ciclo de Retención).
+  - Sección superior con grabadoras digitales NVR en tarjetas horizontales con métricas de ocupación de canales (`NVR X/Y ch`), filtros rápidos (`Todos`, `Tesorería`, `Monitoreo`) y modales CRUD/edición.
+  - Sección inferior con grilla paginada de cámaras (20 por página) con filtros por ubicación, NVR, orden por nombre, búsqueda reactiva y barra de acciones en lote.
+  - Sidebar unificado: el módulo en la barra de navegación lateral pasa a ser **`NVR y Cámaras IP`**, concentrando el acceso al circuito cerrado en una sola vista.
 - **`nvrApi.js`**, **`NvrList.jsx`**, **`NvrDetail.jsx`**, **`NvrNueva.jsx`**, **`CamaraNueva.jsx`**, **`CamaraList.jsx`**.
 - El listado de cámaras (`/camaras`) permite dar de alta y editar cámaras directamente desde la ventana emergente (modal), incluyendo la selección opcional de la NVR y la persistencia en base de datos.
 - El listado de NVRs (`/nvrs`) y el detalle de NVR (`/nvrs/:id`) también permiten dar de alta cámaras (con pre-selección automática si aplica) mediante la misma ventana emergente (modal).
@@ -565,7 +570,11 @@ Activo de inventario manual para periféricos no detectados por el agente.
 
 ### Dashboard de Infraestructura
 
-- **Frontend**: `InfraestructuraDashboard.jsx` — dashboard secundario para la sección de infraestructura de red (Routers, Switches, NVRs).
+- **Frontend**: `InfraestructuraDashboard.jsx` — rediseñado según la maqueta Stitch:
+  - Encabezado con total dinámico de activos y botón institucional `+ Nuevo Dispositivo` con menú desplegable para registro directo de equipos.
+  - Fila de 8 KPIs compactos (NVR, Cámaras, Routers, Switches, Access Points, Tesorería, Servidores y Teléfonos IP) con estados e indicadores visuales.
+  - Directorio de Teléfonos IP estructurado en tabla con avatares de iniciales, búsqueda en vivo, estado SIP, indicador de interno y acciones rápidas (llamada directa y copiado al portapapeles).
+  - Sección inferior en 2 columnas con desglose distributivo: "Cámaras por NVR" con métricas de almacenamiento/retención, "Routers por Ubicación" y "Switches por Ubicación" con topología PoE y carga energética, más panel consolidado de Máquinas de Tesorería por tipo.
 
 ---
 
@@ -765,7 +774,7 @@ Proyección unificada de activos individuales de depósito y asignación idempot
 
 ### API
 
-- `GET /api/stock/unidades` — devuelve `List<UnidadStockDTO>` con 9 campos proyectados (`codigo`, `tipo`, `marca`, `modelo`, `serieOImei`, `condicion`, `estadoDeposito`, `fechaIngreso`, `ubicacion`). Sin dato se normaliza a `""` (no inventa marca en PCs ni fechas de ingreso). Solo incluye unidades con código asignado.
+- `GET /api/stock/unidades` — devuelve `List<UnidadStockDTO>` con 10 campos proyectados (`codigo`, `tipo`, `marca`, `modelo`, `serieOImei`, `condicion`, `estadoDeposito`, `fechaIngreso`, `ubicacion`, `cantidad`). Sin dato se normaliza a `""` (no inventa marca en PCs ni fechas de ingreso; `cantidad` es 1 por defecto salvo lotes agrupados). Solo incluye unidades con código asignado en depósito.
 
 ---
 
@@ -794,9 +803,9 @@ Libro de asignaciones y bitácora de custodia donde cualquier unidad se asigna, 
 
 ### Operaciones y Resiliencia
 
-- **Asignación (`POST /api/stock/unidades/{codigo}/asignar`)**: exige `responsable` obligatorio (`@NotBlank`). Aplica el principio de resiliencia: el movimiento se escribe primero en la colección Firestore `movimientos_stock` con estado `Pendiente`. Luego se actualiza la ficha del equipo en su colección respectiva (en computadoras asienta en el historial inmutable vía `cambiarEstado` con `ASIGNADA`, en celulares pasa a `activo`, etc.). Al confirmarse la actualización de la ficha, el movimiento se actualiza a `Activa`. Si la escritura de la ficha falla, el movimiento permanece `Pendiente` y la ficha no muta.
-- **Devolución a Disponible (`POST /api/stock/unidades/{codigo}/devolver`)**: actualiza la unidad para devolverla a `Disponible` / `SIN_ASIGNAR` sin responsable, cierra los movimientos activos previos marcándolos en `Finalizada` con `fechaDevolucion`, y genera el movimiento de acción `Devolución` en estado `Finalizada`.
-- **Libro unificado (`GET /api/stock/asignaciones`)**: expone el listado consolidado de movimientos históricos ordenados cronológicamente desc. Incluye la proyección transparente de PCs asignadas y celulares liberados preexistentes para que convivan en el mismo libro.
+- **Asignación (`POST /api/stock/unidades/{codigo}/asignar`)**: exige `responsable` obligatorio (`@NotBlank`). Aplica el principio de resiliencia: el movimiento se escribe primero en la colección Firestore `movimientos_stock` con estado `Pendiente`. Luego se actualiza la ficha del equipo en `perifericos_manuales` con `responsable`, `ubicacion` y `estadoActual: ASIGNADA`. Al confirmarse la actualización de la ficha, el movimiento se actualiza a `Activa`. Si la escritura de la ficha falla, el movimiento permanece `Pendiente` y la ficha no muta.
+- **Devolución a Disponible (`POST /api/stock/unidades/{codigo}/devolver`)**: actualiza la unidad en `perifericos_manuales` para devolverla a `SIN_ASIGNAR` sin responsable y con ubicación `DEPOSITO`, cierra los movimientos activos previos marcándolos en `Finalizada` con `fechaDevolucion`, y genera el movimiento de acción `Devolución` en estado `Finalizada`.
+- **Libro unificado (`GET /api/stock/asignaciones`)**: expone el listado consolidado de asignaciones activas y movimientos históricos (leyendo `movimientos_stock` y proyectando periféricos/equipos asignados de `perifericos_manuales` así como PCs asignadas de `computadoras` con origen stock `OrigenAlta.STOCK` sin movimiento previo) ordenados cronológicamente desc.
 
 ### API
 
@@ -806,43 +815,238 @@ Libro de asignaciones y bitácora de custodia donde cualquier unidad se asigna, 
 
 ---
 
-## 33. Stock — Módulo Unificado de Depósito y Asignaciones (Stock 4)
+## 33. Stock — Módulo Unificado de Depósito y Asignaciones (Stock 4 Rewrite)
 
-Consolidación visual y operativa de las existencias de depósito y la custodia de asignaciones en una única vista integral (`StockYAsignaciones.jsx`), eliminando el tablero Kanban de PCs en favor de una lista continua uniforme.
+Consolidación visual y operativa de las existencias de depósito y la custodia de asignaciones en la vista integral [`StockPage.jsx`](file:///d:/Desarrollo/MiniAgente-Inventario/inventario/inventario-front/src/pages/StockPage.jsx) bajo la ruta canónica `/deposito`, integrando React Query para la carga y sincronización de datos sin prop drilling ni estados dispersos.
 
 ### Arquitectura y Pantallas
 
-- **`StockYAsignaciones.jsx` (Módulo Unificado `INV-ALM-01`)**:
-  - **Encabezado institucional**: Título *Depósito: Stock y Asignaciones* con insignia de almacén, botón de exportación, `+ Registrar activo` y `+ Nueva asignación / entrega`.
-  - **KPIs Consolidados (5 indicadores)**:
-    - *Disponibles en Almacén* (con porcentaje sobre el total).
-    - *Taller / Preparación* (desglose Staging y Taller de reparación).
-    - *Asignaciones Activas* (equipos en nómina en campo).
-    - *Entregas del Mes* (métrica MoM).
-    - *Pendientes de Firma* (remitos o actas por regularizar).
-  - **Bloque Superior — Stock de Depósito (Lista Continua)**:
-    - Filtros por categoría de hardware con badges numéricos en tiempo real: *Todas, PCs, Notebooks, Periféricos, Celulares, Infraestructura* (categorización por tipo y prefijo de código interno).
-    - Exclusión estricta de computadoras asignadas o detectadas por agente (`origenAlta` de agente o reporte activo en CyberWatch), y exclusión estricta de periféricos en uso (conectados a computadoras con `computadora_uuid` o `computadora_hostname`, o en estado `ASIGNADA`), proyectando en stock únicamente periféricos libres en almacén (`SIN_ASIGNAR`, `DISPONIBLE`, `STAGING`, `TALLER`).
-    - Reemplazo del Kanban de computadoras: las PCs y notebooks se gestionan en formato lista uniforme con especificaciones, condición, estantería y acciones rápidas (`Asignar`, `Editar`, `Baja`).
-    - Barra de navegación y paginación completa: leyenda `Mostrando X - Y de Z registros físicos`, selector de filas por página (5, 10, 25, 50) y botonera numerada con elipses (`Anterior`, `1`, `2`, `3`, ..., `N`, `Siguiente`).
-  - **Bloque Inferior — Trazabilidad de Asignaciones y Entregas Recientes**:
-    - Bitácora cronológica con remitente/responsable (avatar, nombre, correo), activo asignado, área/sector, tipo de movimiento y estado de custodia (*Activa*, *Pendiente*, *Reingresada*).
-    - Acción directa `Devolver` a disponible sobre activos activos.
-    - Barra de navegación y paginación sincronizada con selector de filas por página y números de página.
-  - **Convivencia y Navegación Vertical**:
-    - Ambos bloques conviven en la misma pantalla continua con scroll vertical nativo fluido en el contenedor principal (`.main-scroll`), con barra de desplazamiento estilizada y visible en el lateral derecho.
-    - Pestañas superiores y accesos de barra lateral navegan directamente a `#seccion-stock` y `#seccion-asignaciones` mediante desplazamiento suave (`scrollIntoView`).
-    - Detección activa de sección en pantalla mediante `IntersectionObserver` para mantener sincronizada la pestaña activa.
-  - **Modales integrados**:
-    - Alta de activo físico con asignación de código unificado.
-    - Edición de serie, ubicación y notas.
-    - Baja con motivo obligatorio para trazabilidad.
-    - Asignación con responsable y área obligatorios.
-    - Devolución a almacén disponible.
-- **Navegación Unificada (`SidebarNav.jsx` y `App.jsx`)**:
-    - Acceso directo en la barra lateral bajo la sección *Depósito*: **Stock de Depósito** (`/perifericos/stock?tab=stock`) y **Asignaciones de Stock** (`/perifericos/stock?tab=asignaciones`), desplazando automáticamente a la sección correspondiente.
-    - Redirección automática de `/asignaciones-stock` y `/stock` hacia la vista unificada.
+- **`StockPage.jsx` (Ruta `/deposito`)**:
+  - **Encabezado institucional**: Shell unificado con `StudioPageShell`, botón `+ Nueva unidad` en la pestaña de depósito (`requiresWrite`) y selector de pestañas `StudioDetailTabs` ("Depósito", "Asignaciones" y "Bajas") sincronizado con la URL (`?tab=deposito|asignaciones|bajas`).
+  - **Capa de datos con React Query**:
+    - Consultas declarativas mediante `useStockUnidades()` y `useStockAsignaciones()` en `src/hooks/useQueries.js`.
+    - Invalidación centralizada post-mutación mediante `useStockInvalidation()` (`invalidarUnidades`, `invalidarAsignaciones`, `invalidarTodo`).
+  - **Pestaña Depósito (`DepositoTab.jsx`)**:
+    - Muestra exclusivamente las existencias físicas en almacén disponibles (sin asignar y en mantenimiento), excluyendo equipos asignados/operativos (que se visualizan en Asignaciones) y bajas (que se visualizan en Bajas).
+    - Barra de solapas superiores por familia de hardware (**Todas**, **PCs**, **Periféricos**, **Infraestructura**, **Celulares**) con badges numéricos en vivo con la cantidad de unidades en cada categoría.
+    - Filtros dinámicos con `StudioFilterBar`: búsqueda global de texto (código, marca, modelo, serie, ubicación), selector de subtipos contextual a la familia activa, filtro por estado operativo en almacén (Sin Asignar/Disponible, En Mantenimiento) y selector de condición.
+    - Tabla unificada (`StudioDataTable`) simplificada sin columnas de Código ni Serie/IMEI, destacando tipo, marca, modelo, estado, condición, ubicación y cantidad.
+    - Paginación client-side de 25 filas por página con controles de navegación.
+    - Acciones contextuales protegidas por `WriteGate`: `Editar`, `Asignar` (solo unidades disponibles/sin asignar) y `Baja` con motivo.
+  - **Pestaña Asignaciones (`AsignacionesTab.jsx`)**:
+    - KPIs reales calculados en cliente: *Asignaciones Activas*, *Entregas del Mes* y *Devoluciones del Mes*.
+    - Barra de solapas por familia de hardware (**Todas**, **PCs**, **Periféricos**, **Infraestructura**, **Celulares**) con badges numéricos en vivo con la cantidad de asignaciones en cada categoría.
+    - Filtro de búsqueda y selectores por estado de movimiento (Activa, Finalizada, Pendiente) y área/sector.
+    - Tabla simplificada sin columnas de código ni serie, priorizando equipo, responsable, área, acción, estado y fechas. Incluye equipos de red operativos e infraestructura (como Access Points) proyectados automáticamente.
+    - Acción rápida `Devolver` al depósito sobre asignaciones activas.
+  - **Pestaña Bajas (`BajasTab.jsx`)**:
+    - Vista dedicada para unidades desincorporadas o dadas de baja definitiva.
+    - Tarjetas métricas superiores con conteos de bajas por familia (Total Bajas, PCs, Periféricos, Infraestructura).
+    - Solapas por familia de hardware (**Todas**, **PCs**, **Periféricos**, **Infraestructura**, **Celulares**) con badges en vivo.
+    - Buscador global y tabla de bajas sin código ni serie, priorizando tipo, equipo, ubicación anterior, fecha y motivo de baja.
+  - **Modales integrados (`StockModals.jsx`)**:
+    - `ModalAlta`: alta de activo con selector canónico de tipos, validación y feedback de error.
+    - `ModalEditar`: modificación parcial de datos físicos (marca, modelo, serie, condición, ubicación, notas).
+    - `ModalBaja`: baja con motivo obligatorio y estilo de advertencia destructiva.
+    - `ModalAsignar`: asignación a responsable por nombre y área obligatorios.
+    - `ModalDevolver`: devolución de unidad a disponible en almacén con motivo opcional.
+  - **Navegación y Rutas (`SidebarNav.jsx` y `App.jsx`)**:
+    - Accesos en la barra lateral bajo la sección *Depósito*: **Stock de Depósito** (`/deposito?tab=deposito`), **Asignaciones de Stock** (`/deposito?tab=asignaciones`) y acceso directo a **Bajas** (`/deposito?tab=bajas`).
+    - Redirecciones automáticas desde rutas legadas (`/asignaciones-stock`, `/perifericos/stock`) hacia `/deposito`.
 
 ### Resiliencia y Manejo de Errores
 
-- Ante fallas de red o rechazo de API, no se aplican mutaciones optimistas. Las filas conservan su estado fidedigno y se despliegan avisos claros con la causa del error.
+- Ante fallas de red o errores de validación de backend (HTTP 400/404/500), se capturan las excepciones y se presentan en alertas dentro del formulario sin aplicar mutaciones optimistas destructivas.
+- Tras mutaciones confirmadas por la API, la caché de React Query se invalida inmediatamente reflejando los cambios en las tablas sin recargar la página.
+
+### Persistencia Unificada de Stock y Coexistencia con Colecciones Especializadas
+
+- **Stock de Depósito (`StockUnidadesService`)**: Integra periféricos y equipos de `perifericos_manuales` junto con los dispositivos móviles de la colección `celulares` (`CelularRepository`). Las unidades con estado de depósito disponible (`en_stock`, `disponible`, `sin asignar`) se visualizan en la pestaña **Depósito** bajo la familia **Celulares**.
+- **Custodia y Asignaciones (`StockAsignacionesService`)**: Proyecta dinámicamente celulares activos (`celulares`), Access Points operativos (`access_points`) y periféricos/equipos de red de `perifericos_manuales` que tengan responsable, estado operativo o una ubicación física asignada fuera de depósito (ej. `MEZON_TRANSPORTISTA`, `ADMINISTRACION`, etc.), reflejándolos en la pestaña **Asignaciones** bajo su familia correspondiente (**Infraestructura**, **PCs**, **Periféricos**, **Celulares**).
+- **Filtro estricto de almacén en Depósito (`DepositoTab.jsx`)**: Asegura que cualquier unidad que tenga responsable asignado o cuya ubicación física sea operativa (fuera de depósito) no figure en el almacén de Depósito.
+- **Tablas limpias sin sobrecarga visual**: Se eliminaron las columnas redundantes de "Código" y "Serie / IMEI" en las tres solapas (**Depósito**, **Asignaciones** y **Bajas**), priorizando el tipo, modelo, responsable/ubicación, condición, estado y fechas.
+- **Ciclo de vida en `perifericos_manuales`**:
+  - **Alta**: Crea documento con código automático (`PC-n`, `CEL-n`, etc.) y estado `SIN_ASIGNAR`.
+  - **Asignación**: Actualiza `responsable`, `ubicacion` y `estadoActual: ASIGNADA`, registrando el movimiento en `movimientos_stock`.
+  - **Devolución**: Remueve `responsable`, resetea `ubicacion: DEPOSITO` y `estadoActual: SIN_ASIGNAR`, cerrando el movimiento activo.
+  - **Baja**: Registra `motivo_baja`, `fecha_baja`, `usuario_baja` y `estadoActual: BAJA`.
+
+---
+
+## 34. Reportes de Inventario — Rediseño Stitch (Auditoría General)
+
+Rediseño completo de la pantalla [`Reportes.jsx`](file:///d:/Desarrollo/MiniAgente-Inventario/inventario/inventario-front/src/pages/Reportes.jsx) bajo la ruta `/reportes`, adaptada al prototipo de Google Stitch `a2993f71ba894c7ca34547188dcfee96`.
+
+### Características Principales
+
+- **Encabezado en Card blanca**:
+  - Título con badge institucional `Auditoría General`.
+  - Subtítulo con timestamp dinámico de última actualización.
+  - Botón de actualización de caché y botón de exportación PDF (`Exportar PDF`).
+  - Botón de filtros avanzados eliminado según directiva de gobernanza.
+- **Tira superior de 6 KPIs**:
+  - Total Computadoras, Activas (con % de operatividad normal), Inactivas, Asignadas (con % sobre el total), En Stock y Periféricos c/ PC (con promedio por estación).
+- **Tablero de 9 dimensiones analíticas (Grid 3x3)**:
+  1. *PCs activas vs inactivas*: Gauge semicircular de operatividad con badge de tasa óptima/atención.
+  2. *Distribución por estado*: Barras horizontales de ciclo de vida (Asignadas, En Stock, Mantenimiento, Para Baja) y cálculo de equipos operativos.
+  3. *Computadoras por área*: Ranking de departamentos/ubicaciones con barras de densidad y porcentajes.
+  4. *Computadoras por tipo*: Columnas comparativas de chasis (Escritorio, Notebooks, Workstation) y ratio de movilidad.
+  5. *Sistemas operativos*: Gráfico de dona con porcentaje de adopción de Windows 11 y desglose de versiones.
+  6. *Procesadores (CPU)*: Modelos principales y balance de arquitecturas Intel vs AMD.
+  7. *Periféricos por tipo*: Anillo de total general y cuadrícula 2x2 para Monitores, Mouse, Teclados y Webcams.
+  8. *Cámaras por NVR*: Ocupación de canales por NVR con advertencias visuales de capacidad.
+  9. *Networking (Switches & Routers)*: Métricas de equipamiento Core, Distribución y Acceso.
+- **Equipamiento de Tesorería Especializado**:
+  - Banner institucional con conteo y especificaciones de Contadoras de Billetes, Clasificadoras y Terminales POS.
+- **Tabla de Detalle de computadoras**:
+  - Búsqueda en tiempo real por Hostname, usuario, responsable, área o sistema operativo.
+  - Columnas: Hostname (monospace rojo interactivo con navegación a detalle), Tipo con ícono, Responsable, Área, SO con punto de color, Procesador, RAM, Estado con pill de color, Última sincronización y menú de acciones.
+  - Selector dinámico de filas por página (5, 10, 25, 50, Todos) y paginación client-side.
+  - Ancho completo (`w-full min-w-full text-sm`), celdas con espaciado vertical cómodo (`px-3.5 py-3.5`) y cabeceras `bg-[#f8fafc]`.
+- **Alineación de Layout Global**:
+  - Contenedor raíz adaptado al estándar de `Computadoras`, `Inicio` y `Periféricos` (`flex flex-col flex-1 min-h-0 space-y-4 pb-6 w-full`), eliminando paddings duplicados para que la card de encabezado, gráficos y tablas coincidan milimétricamente en ancho y coordenadas.
+
+---
+
+## 35. Periféricos — Módulo Unificado y Consolidación de Navegación (Stitch b34a5a1116384bdd946b82210a2da684)
+
+Consolidación integral de todos los dispositivos de entrada, salida y accesorios en un único módulo centralizado [`PerifericosTodosList.jsx`](file:///d:/Desarrollo/MiniAgente-Inventario/inventario/inventario-front/src/pages/PerifericosTodosList.jsx) bajo la ruta `/perifericos`.
+
+### Arquitectura y Navegación
+
+- **Sidebar Compacto (`SidebarNav.jsx`)**:
+  - Se eliminaron las 9 rutas individuales redundantes del menú lateral (*Impresoras, Monitores, Teclados, Mouse, Webcams, Parlantes, Micrófonos, Televisores, Celulares*).
+  - Bajo la sección `Hardware`, se preserva exclusivamente **Computadoras** (`/computadoras`) y el acceso único **Periféricos** (`/perifericos`).
+- **Redirecciones Automáticas (`App.jsx`)**:
+  - Rutas legadas (`/perifericos/monitores`, `/perifericos/teclados`, `/perifericos/mouse`, etc.) redirigen automáticamente a `/perifericos?tipo=...`.
+- **Encabezado en Card blanca**:
+  - Título con badge dinámico `{total} unidades en total · ~{ratio} por estación`.
+  - Botón `Exportar listado` (descarga CSV del listado filtrado) y botón `Registrar periférico manual` integrado con `ModalAlta` de depósito protegido con `WriteGate`.
+- **Tira de 6 KPIs Superiores**:
+  - *Monitores*, *Teclados*, *Mouse Ópticos*, *Webcams HD*, *Audio y Parlantes*, y *Otros Periféricos*, con conteo en uso/asignados y stock.
+- **Card Unificada de Control (Solapas y Filtros Integrados)**:
+  - Cabecera superior integrada con las solapas de categorías (`Todos`, `Monitores`, `Teclados`, etc.) sobre fondo suave `bg-slate-50/80` y división sutil, con botones amplios (`px-3.5 py-2`), pestaña activa blanca con sombra y badge numérico de conteo.
+  - Fila inferior de búsqueda y filtros con buscador fluido (`flex-1`) que aprovecha el ancho disponible de la pantalla eliminando espacios desiertos a la derecha, y 4 selectores (`Conexión`, `Estado`, `Origen`, `Área`) con anchos legibles que evitan el truncado de texto.
+  - Fila inferior para conteo de filtros activos y botón de reseteo rápido *Limpiar filtros*.
+- **Tabla Unificada de Dispositivos (Ancho Completo)**:
+  - Estructurada en ancho completo (`w-full min-w-full`) sin restricciones de ancho mínimo fijo (`min-w-[1000px]` eliminado), adaptándose naturalmente a pantallas grandes y a cualquier volumen de items paginados.
+  - Columnas: Checkbox, Tipo y Dispositivo con ícono representativo, N° Serie / ID, Conexión, Hostname vinculado con enlace interactivo a la computadora, Responsable y Área, Origen, Estado con badge de color y Última sincronización.
+  - Paginador client-side configurado por defecto en `Todos` (con opciones de 25, 50, 100).
+- **Homogeneización Visual y Limpieza de Métricas**:
+  - Eliminación definitiva de la tarjeta inferior "Distribución por tipo de conector".
+  - Contenedor raíz con `w-full` y adaptado al flujo de `ComputadoraList` e `Inicio` (`flex flex-col flex-1 min-h-0 space-y-4 pb-6 w-full`).
+
+---
+
+## 36. Configuración del Sistema — Módulo Unificado Stitch (50fd5ccad758463e9c156c7282966a9b)
+
+Consolidación integral de todas las áreas administrativas y operativas de identidades, catálogos técnicos, responsables y políticas en una sola pantalla unificada [`ConfiguracionSistema.jsx`](file:///d:/Desarrollo/MiniAgente-Inventario/inventario/inventario-front/src/pages/ConfiguracionSistema.jsx) bajo la ruta `/configuracion`.
+
+### Arquitectura y Navegación
+
+- **Sidebar Compacto (`SidebarNav.jsx`)**:
+  - Se agruparon los enlaces dispersos de administración (*Mi Perfil, Responsables, Usuarios, Catálogos, Sistema*) bajo un único acceso maestro: **Configuración** (`/configuracion`).
+- **Redirecciones Automáticas (`App.jsx`)**:
+  - `/perfil` &rarr; `/configuracion?tab=perfil`
+  - `/admin/usuarios` &rarr; `/configuracion?tab=usuarios`
+  - `/admin/catalogos` &rarr; `/configuracion?tab=catalogos`
+  - `/responsables` &rarr; `/configuracion?tab=responsables`
+  - `/system` &rarr; `/configuracion?tab=agente`
+  - La ruta de detalle `/responsables/:id` se preserva intacta.
+- **Encabezado Institucional en Card Independiente**:
+  - Encapsulado en una card blanca (`bg-white border border-slate-200/90 rounded-2xl p-5`), sin breadcrumb superior redundante, conteniendo el título `Configuración del Sistema`, badge `BACAR.it v2.1 Enterprise`, descripción y botones de `Auditoría de Cambios` y `Guardar Configuración`.
+- **Layout de Ancho Completo (`w-full`)**:
+  - Contenedor raíz adaptado al 100% del ancho de pantalla (`w-full px-4 sm:px-6 py-4 space-y-4`), alineado con el resto de las vistas del sistema.
+- **Barra de Solapas en Card Separada**:
+  - Solapas organizadas horizontalmente en su propio contenedor blanco con estilos activos claros y legibles.
+- **Estructura de Solapas (Tabs) en el Orden Específico**:
+  1. **Mi Perfil IT** *(Primero)*: Tarjeta de operador en sesión (avatar, nombre, sede, último ingreso y estado activo, sin token de API), resumen de seguridad IT, acceso a consola remota y formularios de datos personales y credenciales de acceso.
+  2. **Usuarios y Permisos**: Enfocada exclusivamente en la gestión de operadores con tabla completa de usuarios, avatares, roles corporativos (`SUPERADMIN IT`, `ADMINISTRADOR IT`, etc.), buscador en vivo, filtro por rol y modal de asignación/edición de cuentas Firebase Auth.
+  3. **Catálogos**: ABM centralizado de los 12 catálogos técnicos del sistema con encabezado estándar en card blanca, buscador por catálogo, reordenamiento y activación/desactivación de ítems (sin bloque de parámetros globales).
+  4. **Responsables y Áreas**: Directorio de custodios de equipamiento en card blanca estándar con buscador en tiempo real, conteo de equipos asignados y reconstrucción de índice.
+  5. **Integraciones y Agente**: Configuración de enlace de telemetría `BACAR.Agent`, heartbeat, comandos remotos a nodos y logs de sincronización.
+
+
+
+---
+
+## 37. Unificación de UX e Infraestructura — Diseño Stitch y Estandarización de Encabezados
+
+Se consolidó y estandarizó toda la sección de Infraestructura siguiendo el diseño institucional de la maqueta Stitch (`NvrsCamarasList.jsx`), unificando encabezados, barras de navegación, KPIs interactivos, filtros y grillas de tarjetas:
+
+### Estandarización de Encabezados (Header Cards)
+- Formato uniforme idéntico a Inicio, Reportes, Computadoras y Stock: card blanca limpia (`bg-white rounded-xl border border-slate-200 p-5 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4`), título en formato oración/minúsculas sin `uppercase`, sin bordes ni franjas de acento rojo superior ("sin lo rojo").
+- Badges de conteo total e información de contexto en gris neutro (`bg-slate-100 text-slate-700 border-slate-200`).
+- Botones de acción institucional primaria en azul corporativo (`bg-[#0c66e4] hover:bg-[#0055cc]`).
+
+### Módulos Actualizados
+1. **Sidebar (`SidebarNav.jsx`)**:
+   - Acceso consolidado **"NVR y Cámaras IP"** (`/camaras`), eliminando el ítem redundante de Cámaras IP.
+   - Acceso consolidado **"Routers, Switches y AP"** (`/routers-switches`), eliminando el ítem separado de Access Points.
+2. **NVRs y Cámaras IP (`NvrsCamarasList.jsx`)**:
+   - Tarjetas de NVR horizontales con cálculo de canales ocupados y estado de conexión en vivo.
+   - Grilla de cámaras CCTV paginada a 20 items/página con filtros, asignación masiva y badges de estado.
+3. **Routers, Switches y Access Points (`RoutersSwitchesList.jsx`)**:
+   - 3 tarjetas KPI métricas interactivas (Routers, Switches, Access Points) que filtran la grilla al hacer clic.
+   - Solapas de navegación (**Todos**, **Routers**, **Switches**, **Access Points**) con conteos dinámicos.
+   - Grilla de tarjetas responsive de 4 columnas, filtros por ubicación y orden, y paginación client-side de 20 por página.
+4. **Servidores (`ServidorList.jsx`)**:
+   - Encabezado estándar blanco y card principal con barra de herramientas completa (ubicación, estado, orden por nombre, buscador en tiempo real, selección total y conteo).
+   - Grilla de tarjetas Stitch de 4 columnas con métricas de hostname, IP, sistema operativo y acciones rápidas.
+5. **Máquinas de Tesorería (`MaquinaTesoreriaList.jsx`)**:
+   - Encabezado estándar blanco y fila de KPIs interactivos por cada tipo de máquina (Validadora, Recontadora, Bolsillos, Envasadora, Fajadora).
+   - Solapas dinámicas por tipo con conteo en vivo, filtros de estado y orden, buscador y selección múltiple.
+   - Grilla de 4 columnas con modelo, número de serie, vida útil/observación, badge de estado operativo y navegación a detalle.
+6. **Teléfonos IP (`TelefonoIpList.jsx`)**:
+   - Encabezado estándar blanco y card principal con barra de herramientas unificada (estado, orden por interno/nombre, buscador, selección total).
+   - Grilla de 4 columnas con avatar visual por iniciales, indicador de interno (`Int: XXXX`), dirección IP con copiado rápido al portapapeles, modelo, MAC y estado SIP.
+
+---
+
+## 38. Estandarización Visual de Sistema — Componentes Canónicos de Layout (Basado en Periféricos)
+
+A partir del módulo consolidado de **Periféricos** (`PerifericosTodosList.jsx`), se establecieron los estilos generales y componentes de layout estándar del sistema para garantizar homogeneidad visual estricta en todas las vistas:
+
+### 1. Componentes Reutilizables de Layout (`src/components/layout/`)
+- **`ModuleHeader`** ([`ModuleHeader.jsx`](file:///d:/Desarrollo/MiniAgente-Inventario/inventario/inventario-front/src/components/layout/ModuleHeader.jsx)):
+  - Card blanca institucional (`bg-white rounded-xl border border-slate-200 p-5 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 w-full`).
+  - Título con tipografía `text-2xl font-bold text-slate-900 tracking-tight`.
+  - Badge de estado/conteo (`bg-slate-100 text-slate-700 border border-slate-200 rounded-full text-xs font-semibold px-2.5 py-0.5`).
+  - Subtítulo descriptivo (`text-xs text-slate-500 mt-1`).
+  - Botones de acción unificados: secundario en gris neutro (`bg-[#f1f5f9] hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 shadow-xs px-3.5 py-2`) y primario corporativo (`bg-[#c53030] hover:bg-[#9b2c2c] text-white text-xs font-semibold rounded-lg shadow-xs px-4 py-2`).
+- **`KpiGrid` y `KpiCard`** ([`KpiGrid.jsx`](file:///d:/Desarrollo/MiniAgente-Inventario/inventario/inventario-front/src/components/layout/KpiGrid.jsx), [`KpiCard.jsx`](file:///d:/Desarrollo/MiniAgente-Inventario/inventario/inventario-front/src/components/layout/KpiCard.jsx)):
+  - Grilla responsiva de 6 columnas (`grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3`).
+  - Tarjeta KPI independiente (`bg-white rounded-xl border border-slate-200 p-4 shadow-xs flex flex-col justify-between`).
+  - Cabecera en mayúsculas (`text-[11px] font-bold text-slate-500 uppercase tracking-wider`) con icono temático `w-4 h-4`.
+  - Métrica cuantitativa de alto impacto (`text-3xl font-extrabold text-slate-900 tracking-tight my-2`).
+  - Pie explicativo o desglose (`text-xs text-slate-400`).
+- **`TabsCard`** ([`TabsCard.jsx`](file:///d:/Desarrollo/MiniAgente-Inventario/inventario/inventario-front/src/components/layout/TabsCard.jsx)):
+  - Contenedor en card blanca redondeada (`bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden flex flex-col w-full`).
+  - Franja superior de solapas integrada (`p-2 sm:p-2.5 bg-slate-50/80 border-b border-slate-200 overflow-x-auto scrollbar-none`).
+  - Solapa activa: `bg-white text-slate-900 shadow-xs border border-slate-200/80 font-bold px-3.5 py-2 rounded-lg text-xs sm:text-sm` acompañada de pill badge distintivo `bg-red-50 text-red-600 border border-red-100 font-extrabold px-2 py-0.5 rounded-full text-xs`.
+  - Solapa inactiva: `text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 font-bold px-3.5 py-2 rounded-lg text-xs sm:text-sm` con badge tenue `bg-slate-200/80 text-slate-600 font-extrabold px-2 py-0.5 rounded-full text-xs`.
+- **`FilterBar`** ([`FilterBar.jsx`](file:///d:/Desarrollo/MiniAgente-Inventario/inventario/inventario-front/src/components/layout/FilterBar.jsx)):
+  - Barra de búsqueda y filtros proporcionales en una sola fila (`FilterBar`, `FilterBar.Search`, `FilterBar.Select`).
+  - Buscador flexible (`w-[36%] min-w-[200px] flex-1`) y `<select>` proporcionales con porcentaje de la card (`!w-[15%] max-w-[16%] min-w-[120px] truncate cursor-pointer`) para pisar el `width: 100%` global de `App.css` y garantizar que todos los filtros se vean completos dentro de la card.
+  - Pie automático de filtros activos con contador y botón *Limpiar filtros*, más `!w-auto` para el selector de paginación (`Por página`).
+
+### 2. Vistas Adaptadas al Estándar
+- [`Dashboard.jsx`](file:///d:/Desarrollo/MiniAgente-Inventario/inventario/inventario-front/src/pages/Dashboard.jsx): `ModuleHeader` para Consola de Control de Inventario IT.
+- [`Reportes.jsx`](file:///d:/Desarrollo/MiniAgente-Inventario/inventario/inventario-front/src/pages/Reportes.jsx): `ModuleHeader` con acciones secundarias y primarias estandarizadas.
+- [`ComputadoraList.jsx`](file:///d:/Desarrollo/MiniAgente-Inventario/inventario/inventario-front/src/pages/ComputadoraList.jsx): `ModuleHeader` institucional y simplificación de solapa secundaria redundante.
+- [`StockPage.jsx`](file:///d:/Desarrollo/MiniAgente-Inventario/inventario/inventario-front/src/pages/StockPage.jsx): `ModuleHeader`, `TabsCard` para *Depósito*, *Asignaciones* y *Bajas*, con tarjetas KPI estandarizadas en `AsignacionesTab.jsx` y `BajasTab.jsx` usando `KpiGrid` y `KpiCard`.
+- [`EtiquetasQrList.jsx`](file:///d:/Desarrollo/MiniAgente-Inventario/inventario/inventario-front/src/pages/EtiquetasQrList.jsx): `ModuleHeader` y botones estandarizados.
+- [`EventosHardwareList.jsx`](file:///d:/Desarrollo/MiniAgente-Inventario/inventario/inventario-front/src/pages/EventosHardwareList.jsx): `ModuleHeader` y card container estándar.
+- [`ConciliacionesList.jsx`](file:///d:/Desarrollo/MiniAgente-Inventario/inventario/inventario-front/src/pages/ConciliacionesList.jsx): `ModuleHeader` y `TabsCard` para conciliaciones pendientes/resueltas.
+- [`InfraestructuraDashboard.jsx`](file:///d:/Desarrollo/MiniAgente-Inventario/inventario/inventario-front/src/pages/InfraestructuraDashboard.jsx): `ModuleHeader` institucional y fila de 8 KPIs estandarizada con tarjetas verticales, tipografía `text-3xl font-extrabold` e iconos directos de Periféricos.
+- [`NvrsCamarasList.jsx`](file:///d:/Desarrollo/MiniAgente-Inventario/inventario/inventario-front/src/pages/NvrsCamarasList.jsx): `ModuleHeader` y 4 tarjetas KPI migradas a `KpiGrid` y `KpiCard` canónicos (*CCTV Terminales*, *Servidores NVR*, *Almacenamiento RAID*, *Ciclo Retención*).
+- [`ServidorList.jsx`](file:///d:/Desarrollo/MiniAgente-Inventario/inventario/inventario-front/src/pages/ServidorList.jsx): `ModuleHeader` y grilla unificada.
+- [`RoutersSwitchesList.jsx`](file:///d:/Desarrollo/MiniAgente-Inventario/inventario/inventario-front/src/pages/RoutersSwitchesList.jsx): `ModuleHeader`, `TabsCard` y 3 tarjetas KPI unificadas al estándar vertical de Periféricos con toggle interactivo y resaltado visual.
+- [`MaquinaTesoreriaList.jsx`](file:///d:/Desarrollo/MiniAgente-Inventario/inventario/inventario-front/src/pages/MaquinaTesoreriaList.jsx): `ModuleHeader`, `KpiGrid` por tipo y `TabsCard` integrado.
+- [`TelefonoIpList.jsx`](file:///d:/Desarrollo/MiniAgente-Inventario/inventario/inventario-front/src/pages/TelefonoIpList.jsx): `ModuleHeader` institucional y acciones unificadas.
+- [`InvestigacionSesiones.jsx`](file:///d:/Desarrollo/MiniAgente-Inventario/inventario/inventario-front/src/pages/InvestigacionSesiones.jsx): `ModuleHeader` y `KpiCard` con tipografía estándar de Periféricos.
+- [`ResponsableDetail.jsx`](file:///d:/Desarrollo/MiniAgente-Inventario/inventario/inventario-front/src/pages/ResponsableDetail.jsx): `ModuleHeader` con botón de regreso estándar.
+
+
+
+

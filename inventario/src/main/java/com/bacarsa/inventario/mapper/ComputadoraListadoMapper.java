@@ -85,6 +85,7 @@ public final class ComputadoraListadoMapper {
 
         dto.setCondicion(doc.getString("condicion"));
         dto.setOrigenAlta(doc.getString("origen_alta"));
+        dto.setEnDeposito(doc.getBoolean("en_deposito"));
         dto.setEstadoConciliacion(doc.getString("estado_conciliacion"));
         dto.setEstadoPreparacion(doc.getString("estado_preparacion"));
         dto.setEstadoReporteAgente(doc.getString("estado_reporte_agente"));

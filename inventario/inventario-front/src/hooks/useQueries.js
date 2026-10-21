@@ -14,6 +14,7 @@ import { fetchEtiquetasQr, fetchProgresosLogistica } from '../api/etiquetaQrApi'
 import { fetchEventosHardware, fetchPendientesCount } from '../api/eventosHardwareApi';
 import { fetchConciliacionPendientesCount } from '../api/conciliacionApi';
 import { fetchResponsables, fetchResponsableDetalle } from '../api/responsableApi';
+import { fetchUnidadesStock, fetchAsignacionesStock } from '../api/stockApi';
 
 export function useDashboardStats(options) {
   return useQuery({
@@ -189,6 +190,22 @@ export function useResponsableDetalle(id, options) {
     queryKey: ['responsables', id],
     queryFn: () => fetchResponsableDetalle(id),
     enabled: Boolean(id),
+    ...options,
+  });
+}
+
+export function useStockUnidades(options) {
+  return useQuery({
+    queryKey: ['stockUnidades'],
+    queryFn: fetchUnidadesStock,
+    ...options,
+  });
+}
+
+export function useStockAsignaciones(options) {
+  return useQuery({
+    queryKey: ['stockAsignaciones'],
+    queryFn: fetchAsignacionesStock,
     ...options,
   });
 }

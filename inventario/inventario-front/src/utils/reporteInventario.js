@@ -182,12 +182,18 @@ function armarDetalleComputadoras(pcs) {
   return (pcs ?? []).map(c => {
     const sync = nivelActividadSync(c);
     return {
+      uuid: c.uuid,
       hostname: c.hostname ?? c.uuid ?? '—',
       tipo: esNotebook(c) ? 'Notebook' : ((c.tipoEquipo ?? '').trim() || 'PC'),
+      usuarioActual: c.usuarioActual || null,
+      responsableInventario: c.responsableInventario || null,
       estado: c.estadoActual ?? '—',
       area: c.ubicacion ? labelUbicacionEnum(c.ubicacion) : '—',
+      sistemaOperativo: c.sistemaOperativo ?? '—',
       procesador: c.procesadorNombre ?? '—',
       arquitectura: c.arquitectura ?? '—',
+      ram: c.ramTotalGb ? `${c.ramTotalGb} GB` : (c.ram ? `${c.ram} GB` : null),
+      ultimaSincronizacion: c.ultimaSincronizacion,
       sync: sync === 'activo' ? 'Activa' : sync === 'intermedio' ? 'Intermedio' : sync === 'sin_actividad' ? 'Inactiva' : 'Sin datos',
       origen: 'Agente',
     };

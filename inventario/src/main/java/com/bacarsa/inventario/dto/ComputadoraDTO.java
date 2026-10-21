@@ -48,6 +48,7 @@ public class ComputadoraDTO {
     private String anydeskId;
     private String condicion;
     private String origenAlta;
+    private Boolean enDeposito;
     private String estadoConciliacion;
     private String estadoPreparacion;
     private String estadoReporteAgente;

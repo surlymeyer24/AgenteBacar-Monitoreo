@@ -10,6 +10,7 @@ import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.bacarsa.inventario.dto.AltaUnidadStockDTO;
@@ -17,15 +18,10 @@ import com.bacarsa.inventario.dto.BajaUnidadStockDTO;
 import com.bacarsa.inventario.dto.ModificarUnidadStockDTO;
 import com.bacarsa.inventario.dto.UnidadStockDTO;
 import com.bacarsa.inventario.models.EstadoCelular;
-import com.bacarsa.inventario.models.EstadoOperativo;
-import com.bacarsa.inventario.models.UbicacionRed;
-import com.bacarsa.inventario.repository.AccessPointRepository;
-import com.bacarsa.inventario.repository.CamaraRepository;
+import com.bacarsa.inventario.models.TipoMovimiento;
 import com.bacarsa.inventario.repository.CelularRepository;
+import com.bacarsa.inventario.repository.ComputadoraRepository;
 import com.bacarsa.inventario.repository.PerifericoManualRepository;
-import com.bacarsa.inventario.repository.RouterRepository;
-import com.bacarsa.inventario.repository.SwitchRedRepository;
-import com.bacarsa.inventario.repository.TelevisorRepository;
 
 @Service
 public class StockAbmService {
@@ -33,37 +29,33 @@ public class StockAbmService {
     private static final Logger log = LoggerFactory.getLogger(StockAbmService.class);
 
     private static final Pattern PATRON_CODIGO = Pattern.compile(
-            "^(PC|NB|MON|TEC|MOU|IMP|WEB|PAR|MIC|CEL|CAM|TV|RTR|SW|AP)-(\\d+)$");
+            "^(PC|NB|MON|TEC|MOU|IMP|WEB|PAR|MIC|CEL|CAM|TV|RTR|SW|AP|TEL|OTR)-(\\d+)$");
 
     private final StockUnidadesService stockUnidadesService;
-    private final ComputadoraHistorialService computadoraHistorialService;
     private final PerifericoManualRepository perifericoManualRepository;
     private final CelularRepository celularRepository;
-    private final CamaraRepository camaraRepository;
-    private final TelevisorRepository televisorRepository;
-    private final RouterRepository routerRepository;
-    private final SwitchRedRepository switchRedRepository;
-    private final AccessPointRepository accessPointRepository;
+    private final ComputadoraRepository computadoraRepository;
+    private final AuditStockService auditService;
 
     public StockAbmService(
             StockUnidadesService stockUnidadesService,
-            ComputadoraHistorialService computadoraHistorialService,
+            PerifericoManualRepository perifericoManualRepository,
+            AuditStockService auditService) {
+        this(stockUnidadesService, perifericoManualRepository, null, null, auditService);
+    }
+
+    @Autowired
+    public StockAbmService(
+            StockUnidadesService stockUnidadesService,
             PerifericoManualRepository perifericoManualRepository,
             CelularRepository celularRepository,
-            CamaraRepository camaraRepository,
-            TelevisorRepository televisorRepository,
-            RouterRepository routerRepository,
-            SwitchRedRepository switchRedRepository,
-            AccessPointRepository accessPointRepository) {
+            ComputadoraRepository computadoraRepository,
+            AuditStockService auditService) {
         this.stockUnidadesService = stockUnidadesService;
-        this.computadoraHistorialService = computadoraHistorialService;
         this.perifericoManualRepository = perifericoManualRepository;
         this.celularRepository = celularRepository;
-        this.camaraRepository = camaraRepository;
-        this.televisorRepository = televisorRepository;
-        this.routerRepository = routerRepository;
-        this.switchRedRepository = switchRedRepository;
-        this.accessPointRepository = accessPointRepository;
+        this.computadoraRepository = computadoraRepository;
+        this.auditService = auditService;
     }
 
     public UnidadStockDTO alta(AltaUnidadStockDTO dto, String uid) throws Exception {
@@ -74,116 +66,54 @@ public class StockAbmService {
             throw new IllegalArgumentException("El tipo es obligatorio");
         }
         String prefijo = prefijoParaTipo(dto.getTipo());
-        String coleccion = coleccionParaPrefijo(prefijo);
         String codigo = siguienteCodigo(prefijo);
         String actorUid = (uid == null || uid.isBlank()) ? "SISTEMA" : uid.trim();
 
-        log.info("Stock ABM: alta coleccion={} codigo={} por actor={}", coleccion, codigo, actorUid);
+        log.info("Stock ABM: alta coleccion={} codigo={} por actor={}", ColeccionesStock.PERIFERICOS_MANUALES, codigo, actorUid);
 
-        switch (coleccion) {
-            case ColeccionesStock.COMPUTADORAS -> {
-                String uuid = UUID.randomUUID().toString();
-                Map<String, Object> cuerpo = new HashMap<>();
-                cuerpo.put("hostname", dto.getHostname() != null && !dto.getHostname().isBlank()
-                        ? dto.getHostname().trim()
-                        : codigo.toLowerCase());
-                cuerpo.put("tipoEquipo", dto.getTipo().trim());
-                cuerpo.put("codigo_interno", codigo);
-                if (dto.getUbicacion() != null) cuerpo.put("ubicacion", dto.getUbicacion().trim());
-                if (dto.getCondicion() != null) cuerpo.put("condicion", dto.getCondicion().trim());
-                if (dto.getSerieOImei() != null) cuerpo.put("serialEquipo", dto.getSerieOImei().trim());
-                if (dto.getNotas() != null) cuerpo.put("notas", dto.getNotas().trim());
+        String id = UUID.randomUUID().toString();
+        Map<String, Object> campos = new HashMap<>();
+        campos.put("codigo_interno", codigo);
+        campos.put("tipo", dto.getTipo().trim().toLowerCase(Locale.ROOT));
+        campos.put("cantidad", dto.getCantidad() != null && dto.getCantidad() > 0 ? dto.getCantidad() : 1);
 
-                String motivo = dto.getMotivo() != null && !dto.getMotivo().isBlank()
-                        ? dto.getMotivo().trim()
-                        : "Alta en stock";
-                computadoraHistorialService.altaManual(uuid, cuerpo, motivo, actorUid);
-            }
-            case ColeccionesStock.PERIFERICOS_MANUALES -> {
-                String id = UUID.randomUUID().toString();
-                Map<String, Object> campos = new HashMap<>();
-                campos.put("codigo_interno", codigo);
-                campos.put("tipo", dto.getTipo().trim().toLowerCase(Locale.ROOT));
-                campos.put("cantidad", 1);
-                if (dto.getMarca() != null) campos.put("fabricante", dto.getMarca().trim());
-                if (dto.getSerieOImei() != null) campos.put("numero_serie", dto.getSerieOImei().trim());
-                campos.put("ubicacion", dto.getUbicacion() != null && !dto.getUbicacion().isBlank() ? dto.getUbicacion().trim() : "DEPOSITO");
-                campos.put("fechaAlta", LocalDate.now().toString());
-                campos.put("estadoActual", mapaEstado("SIN_ASIGNAR", "PERIFERICO", "Alta en stock"));
-                if (dto.getNotas() != null) campos.put("notas", dto.getNotas().trim());
-                perifericoManualRepository.actualizar(id, campos);
-            }
-            case ColeccionesStock.CELULARES -> {
-                String id = UUID.randomUUID().toString();
-                Map<String, Object> campos = new HashMap<>();
-                campos.put("codigo_interno", codigo);
-                campos.put("marca", dto.getMarca() != null ? dto.getMarca().trim() : "");
-                campos.put("modelo", dto.getModelo() != null ? dto.getModelo().trim() : "");
-                campos.put("imei", dto.getSerieOImei() != null ? dto.getSerieOImei().trim() : "");
-                campos.put("condicion", dto.getCondicion() != null ? dto.getCondicion().trim() : "usado");
-                campos.put("con_cargador", Boolean.FALSE);
-                campos.put("area", dto.getUbicacion() != null && !dto.getUbicacion().isBlank() ? dto.getUbicacion().trim() : "Depósito");
-                campos.put("estado", EstadoCelular.en_stock.name());
-                celularRepository.actualizar(id, campos);
-            }
-            case ColeccionesStock.CAMARAS -> {
-                String id = UUID.randomUUID().toString();
-                Map<String, Object> campos = new HashMap<>();
-                campos.put("codigo_interno", codigo);
-                campos.put("marca", dto.getMarca() != null ? dto.getMarca().trim() : "");
-                campos.put("tipo", dto.getModelo() != null ? dto.getModelo().trim() : "");
-                campos.put("ubicacion", dto.getUbicacion() != null && !dto.getUbicacion().isBlank() ? dto.getUbicacion().trim() : "DEPOSITO");
-                campos.put("fechaAlta", LocalDate.now().toString());
-                campos.put("estadoActual", mapaEstado("SIN_ASIGNAR", "CAMARA", "Alta en stock"));
-                camaraRepository.actualizar(id, campos);
-            }
-            case ColeccionesStock.TELEVISORES -> {
-                String id = UUID.randomUUID().toString();
-                Map<String, Object> campos = new HashMap<>();
-                campos.put("codigo_interno", codigo);
-                campos.put("marca", dto.getMarca() != null ? dto.getMarca().trim() : "");
-                campos.put("modelo", dto.getModelo() != null ? dto.getModelo().trim() : "");
-                campos.put("numero_serie", dto.getSerieOImei() != null ? dto.getSerieOImei().trim() : "");
-                campos.put("area", dto.getUbicacion() != null && !dto.getUbicacion().isBlank() ? dto.getUbicacion().trim() : "DEPOSITO");
-                campos.put("estado", "en_stock");
-                televisorRepository.actualizar(id, campos);
-            }
-            case ColeccionesStock.ROUTERS -> {
-                String id = UUID.randomUUID().toString();
-                Map<String, Object> campos = new HashMap<>();
-                campos.put("codigo_interno", codigo);
-                campos.put("marca", dto.getMarca() != null ? dto.getMarca().trim() : "");
-                campos.put("modelo", dto.getModelo() != null ? dto.getModelo().trim() : "");
-                campos.put("numero_serie", dto.getSerieOImei() != null ? dto.getSerieOImei().trim() : "");
-                campos.put("fecha_alta", LocalDate.now().toString());
-                campos.put("ubicacion", parseUbicacionRed(dto.getUbicacion()));
-                campos.put("estado", "en_stock");
-                routerRepository.actualizar(id, campos);
-            }
-            case ColeccionesStock.SWITCHES -> {
-                String id = UUID.randomUUID().toString();
-                Map<String, Object> campos = new HashMap<>();
-                campos.put("codigo_interno", codigo);
-                campos.put("marca", dto.getMarca() != null ? dto.getMarca().trim() : "");
-                campos.put("modelo", dto.getModelo() != null ? dto.getModelo().trim() : "");
-                campos.put("numero_serie", dto.getSerieOImei() != null ? dto.getSerieOImei().trim() : "");
-                campos.put("fecha_alta", LocalDate.now().toString());
-                campos.put("ubicacion", parseUbicacionRed(dto.getUbicacion()));
-                campos.put("estado", "en_stock");
-                switchRedRepository.actualizar(id, campos);
-            }
-            case ColeccionesStock.ACCESS_POINTS -> {
-                String id = UUID.randomUUID().toString();
-                Map<String, Object> campos = new HashMap<>();
-                campos.put("codigo_interno", codigo);
-                campos.put("marca", dto.getMarca() != null ? dto.getMarca().trim() : "");
-                campos.put("modelo", dto.getModelo() != null ? dto.getModelo().trim() : "");
-                campos.put("ubicacion", parseUbicacionRed(dto.getUbicacion()));
-                campos.put("estado", "en_stock");
-                accessPointRepository.actualizar(id, campos);
-            }
-            default -> throw new IllegalArgumentException("Colección no soportada: " + coleccion);
+        String marca = dto.getMarca() != null ? dto.getMarca().trim() : "";
+        String modelo = dto.getModelo() != null && !dto.getModelo().isBlank()
+                ? dto.getModelo().trim()
+                : (dto.getHostname() != null ? dto.getHostname().trim() : "");
+        String serie = dto.getSerieOImei() != null ? dto.getSerieOImei().trim() : "";
+
+        campos.put("fabricante", marca);
+        campos.put("nombre", modelo);
+        if (!serie.isBlank()) {
+            campos.put("numero_serie", serie);
         }
+        if (dto.getCondicion() != null && !dto.getCondicion().isBlank()) {
+            campos.put("condicion", dto.getCondicion().trim());
+        }
+        campos.put("ubicacion", dto.getUbicacion() != null && !dto.getUbicacion().isBlank() ? dto.getUbicacion().trim() : "DEPOSITO");
+        campos.put("fechaAlta", LocalDate.now().toString());
+        campos.put("estadoActual", mapaEstado("SIN_ASIGNAR", "STOCK", "Alta en stock"));
+        if (dto.getNotas() != null && !dto.getNotas().isBlank()) {
+            campos.put("notas", dto.getNotas().trim());
+        }
+        if (dto.getComentarios() != null && !dto.getComentarios().isBlank()) {
+            campos.put("comentarios", dto.getComentarios().trim());
+        }
+
+        perifericoManualRepository.actualizar(id, campos);
+
+        auditService.registrar(AuditStockService.RegistroAudit.builder(TipoMovimiento.ALTA, id)
+                .codigoInterno(codigo)
+                .tipoEquipo(dto.getTipo().trim().toLowerCase(Locale.ROOT))
+                .marca(marca)
+                .modelo(modelo)
+                .serieOImei(serie)
+                .motivo("Alta en stock")
+                .actorUid(actorUid)
+                .estadoNuevo("Sin Asignar")
+                .ubicacionDestino((String) campos.get("ubicacion"))
+                .build());
 
         return stockUnidadesService.obtenerPorCodigo(codigo);
     }
@@ -202,68 +132,42 @@ public class StockAbmService {
 
         log.info("Stock ABM: modificar codigo={} coleccion={} id={} por actor={}", codigo, coleccion, id, actorUid);
 
-        if (ColeccionesStock.COMPUTADORAS.equals(coleccion)) {
-            Map<String, Object> cuerpo = new HashMap<>();
-            if (dto.getHostname() != null && !dto.getHostname().isBlank()) cuerpo.put("hostname", dto.getHostname().trim());
-            if (dto.getSerieOImei() != null) cuerpo.put("serialEquipo", dto.getSerieOImei().trim());
-            if (dto.getUbicacion() != null) cuerpo.put("ubicacion", dto.getUbicacion().trim());
-            if (dto.getCondicion() != null) cuerpo.put("condicion", dto.getCondicion().trim());
-            if (dto.getNotas() != null) cuerpo.put("notas", dto.getNotas().trim());
-
-            if (!cuerpo.isEmpty()) {
-                computadoraHistorialService.editarFicha(id, cuerpo, actorUid);
+        if (ColeccionesStock.COMPUTADORAS.equals(coleccion) && computadoraRepository != null) {
+            Map<String, Object> updates = new HashMap<>();
+            if (dto.getHostname() != null && !dto.getHostname().isBlank()) updates.put("hostname", dto.getHostname().trim());
+            else if (dto.getModelo() != null && !dto.getModelo().isBlank()) updates.put("hostname", dto.getModelo().trim());
+            if (dto.getSerieOImei() != null) updates.put("serialEquipo", dto.getSerieOImei().trim());
+            if (dto.getUbicacion() != null) updates.put("ubicacion", dto.getUbicacion().trim());
+            if (dto.getCondicion() != null) updates.put("condicion", dto.getCondicion().trim());
+            if (dto.getNotas() != null) updates.put("notas", dto.getNotas().trim());
+            if (dto.getComentarios() != null) updates.put("comentarios", dto.getComentarios().trim());
+            if (!updates.isEmpty()) {
+                computadoraRepository.mergeUpdates(id, updates);
+            }
+        } else if (ColeccionesStock.CELULARES.equals(coleccion) && celularRepository != null) {
+            Map<String, Object> updates = new HashMap<>();
+            if (dto.getMarca() != null) updates.put("marca", dto.getMarca().trim());
+            if (dto.getModelo() != null) updates.put("modelo", dto.getModelo().trim());
+            if (dto.getSerieOImei() != null) updates.put("imei", dto.getSerieOImei().trim());
+            if (dto.getCondicion() != null) updates.put("condicion", dto.getCondicion().trim());
+            if (dto.getUbicacion() != null) updates.put("area", dto.getUbicacion().trim());
+            if (!updates.isEmpty()) {
+                celularRepository.actualizar(id, updates);
             }
         } else {
             Map<String, Object> updates = new HashMap<>();
-            switch (coleccion) {
-                case ColeccionesStock.PERIFERICOS_MANUALES -> {
-                    if (dto.getMarca() != null) updates.put("fabricante", dto.getMarca().trim());
-                    if (dto.getSerieOImei() != null) updates.put("numero_serie", dto.getSerieOImei().trim());
-                    if (dto.getUbicacion() != null) updates.put("ubicacion", dto.getUbicacion().trim());
-                    if (dto.getNotas() != null) updates.put("notas", dto.getNotas().trim());
-                    if (!updates.isEmpty()) perifericoManualRepository.actualizar(id, updates);
-                }
-                case ColeccionesStock.CELULARES -> {
-                    if (dto.getMarca() != null) updates.put("marca", dto.getMarca().trim());
-                    if (dto.getModelo() != null) updates.put("modelo", dto.getModelo().trim());
-                    if (dto.getSerieOImei() != null) updates.put("imei", dto.getSerieOImei().trim());
-                    if (dto.getCondicion() != null) updates.put("condicion", dto.getCondicion().trim());
-                    if (dto.getUbicacion() != null) updates.put("area", dto.getUbicacion().trim());
-                    if (!updates.isEmpty()) celularRepository.actualizar(id, updates);
-                }
-                case ColeccionesStock.CAMARAS -> {
-                    if (dto.getMarca() != null) updates.put("marca", dto.getMarca().trim());
-                    if (dto.getModelo() != null) updates.put("tipo", dto.getModelo().trim());
-                    if (dto.getUbicacion() != null) updates.put("ubicacion", dto.getUbicacion().trim());
-                    if (!updates.isEmpty()) camaraRepository.actualizar(id, updates);
-                }
-                case ColeccionesStock.TELEVISORES -> {
-                    if (dto.getMarca() != null) updates.put("marca", dto.getMarca().trim());
-                    if (dto.getModelo() != null) updates.put("modelo", dto.getModelo().trim());
-                    if (dto.getSerieOImei() != null) updates.put("numero_serie", dto.getSerieOImei().trim());
-                    if (dto.getUbicacion() != null) updates.put("area", dto.getUbicacion().trim());
-                    if (!updates.isEmpty()) televisorRepository.actualizar(id, updates);
-                }
-                case ColeccionesStock.ROUTERS -> {
-                    if (dto.getMarca() != null) updates.put("marca", dto.getMarca().trim());
-                    if (dto.getModelo() != null) updates.put("modelo", dto.getModelo().trim());
-                    if (dto.getSerieOImei() != null) updates.put("numero_serie", dto.getSerieOImei().trim());
-                    if (dto.getUbicacion() != null) updates.put("ubicacion", dto.getUbicacion().trim());
-                    if (!updates.isEmpty()) routerRepository.actualizar(id, updates);
-                }
-                case ColeccionesStock.SWITCHES -> {
-                    if (dto.getMarca() != null) updates.put("marca", dto.getMarca().trim());
-                    if (dto.getModelo() != null) updates.put("modelo", dto.getModelo().trim());
-                    if (dto.getSerieOImei() != null) updates.put("numero_serie", dto.getSerieOImei().trim());
-                    if (dto.getUbicacion() != null) updates.put("ubicacion", dto.getUbicacion().trim());
-                    if (!updates.isEmpty()) switchRedRepository.actualizar(id, updates);
-                }
-                case ColeccionesStock.ACCESS_POINTS -> {
-                    if (dto.getMarca() != null) updates.put("marca", dto.getMarca().trim());
-                    if (dto.getModelo() != null) updates.put("modelo", dto.getModelo().trim());
-                    if (dto.getUbicacion() != null) updates.put("ubicacion", dto.getUbicacion().trim());
-                    if (!updates.isEmpty()) accessPointRepository.actualizar(id, updates);
-                }
+            if (dto.getMarca() != null) updates.put("fabricante", dto.getMarca().trim());
+            if (dto.getModelo() != null) updates.put("nombre", dto.getModelo().trim());
+            else if (dto.getHostname() != null) updates.put("nombre", dto.getHostname().trim());
+            if (dto.getSerieOImei() != null) updates.put("numero_serie", dto.getSerieOImei().trim());
+            if (dto.getCondicion() != null) updates.put("condicion", dto.getCondicion().trim());
+            if (dto.getUbicacion() != null) updates.put("ubicacion", dto.getUbicacion().trim());
+            if (dto.getNotas() != null) updates.put("notas", dto.getNotas().trim());
+            if (dto.getComentarios() != null) updates.put("comentarios", dto.getComentarios().trim());
+            if (dto.getCantidad() != null && dto.getCantidad() > 0) updates.put("cantidad", dto.getCantidad());
+
+            if (!updates.isEmpty()) {
+                perifericoManualRepository.actualizar(id, updates);
             }
         }
 
@@ -286,47 +190,37 @@ public class StockAbmService {
         log.info("Stock ABM: baja codigo={} coleccion={} id={} motivo={} por actor={}",
                 codigo, coleccion, id, motivo, actorUid);
 
-        if (ColeccionesStock.COMPUTADORAS.equals(coleccion)) {
-            computadoraHistorialService.cambiarEstado(id, EstadoOperativo.BAJA.name(), motivo, Map.of(), actorUid);
-        } else {
-            Map<String, Object> updates = new HashMap<>();
-            updates.put("motivo_baja", motivo);
-            updates.put("fecha_baja", LocalDate.now().toString());
-            updates.put("usuario_baja", actorUid);
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("motivo_baja", motivo);
+        updates.put("fecha_baja", LocalDate.now().toString());
+        updates.put("usuario_baja", actorUid);
 
-            switch (coleccion) {
-                case ColeccionesStock.PERIFERICOS_MANUALES -> {
-                    updates.put("estadoActual", mapaEstado("BAJA", "PERIFERICO", motivo));
-                    perifericoManualRepository.actualizar(id, updates);
-                }
-                case ColeccionesStock.CELULARES -> {
-                    updates.put("estado", EstadoCelular.baja.name());
-                    celularRepository.actualizar(id, updates);
-                }
-                case ColeccionesStock.CAMARAS -> {
-                    updates.put("estadoActual", mapaEstado("BAJA", "CAMARA", motivo));
-                    camaraRepository.actualizar(id, updates);
-                }
-                case ColeccionesStock.TELEVISORES -> {
-                    updates.put("estado", "BAJA");
-                    televisorRepository.actualizar(id, updates);
-                }
-                case ColeccionesStock.ROUTERS -> {
-                    updates.put("estado", "BAJA");
-                    updates.put("estadoActual", mapaEstado("BAJA", "ROUTER", motivo));
-                    routerRepository.actualizar(id, updates);
-                }
-                case ColeccionesStock.SWITCHES -> {
-                    updates.put("estado", "BAJA");
-                    updates.put("estadoActual", mapaEstado("BAJA", "SWITCH", motivo));
-                    switchRedRepository.actualizar(id, updates);
-                }
-                case ColeccionesStock.ACCESS_POINTS -> {
-                    updates.put("estado", "BAJA");
-                    accessPointRepository.actualizar(id, updates);
-                }
-            }
+        if (ColeccionesStock.COMPUTADORAS.equals(coleccion) && computadoraRepository != null) {
+            updates.put("estadoActual", mapaEstado("BAJA", "COMPUTADORA", motivo));
+            computadoraRepository.mergeUpdates(id, updates);
+        } else if (ColeccionesStock.CELULARES.equals(coleccion) && celularRepository != null) {
+            updates.put("estado", EstadoCelular.baja.name());
+            celularRepository.actualizar(id, updates);
+        } else {
+            updates.put("estadoActual", mapaEstado("BAJA", "STOCK", motivo));
+            perifericoManualRepository.actualizar(id, updates);
         }
+
+        String codigoAudit = (ficha.getCodigoInterno() != null && !ficha.getCodigoInterno().isBlank())
+                ? ficha.getCodigoInterno()
+                : id;
+
+        auditService.registrar(AuditStockService.RegistroAudit.builder(TipoMovimiento.BAJA, id)
+                .codigoInterno(codigoAudit)
+                .tipoEquipo(ficha.getTipo())
+                .marca(ficha.getMarca())
+                .modelo(ficha.getModelo())
+                .serieOImei(ficha.getSerieOImei())
+                .motivo(motivo)
+                .actorUid(actorUid)
+                .estadoAnterior(ficha.getEstadoDeposito())
+                .estadoNuevo("Baja")
+                .build());
 
         return stockUnidadesService.obtenerPorCodigo(codigo);
     }
@@ -377,23 +271,14 @@ public class StockAbmService {
     }
 
     public static String coleccionParaPrefijo(String prefijo) {
-        return switch (prefijo) {
-            case "PC", "NB" -> ColeccionesStock.COMPUTADORAS;
-            case "MON", "TEC", "MOU", "IMP", "WEB", "PAR", "MIC" -> ColeccionesStock.PERIFERICOS_MANUALES;
-            case "CEL" -> ColeccionesStock.CELULARES;
-            case "CAM" -> ColeccionesStock.CAMARAS;
-            case "TV" -> ColeccionesStock.TELEVISORES;
-            case "RTR" -> ColeccionesStock.ROUTERS;
-            case "SW" -> ColeccionesStock.SWITCHES;
-            case "AP" -> ColeccionesStock.ACCESS_POINTS;
-            default -> throw new IllegalArgumentException("Prefijo desconocido: " + prefijo);
-        };
+        return ColeccionesStock.PERIFERICOS_MANUALES;
     }
 
     private FichaLectura buscarFicha(String codigo) {
         String codigoLimpio = codigo.trim();
         for (FichaLectura ficha : stockUnidadesService.leerFichas()) {
-            if (codigoLimpio.equalsIgnoreCase(ficha.getCodigoInterno())) {
+            if (codigoLimpio.equalsIgnoreCase(ficha.getCodigoInterno())
+                    || codigoLimpio.equalsIgnoreCase(ficha.getId())) {
                 return ficha;
             }
         }
@@ -406,17 +291,5 @@ public class StockAbmService {
         if (ambito != null) mapa.put("ambito", ambito);
         if (descripcion != null) mapa.put("descripcion", descripcion);
         return mapa;
-    }
-
-    private static String parseUbicacionRed(String raw) {
-        if (raw == null || raw.isBlank()) {
-            return UbicacionRed.SISTEMAS.name();
-        }
-        for (UbicacionRed u : UbicacionRed.values()) {
-            if (u.name().equalsIgnoreCase(raw.trim())) {
-                return u.name();
-            }
-        }
-        return UbicacionRed.SISTEMAS.name();
     }
 }

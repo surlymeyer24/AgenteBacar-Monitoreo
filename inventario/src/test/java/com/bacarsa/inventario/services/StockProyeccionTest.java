@@ -42,9 +42,9 @@ class StockProyeccionTest {
         assertUnidad(lista.get(2), "CEL-2", "celular", "Samsung", "A15", "359999", "", "en_stock", "", "");
         assertUnidad(lista.get(3), "CAM-1", "camara", "Hikvision", "DS-2CD", "", "", "Activa", "2026-03-04", "Ingreso");
         assertUnidad(lista.get(4), "TV-1", "televisor", "LG", "55UP", "SER-TV", "", "activo", "", "");
-        assertUnidad(lista.get(5), "RTR-3", "router", "Mikrotik", "hAP", "SER-RTR", "", "En rack", "2026-04-01", "RACK_PRINCIPAL");
-        assertUnidad(lista.get(6), "SW-1", "switch", "Cisco", "C9200", "SER-SW", "", "En rack", "2026-04-02", "RACK_SECUNDARIO");
-        assertUnidad(lista.get(7), "AP-1", "access_point", "Ubiquiti", "U6", "", "", "activo", "", "MONITOREO");
+        assertUnidad(lista.get(5), "RTR-3", "router", "Mikrotik", "hAP", "SER-RTR", "", "Sin Asignar", "2026-04-01", "SISTEMAS");
+        assertUnidad(lista.get(6), "SW-1", "switch", "Cisco", "C9200", "SER-SW", "", "Sin Asignar", "2026-04-02", "SISTEMAS");
+        assertUnidad(lista.get(7), "AP-1", "access_point", "Ubiquiti", "U6", "", "", "Sin Asignar", "", "SISTEMAS");
     }
 
     @Test
@@ -113,7 +113,7 @@ class StockProyeccionTest {
         mini.setCodigoInterno("PC-9");
         mini.setTipoEquipo(tipo("mini_pc"));
         PerifericoManual lote = teclado("lot-1", "TEC-1");
-        lote.setCantidad(0);
+        lote.setCantidad(-1);
 
         List<String> omitidas = new ArrayList<>();
         List<UnidadStockDTO> lista = listar(
@@ -123,14 +123,13 @@ class StockProyeccionTest {
                         ProyeccionStock.desdePeriferico(lote)),
                 omitidas);
 
-        assertTrue(lista.isEmpty());
-        assertEquals(3, omitidas.size());
+        assertEquals(1, lista.size());
+        assertEquals("pc-sin", lista.get(0).getId());
+        assertEquals(2, omitidas.size());
         assertTrue(omitidas.get(0).contains("coleccion=computadoras"));
-        assertTrue(omitidas.get(0).contains("id=pc-sin"));
-        assertTrue(omitidas.get(1).contains("coleccion=computadoras"));
-        assertTrue(omitidas.get(1).contains("id=mini-1"));
-        assertTrue(omitidas.get(2).contains("coleccion=perifericos_manuales"));
-        assertTrue(omitidas.get(2).contains("id=lot-1"));
+        assertTrue(omitidas.get(0).contains("id=mini-1"));
+        assertTrue(omitidas.get(1).contains("coleccion=perifericos_manuales"));
+        assertTrue(omitidas.get(1).contains("id=lot-1"));
     }
 
     @Test
@@ -150,7 +149,7 @@ class StockProyeccionTest {
     }
 
     @Test
-    void perifericosConectadosAPcOAsignadosNoEntranEnStock() {
+    void perifericosConectadosAPcNoEntranEnStockPeroAsignadosSi() {
         PerifericoManual conUuid = teclado("p-uuid", "TEC-20");
         conUuid.setComputadoraUuid("uuid-pc-1");
 
@@ -165,25 +164,71 @@ class StockProyeccionTest {
 
         assertFalse(ProyeccionStock.desdePeriferico(conUuid).entraEnListado());
         assertFalse(ProyeccionStock.desdePeriferico(conHost).entraEnListado());
-        assertFalse(ProyeccionStock.desdePeriferico(asignado).entraEnListado());
+        assertTrue(ProyeccionStock.desdePeriferico(asignado).entraEnListado());
+        assertEquals("ASIGNADA", ProyeccionStock.desdePeriferico(asignado).getEstadoDeposito());
         assertTrue(ProyeccionStock.desdePeriferico(libre).entraEnListado());
     }
 
     @Test
-    void cantidadDistintaDeUnoNoEntra() {
-        PerifericoManual cero = teclado("p0", null);
-        cero.setCantidad(0);
-        PerifericoManual otra = teclado("p2", null);
-        otra.setCantidad(3);
+    void cantidadNegativaNoEntraPeroLotesConCantidadEntran() {
+        PerifericoManual negativo = teclado("p0", null);
+        negativo.setCantidad(-1);
+        PerifericoManual otra = teclado("p2", "TEC-99");
+        otra.setCantidad(5);
 
-        FichaLectura fichaCero = ProyeccionStock.desdePeriferico(cero);
+        FichaLectura fichaNeg = ProyeccionStock.desdePeriferico(negativo);
         FichaLectura fichaOtra = ProyeccionStock.desdePeriferico(otra);
 
-        assertFalse(fichaCero.entraEnListado());
-        assertFalse(fichaOtra.entraEnListado());
-        assertNull(fichaCero.getPrefijo());
-        assertEquals("cantidad_distinta_de_1", fichaCero.getMotivoOmitir());
-        assertEquals("cantidad_distinta_de_1", fichaOtra.getMotivoOmitir());
+        assertFalse(fichaNeg.entraEnListado());
+        assertEquals("sin_stock", fichaNeg.getMotivoOmitir());
+
+        assertTrue(fichaOtra.entraEnListado());
+        assertEquals(5, fichaOtra.aDto().getCantidad());
+    }
+
+    @Test
+    void loteComputadoraDesdePerifericosManualesEntraComoDesktop() {
+        PerifericoManual lotePc = new PerifericoManual();
+        lotePc.setId("lote-ryzen");
+        lotePc.setTipo("computadora");
+        lotePc.setNombre("RYZEN 5 4600G · 8 GB RAM");
+        lotePc.setFabricante("PC CLON");
+        lotePc.setCantidad(2);
+        lotePc.setUbicacion("stock");
+        lotePc.setEstadoActual(estado("En depósito"));
+
+        FichaLectura ficha = ProyeccionStock.desdePeriferico(lotePc);
+        assertTrue(ficha.entraEnListado());
+        assertEquals("PC", ficha.getPrefijo());
+        assertEquals("desktop", ficha.getTipo());
+        assertEquals("PC CLON", ficha.getMarca());
+        assertEquals("RYZEN 5 4600G · 8 GB RAM", ficha.getModelo());
+        assertEquals(2, ficha.aDto().getCantidad());
+    }
+
+    @Test
+    void infraestructuraOperativaEnRackNoEntraEnStock() {
+        Router routerOperativo = new Router();
+        routerOperativo.setId("rtr-op");
+        routerOperativo.setCodigoInterno("RTR-90");
+        routerOperativo.setUbicacion(UbicacionRed.RACK_PRINCIPAL);
+        routerOperativo.setEstadoActual(estado("En rack"));
+
+        SwitchRed switchOperativo = new SwitchRed();
+        switchOperativo.setId("sw-op");
+        switchOperativo.setCodigoInterno("SW-90");
+        switchOperativo.setUbicacion(UbicacionRed.RACK_SECUNDARIO);
+        switchOperativo.setEstadoActual(estado("OPERATIVO"));
+
+        AccessPoint apOperativo = new AccessPoint();
+        apOperativo.setId("ap-op");
+        apOperativo.setCodigoInterno("AP-90");
+        apOperativo.setUbicacion(UbicacionRed.MONITOREO);
+        apOperativo.setEstado("activo");
+
+        assertFalse(ProyeccionStock.desdeRouter(routerOperativo).entraEnListado());
+        assertFalse(ProyeccionStock.desdeSwitch(switchOperativo).entraEnListado());
+        assertFalse(ProyeccionStock.desdeAccessPoint(apOperativo).entraEnListado());
     }
 
     @Test
@@ -343,9 +388,9 @@ class StockProyeccionTest {
         router.setNumeroSerie("SER-RTR");
         router.setFechaAlta("2026-04-01");
         router.setSitio("NO-COPIAR-SITIO");
-        router.setUbicacion(UbicacionRed.RACK_PRINCIPAL);
-        router.setEstado("baja");
-        router.setEstadoActual(estado("En rack"));
+        router.setUbicacion(UbicacionRed.SISTEMAS);
+        router.setEstado("Sin Asignar");
+        router.setEstadoActual(estado("Sin Asignar"));
 
         SwitchRed sw = new SwitchRed();
         sw.setId("sw-1");
@@ -356,8 +401,8 @@ class StockProyeccionTest {
         sw.setNumeroSerie("SER-SW");
         sw.setFechaAlta("2026-04-02");
         sw.setSitio("NO-COPIAR-SITIO");
-        sw.setUbicacion(UbicacionRed.RACK_SECUNDARIO);
-        sw.setEstadoActual(estado("En rack"));
+        sw.setUbicacion(UbicacionRed.SISTEMAS);
+        sw.setEstadoActual(estado("Sin Asignar"));
 
         AccessPoint ap = new AccessPoint();
         ap.setId("ap-1");
@@ -365,8 +410,8 @@ class StockProyeccionTest {
         ap.setMarca("Ubiquiti");
         ap.setModelo("U6");
         ap.setMac("AA:BB:CC:DD:EE:FF");
-        ap.setEstado("activo");
-        ap.setUbicacion(UbicacionRed.MONITOREO);
+        ap.setEstado("Sin Asignar");
+        ap.setUbicacion(UbicacionRed.SISTEMAS);
 
         return List.of(
                 ProyeccionStock.desdeComputadora(pc),

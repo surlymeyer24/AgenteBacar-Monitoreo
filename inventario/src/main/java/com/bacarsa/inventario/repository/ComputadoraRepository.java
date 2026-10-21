@@ -329,9 +329,12 @@ public class ComputadoraRepository {
             var spec = com.bacarsa.inventario.mapper.EspecificacionStockMapper.fromDTO(especificacionEsperada);
             if (spec == null) {
                 updates.put("especificacion_esperada", FieldValue.delete());
+                updates.put("descripcion_completa", FieldValue.delete());
             } else {
                 updates.put("especificacion_esperada",
                         com.bacarsa.inventario.mapper.EspecificacionStockMapper.toFirestoreMap(spec));
+                updates.put("descripcion_completa",
+                        com.bacarsa.inventario.services.ProyeccionStock.descripcionDesdeSpec(spec));
             }
         }
         if (descripcionStock != null) {
@@ -342,6 +345,17 @@ public class ComputadoraRepository {
             updates.put("hostname", hostname.trim());
         }
         return updates;
+    }
+
+    @Cacheable(value = "pc-detalle", key = "'codigo:' + #codigo")
+    public Computadora findByCodigoInterno(String codigo) throws ExecutionException, InterruptedException {
+        DocumentSnapshot doc = firestore.collection(collectionName)
+                .whereEqualTo("codigo_interno", codigo).get().get()
+                .getDocuments().stream().findFirst().orElse(null);
+        if (doc == null || !doc.exists()) {
+            return null;
+        }
+        return documentToComputadora(doc);
     }
 
     @Cacheable(value = "pc-detalle", key = "'hostname:' + #hostname")

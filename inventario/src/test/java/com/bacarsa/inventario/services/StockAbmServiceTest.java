@@ -24,13 +24,9 @@ import com.bacarsa.inventario.dto.AltaUnidadStockDTO;
 import com.bacarsa.inventario.dto.BajaUnidadStockDTO;
 import com.bacarsa.inventario.dto.ModificarUnidadStockDTO;
 import com.bacarsa.inventario.dto.UnidadStockDTO;
-import com.bacarsa.inventario.repository.AccessPointRepository;
-import com.bacarsa.inventario.repository.CamaraRepository;
 import com.bacarsa.inventario.repository.CelularRepository;
+import com.bacarsa.inventario.repository.ComputadoraRepository;
 import com.bacarsa.inventario.repository.PerifericoManualRepository;
-import com.bacarsa.inventario.repository.RouterRepository;
-import com.bacarsa.inventario.repository.SwitchRedRepository;
-import com.bacarsa.inventario.repository.TelevisorRepository;
 
 @ExtendWith(MockitoExtension.class)
 class StockAbmServiceTest {
@@ -38,21 +34,13 @@ class StockAbmServiceTest {
     @Mock
     private StockUnidadesService stockUnidadesService;
     @Mock
-    private ComputadoraHistorialService computadoraHistorialService;
-    @Mock
     private PerifericoManualRepository perifericoManualRepository;
     @Mock
     private CelularRepository celularRepository;
     @Mock
-    private CamaraRepository camaraRepository;
+    private ComputadoraRepository computadoraRepository;
     @Mock
-    private TelevisorRepository televisorRepository;
-    @Mock
-    private RouterRepository routerRepository;
-    @Mock
-    private SwitchRedRepository switchRedRepository;
-    @Mock
-    private AccessPointRepository accessPointRepository;
+    private AuditStockService auditService;
 
     private StockAbmService service;
 
@@ -60,14 +48,10 @@ class StockAbmServiceTest {
     void setUp() {
         service = new StockAbmService(
                 stockUnidadesService,
-                computadoraHistorialService,
                 perifericoManualRepository,
                 celularRepository,
-                camaraRepository,
-                televisorRepository,
-                routerRepository,
-                switchRedRepository,
-                accessPointRepository);
+                computadoraRepository,
+                auditService);
     }
 
     @Test
@@ -88,7 +72,7 @@ class StockAbmServiceTest {
     }
 
     @Test
-    void altaComputadoraUsaHistorialYSetMerge() throws Exception {
+    void altaComputadoraPersisteEnPerifericosManuales() throws Exception {
         when(stockUnidadesService.leerFichas()).thenReturn(List.of());
 
         UnidadStockDTO esperado = new UnidadStockDTO();
@@ -98,10 +82,12 @@ class StockAbmServiceTest {
 
         AltaUnidadStockDTO dto = new AltaUnidadStockDTO();
         dto.setTipo("desktop");
+        dto.setMarca("Dell");
+        dto.setModelo("OptiPlex 3080");
         dto.setSerieOImei("SN-123");
         dto.setCondicion("nuevo");
         dto.setUbicacion("DEPOSITO");
-        dto.setMotivo("Ingreso a stock");
+        dto.setNotas("Ingreso a stock");
 
         UnidadStockDTO resultado = service.alta(dto, "user-1");
 
@@ -109,22 +95,24 @@ class StockAbmServiceTest {
         assertEquals("PC-1", resultado.getCodigo());
 
         @SuppressWarnings("unchecked")
-        ArgumentCaptor<Map<String, Object>> cuerpoCaptor = ArgumentCaptor.forClass(Map.class);
-        verify(computadoraHistorialService).altaManual(anyString(), cuerpoCaptor.capture(), eq("Ingreso a stock"), eq("user-1"));
+        ArgumentCaptor<Map<String, Object>> camposCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(perifericoManualRepository).actualizar(anyString(), camposCaptor.capture());
 
-        Map<String, Object> cuerpo = cuerpoCaptor.getValue();
-        assertEquals("PC-1", cuerpo.get("codigo_interno"));
-        assertEquals("desktop", cuerpo.get("tipoEquipo"));
-        assertEquals("SN-123", cuerpo.get("serialEquipo"));
-        assertEquals("DEPOSITO", cuerpo.get("ubicacion"));
-        assertEquals("nuevo", cuerpo.get("condicion"));
+        Map<String, Object> campos = camposCaptor.getValue();
+        assertEquals("PC-1", campos.get("codigo_interno"));
+        assertEquals("desktop", campos.get("tipo"));
+        assertEquals("Dell", campos.get("fabricante"));
+        assertEquals("OptiPlex 3080", campos.get("nombre"));
+        assertEquals("SN-123", campos.get("numero_serie"));
+        assertEquals("DEPOSITO", campos.get("ubicacion"));
+        assertEquals("nuevo", campos.get("condicion"));
     }
 
     @Test
-    void altaCelularGeneraCodigoYPersisteConSetMerge() throws Exception {
+    void altaCelularGeneraCodigoYPersisteEnPerifericosManuales() throws Exception {
         FichaLectura existente = FichaLectura.de(
-                ColeccionesStock.CELULARES, "cel-1", "CEL-3", "CEL", null,
-                "celular", "Samsung", "A54", "123456789012345", "usado", "en_stock", "", "Depósito");
+                ColeccionesStock.PERIFERICOS_MANUALES, "cel-1", "CEL-3", "CEL", null,
+                "celular", "Samsung", "A54", "123456789012345", "usado", "SIN_ASIGNAR", "", "Depósito");
         when(stockUnidadesService.leerFichas()).thenReturn(List.of(existente));
 
         UnidadStockDTO esperado = new UnidadStockDTO();
@@ -146,22 +134,21 @@ class StockAbmServiceTest {
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<Map<String, Object>> camposCaptor = ArgumentCaptor.forClass(Map.class);
-        verify(celularRepository).actualizar(anyString(), camposCaptor.capture());
+        verify(perifericoManualRepository).actualizar(anyString(), camposCaptor.capture());
 
         Map<String, Object> campos = camposCaptor.getValue();
         assertEquals("CEL-4", campos.get("codigo_interno"));
-        assertEquals("Samsung", campos.get("marca"));
-        assertEquals("A55", campos.get("modelo"));
-        assertEquals("987654321098765", campos.get("imei"));
+        assertEquals("Samsung", campos.get("fabricante"));
+        assertEquals("A55", campos.get("nombre"));
+        assertEquals("987654321098765", campos.get("numero_serie"));
         assertEquals("nuevo", campos.get("condicion"));
-        assertEquals("en_stock", campos.get("estado"));
     }
 
     @Test
-    void modificarComputadoraLlamaAEditarFicha() throws Exception {
+    void modificarUnidadActualizaPerifericosManuales() throws Exception {
         FichaLectura ficha = FichaLectura.de(
-                ColeccionesStock.COMPUTADORAS, "uuid-pc-1", "PC-1", "PC", null,
-                "desktop", "", "", "SN-OLD", "usado", "SIN_ASIGNAR", "", "DEPOSITO");
+                ColeccionesStock.PERIFERICOS_MANUALES, "p-1", "PC-1", "PC", null,
+                "desktop", "Dell", "OptiPlex", "SN-OLD", "usado", "SIN_ASIGNAR", "", "DEPOSITO");
         when(stockUnidadesService.leerFichas()).thenReturn(List.of(ficha));
 
         UnidadStockDTO esperado = new UnidadStockDTO();
@@ -177,10 +164,10 @@ class StockAbmServiceTest {
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<Map<String, Object>> cuerpoCaptor = ArgumentCaptor.forClass(Map.class);
-        verify(computadoraHistorialService).editarFicha(eq("uuid-pc-1"), cuerpoCaptor.capture(), eq("operador-1"));
+        verify(perifericoManualRepository).actualizar(eq("p-1"), cuerpoCaptor.capture());
 
         Map<String, Object> cuerpo = cuerpoCaptor.getValue();
-        assertEquals("SN-NEW", cuerpo.get("serialEquipo"));
+        assertEquals("SN-NEW", cuerpo.get("numero_serie"));
         assertEquals("reacondicionado", cuerpo.get("condicion"));
     }
 
@@ -194,29 +181,7 @@ class StockAbmServiceTest {
     }
 
     @Test
-    void bajaComputadoraCambiaEstadoYGuardaHistorial() throws Exception {
-        FichaLectura ficha = FichaLectura.de(
-                ColeccionesStock.COMPUTADORAS, "uuid-pc-1", "PC-1", "PC", null,
-                "desktop", "", "", "SN-1", "usado", "SIN_ASIGNAR", "", "DEPOSITO");
-        when(stockUnidadesService.leerFichas()).thenReturn(List.of(ficha));
-
-        UnidadStockDTO esperado = new UnidadStockDTO();
-        esperado.setCodigo("PC-1");
-        esperado.setEstadoDeposito("Baja");
-        when(stockUnidadesService.obtenerPorCodigo("PC-1")).thenReturn(esperado);
-
-        BajaUnidadStockDTO dto = new BajaUnidadStockDTO();
-        dto.setMotivo("Motherboard quemada");
-
-        UnidadStockDTO resultado = service.darDeBaja("PC-1", dto, "usr-baja");
-        assertEquals("PC-1", resultado.getCodigo());
-
-        verify(computadoraHistorialService).cambiarEstado(
-                eq("uuid-pc-1"), eq("BAJA"), eq("Motherboard quemada"), anyMap(), eq("usr-baja"));
-    }
-
-    @Test
-    void bajaPerifericoActualizaEstadoConSetMerge() throws Exception {
+    void bajaActualizaEstadoConMotivoYUsuario() throws Exception {
         FichaLectura ficha = FichaLectura.de(
                 ColeccionesStock.PERIFERICOS_MANUALES, "perif-1", "TEC-1", "TEC", null,
                 "teclado", "Logitech", "", "SN-K120", "", "SIN_ASIGNAR", "2026-01-01", "DEPOSITO");
@@ -241,5 +206,33 @@ class StockAbmServiceTest {
         assertEquals("Teclas rotas", campos.get("motivo_baja"));
         assertEquals("usr-baja", campos.get("usuario_baja"));
         assertNotNull(campos.get("estadoActual"));
+    }
+
+    @Test
+    void bajaCelularActualizaColeccionCelularesYNoPerifericosManuales() throws Exception {
+        FichaLectura ficha = FichaLectura.de(
+                ColeccionesStock.CELULARES, "CIzedEofIuO123", "CEL-7", "CEL", null,
+                "celular", "Samsung", "A14", "351234567890", "", "en_stock", "", "");
+        when(stockUnidadesService.leerFichas()).thenReturn(List.of(ficha));
+
+        UnidadStockDTO esperado = new UnidadStockDTO();
+        esperado.setCodigo("CEL-7");
+        esperado.setEstadoDeposito("baja");
+        when(stockUnidadesService.obtenerPorCodigo("CEL-7")).thenReturn(esperado);
+
+        BajaUnidadStockDTO dto = new BajaUnidadStockDTO();
+        dto.setMotivo("Pantalla rota");
+
+        UnidadStockDTO resultado = service.darDeBaja("CEL-7", dto, "usr-baja");
+        assertNotNull(resultado);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> camposCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(celularRepository).actualizar(eq("CIzedEofIuO123"), camposCaptor.capture());
+
+        Map<String, Object> campos = camposCaptor.getValue();
+        assertEquals("baja", campos.get("estado"));
+        assertEquals("Pantalla rota", campos.get("motivo_baja"));
+        assertEquals("usr-baja", campos.get("usuario_baja"));
     }
 }

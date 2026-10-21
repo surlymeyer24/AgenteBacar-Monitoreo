@@ -27,6 +27,7 @@ import { coincideUbicacionFiltro } from '../constants/ubicaciones';
 import { useCatalogo, opcionesEnumCatalogo, labelDeCatalogo } from '../hooks/useCatalogo';
 import { FASES } from '../utils/logisticaProgreso';
 import WriteGate from '../components/WriteGate';
+import { ModuleHeader } from '../components/layout';
 
 const FILAS_POR_PAGINA = 50;
 const cargarHerramientasQr = () => import('../lib/etiquetaQr');
@@ -381,32 +382,20 @@ export default function EtiquetasQrList() {
 
   return (
     <div className="space-y-6 w-full pb-12">
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-80 h-80 bg-red-500/5 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 relative z-10">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-red-50 border border-red-200 rounded-full text-red-700 text-xs font-mono font-bold tracking-wide uppercase">
-              <QrCode className="w-4 h-4" />
-              Módulo de identificación física IT
-            </div>
-            <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight flex items-center gap-3">
-              Etiquetas QR
-            </h1>
-            <p className="text-sm sm:text-base text-slate-500 font-medium">
-              Mudanza · impresora Xprinter 410B · sticker térmico 100 × 50 mm
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2.5">
+      <ModuleHeader
+        title="Etiquetas QR"
+        badge="Identificación Física IT"
+        description="Mudanza · impresora Xprinter 410B · sticker térmico 100 × 50 mm"
+        actions={
+          <>
             <button
               type="button"
               disabled={ocupado || seleccionadas.length === 0}
               onClick={handleImprimirSeleccionadas}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed text-slate-800 text-sm font-bold rounded-xl border border-slate-300 shadow-2xs transition-all cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#f1f5f9] hover:bg-slate-200 disabled:opacity-50 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 transition-colors shadow-xs cursor-pointer"
               title="Imprime las etiquetas para el gabinete de las PCs seleccionadas"
             >
-              <Printer className="w-4 h-4 text-red-600" />
+              <Printer className="w-3.5 h-3.5 text-slate-500" />
               <span>Imprimir seleccionadas ({seleccionadas.length})</span>
             </button>
 
@@ -414,14 +403,14 @@ export default function EtiquetasQrList() {
               type="button"
               disabled={ocupado || seleccionadas.length === 0 || totalMonitoresSeleccionados === 0}
               onClick={handleImprimirMonitoresSeleccionadas}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-50 hover:bg-indigo-100 disabled:opacity-40 disabled:cursor-not-allowed text-indigo-700 text-sm font-bold rounded-xl border border-indigo-200 shadow-2xs transition-all cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#f1f5f9] hover:bg-slate-200 disabled:opacity-50 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 transition-colors shadow-xs cursor-pointer"
               title={
                 totalMonitoresSeleccionados === 0
                   ? 'No hay monitores en las PCs seleccionadas'
                   : 'Imprime una etiqueta por cada monitor de las estaciones seleccionadas'
               }
             >
-              <Monitor className="w-4 h-4 text-indigo-600" />
+              <Monitor className="w-3.5 h-3.5 text-slate-500" />
               <span>Imprimir monitores ({totalMonitoresSeleccionados})</span>
             </button>
 
@@ -429,15 +418,15 @@ export default function EtiquetasQrList() {
               type="button"
               disabled={ocupado || filtradas.length === 0}
               onClick={handleImprimirFiltradas}
-              className="inline-flex items-center gap-2 px-4.5 py-2.5 bg-linear-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-bold rounded-xl shadow-xs transition-all cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#c53030] hover:bg-[#9b2c2c] disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-colors shadow-xs cursor-pointer"
               title="Imprime todas las computadoras que coinciden con los filtros actuales"
             >
               <Printer className="w-4 h-4" />
               <span>Imprimir filtradas ({filtradas.length})</span>
             </button>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {filtradas.length > 0 && (
         <WriteGate>

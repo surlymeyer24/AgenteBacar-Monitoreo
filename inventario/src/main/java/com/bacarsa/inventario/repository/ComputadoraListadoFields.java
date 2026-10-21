@@ -24,6 +24,7 @@ public final class ComputadoraListadoFields {
             "ubicacion_stock",
             "condicion",
             "origen_alta",
+            "en_deposito",
             "estado_conciliacion",
             "estado_preparacion",
             "estado_reporte_agente",

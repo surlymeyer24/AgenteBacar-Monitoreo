@@ -9,11 +9,10 @@ import {
   posponerConciliacion,
 } from '../api/conciliacionApi';
 import {
-  StudioPageShell,
   StudioLoading,
   StudioError,
-  StudioFilterBar,
 } from '../components/studio/StudioUi';
+import { ModuleHeader, TabsCard } from '../components/layout';
 import { GitCompare, Monitor, Package, Check, X, Clock } from 'lucide-react';
 
 const SCORE_BADGE = (score) => {
@@ -141,76 +140,94 @@ export default function ConciliacionesList() {
   const pendientes = pendientesData?.items ?? [];
 
   return (
-    <StudioPageShell
-      title="Conciliaciones stock ↔ agente"
-      subtitle="Sugerencias de vinculación entre baseline de stock y primer reporte del agente"
-      icon={GitCompare}
-    >
-      <StudioFilterBar>
-        <button
-          type="button"
-          onClick={() => setTab('pendientes')}
-          className={`px-3 py-1.5 rounded-lg text-xs font-bold ${tab === 'pendientes' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-700'}`}
-        >
-          Pendientes ({pendientesData?.total ?? pendientes.length})
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab('stock')}
-          className={`px-3 py-1.5 rounded-lg text-xs font-bold ${tab === 'stock' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-700'}`}
-        >
-          Stock sin agente
-        </button>
-      </StudioFilterBar>
+    <div className="flex flex-col space-y-4 pb-6 w-full" id="modulo-conciliaciones">
+      <ModuleHeader
+        title="Conciliaciones stock ↔ agente"
+        badge={`${pendientesData?.total ?? pendientes.length} pendientes`}
+        description="Sugerencias de vinculación entre baseline de stock y primer reporte del agente."
+      />
 
-      {errorAccion && (
-        <div className="mb-4 p-3 rounded-lg bg-red-50 text-red-700 text-sm border border-red-200">{errorAccion}</div>
-      )}
-
-      {tab === 'pendientes' && (
-        <>
-          {cargandoPendientes && <StudioLoading />}
-          {errorPendientes && <StudioError message={errorPendientes.message} />}
-          {!cargandoPendientes && !errorPendientes && pendientes.length === 0 && (
-            <p className="text-slate-500 text-sm py-8 text-center">No hay sugerencias pendientes de confirmación.</p>
+      <TabsCard
+        tabs={[
+          {
+            key: 'pendientes',
+            label: 'Pendientes',
+            count: pendientesData?.total ?? pendientes.length,
+          },
+          {
+            key: 'stock',
+            label: 'Stock sin agente',
+            count: stockSinAgente.length || undefined,
+          },
+        ]}
+        activeTab={tab}
+        onChange={setTab}
+      >
+        <div className="p-4 space-y-4">
+          {errorAccion && (
+            <div className="p-3 rounded-lg bg-red-50 text-red-700 text-sm border border-red-200">
+              {errorAccion}
+            </div>
           )}
-          <div className="space-y-4">
-            {pendientes.map(item => (
-              <SugerenciaCard
-                key={item.id}
-                item={item}
-                onAccion={onAccion}
-                procesando={procesandoId === item.id}
-              />
-            ))}
-          </div>
-        </>
-      )}
 
-      {tab === 'stock' && (
-        <>
-          {cargandoStock && <StudioLoading />}
-          {!cargandoStock && stockSinAgente.length === 0 && (
-            <p className="text-slate-500 text-sm py-8 text-center">No hay PCs con baseline listo sin reporte de agente.</p>
-          )}
-          <div className="space-y-2">
-            {stockSinAgente.map(pc => (
-              <div key={pc.uuid} className="flex items-center justify-between gap-3 p-3 bg-white border border-slate-200 rounded-lg">
-                <div className="flex items-center gap-3 min-w-0">
-                  <Package className="w-4 h-4 text-indigo-600 shrink-0" />
-                  <div className="min-w-0">
-                    <Link to={`/computadoras/${pc.uuid}`} className="font-semibold text-sm text-indigo-700 hover:underline truncate block">
-                      {pc.hostname || pc.uuid}
-                    </Link>
-                    <div className="text-xs text-slate-500">{pc.condicion || '—'} · Baseline listo</div>
-                  </div>
-                </div>
-                <Monitor className="w-4 h-4 text-slate-300 shrink-0" title="Sin sync agente" />
+          {tab === 'pendientes' && (
+            <>
+              {cargandoPendientes && <StudioLoading />}
+              {errorPendientes && <StudioError message={errorPendientes.message} />}
+              {!cargandoPendientes && !errorPendientes && pendientes.length === 0 && (
+                <p className="text-slate-500 text-sm py-8 text-center">
+                  No hay sugerencias pendientes de confirmación.
+                </p>
+              )}
+              <div className="space-y-4">
+                {pendientes.map((item) => (
+                  <SugerenciaCard
+                    key={item.id}
+                    item={item}
+                    onAccion={onAccion}
+                    procesando={procesandoId === item.id}
+                  />
+                ))}
               </div>
-            ))}
-          </div>
-        </>
-      )}
-    </StudioPageShell>
+            </>
+          )}
+
+          {tab === 'stock' && (
+            <>
+              {cargandoStock && <StudioLoading />}
+              {!cargandoStock && stockSinAgente.length === 0 && (
+                <p className="text-slate-500 text-sm py-8 text-center">
+                  No hay PCs con baseline listo sin reporte de agente.
+                </p>
+              )}
+              <div className="space-y-2">
+                {stockSinAgente.map((pc) => (
+                  <div
+                    key={pc.uuid}
+                    className="flex items-center justify-between gap-3 p-3 bg-white border border-slate-200 rounded-lg"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Package className="w-4 h-4 text-indigo-600 shrink-0" />
+                      <div className="min-w-0">
+                        <Link
+                          to={`/computadoras/${pc.uuid}`}
+                          className="font-semibold text-sm text-indigo-700 hover:underline truncate block"
+                        >
+                          {pc.hostname || pc.uuid}
+                        </Link>
+                        <div className="text-xs text-slate-500">
+                          {pc.condicion || '—'} · Baseline listo
+                        </div>
+                      </div>
+                    </div>
+                    <Monitor className="w-4 h-4 text-slate-300 shrink-0" title="Sin sync agente" />
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </TabsCard>
+    </div>
   );
 }

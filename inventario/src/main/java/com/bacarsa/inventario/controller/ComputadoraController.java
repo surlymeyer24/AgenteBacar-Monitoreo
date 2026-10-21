@@ -74,23 +74,15 @@ public class ComputadoraController {
     public ResponseEntity<List<ComputadoraListadoDTO>> listarTodas(
             @RequestParam(name = "ubicacion", required = false) String ubicacion)
             throws ExecutionException, InterruptedException {
-        try {
-            return ResponseEntity.ok(computadoraService.listarComputadoras(ubicacion));
-        } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().build();
-        }
+        return ResponseEntity.ok(computadoraService.listarComputadoras(ubicacion));
     }
 
     @PostMapping
     public ResponseEntity<ComputadoraDTO> crear(@Valid @RequestBody ComputadoraCreateDTO body,
             HttpServletRequest request)
             throws ExecutionException, InterruptedException {
-        try {
-            ComputadoraDTO creada = computadoraService.crear(body, uid(request));
-            return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED).body(creada);
-        } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().build();
-        }
+        ComputadoraDTO creada = computadoraService.crear(body, uid(request));
+        return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED).body(creada);
     }
 
     @PostMapping("/reporte-agente")
@@ -185,15 +177,11 @@ public class ComputadoraController {
             @PathVariable String uuid,
             @RequestBody ComputadoraStockUpdateDTO body,
             HttpServletRequest request) throws ExecutionException, InterruptedException {
-        try {
-            ComputadoraDTO dto = computadoraService.actualizarDatosStock(uuid, body, uid(request));
-            if (dto == null) {
-                return ResponseEntity.notFound().build();
-            }
-            return ResponseEntity.ok(dto);
-        } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().build();
+        ComputadoraDTO dto = computadoraService.actualizarDatosStock(uuid, body, uid(request));
+        if (dto == null) {
+            return ResponseEntity.notFound().build();
         }
+        return ResponseEntity.ok(dto);
     }
 
     @PostMapping("/{uuid}/sacar-de-pipeline")
@@ -211,15 +199,11 @@ public class ComputadoraController {
             @PathVariable String uuid,
             @Valid @RequestBody IngresarStockDTO body,
             HttpServletRequest request) throws ExecutionException, InterruptedException {
-        try {
-            ComputadoraDTO dto = computadoraService.ingresarStock(uuid, body, uid(request));
-            if (dto == null) {
-                return ResponseEntity.notFound().build();
-            }
-            return ResponseEntity.ok(dto);
-        } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().build();
+        ComputadoraDTO dto = computadoraService.ingresarStock(uuid, body, uid(request));
+        if (dto == null) {
+            return ResponseEntity.notFound().build();
         }
+        return ResponseEntity.ok(dto);
     }
 
     @PostMapping("/{uuid}/ficha")
@@ -227,15 +211,11 @@ public class ComputadoraController {
             @PathVariable String uuid,
             @RequestBody Map<String, Object> body,
             HttpServletRequest request) throws ExecutionException, InterruptedException {
-        try {
-            ComputadoraDTO dto = computadoraService.editarFicha(uuid, body, uid(request));
-            if (dto == null) {
-                return ResponseEntity.notFound().build();
-            }
-            return ResponseEntity.ok(dto);
-        } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().build();
+        ComputadoraDTO dto = computadoraService.editarFicha(uuid, body, uid(request));
+        if (dto == null) {
+            return ResponseEntity.notFound().build();
         }
+        return ResponseEntity.ok(dto);
     }
 
     @PostMapping("/{uuid}/ubicacion")
@@ -243,15 +223,11 @@ public class ComputadoraController {
             @PathVariable String uuid,
             @Valid @RequestBody UbicacionUpdateDTO body,
             HttpServletRequest request) throws ExecutionException, InterruptedException {
-        try {
-            ComputadoraDTO dto = computadoraService.actualizarUbicacion(uuid, body.getUbicacion(), uid(request));
-            if (dto == null) {
-                return ResponseEntity.notFound().build();
-            }
-            return ResponseEntity.ok(dto);
-        } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().build();
+        ComputadoraDTO dto = computadoraService.actualizarUbicacion(uuid, body.getUbicacion(), uid(request));
+        if (dto == null) {
+            return ResponseEntity.notFound().build();
         }
+        return ResponseEntity.ok(dto);
     }
 
     @PostMapping("/{uuid}/estado")
@@ -259,15 +235,11 @@ public class ComputadoraController {
             @PathVariable String uuid,
             @Valid @RequestBody CambiarEstadoDTO body,
             HttpServletRequest request) throws ExecutionException, InterruptedException {
-        try {
-            ComputadoraDTO dto = computadoraService.cambiarEstado(uuid, body, uid(request));
-            if (dto == null) {
-                return ResponseEntity.notFound().build();
-            }
-            return ResponseEntity.ok(dto);
-        } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().build();
+        ComputadoraDTO dto = computadoraService.cambiarEstado(uuid, body, uid(request));
+        if (dto == null) {
+            return ResponseEntity.notFound().build();
         }
+        return ResponseEntity.ok(dto);
     }
 
     @DeleteMapping("/{uuid}")
@@ -282,19 +254,15 @@ public class ComputadoraController {
         @Valid @RequestBody ResponsableInventarioDTO body,
         HttpServletRequest request)
         throws ExecutionException, InterruptedException {
-            try {
-                ComputadoraDTO dto = computadoraService.actualizarResponsableInventario(
-                    uuid,
-                    body != null ? body.getResponsableInventario() : null,
-                    uid(request)
-                );
-                if (dto == null) {
-                    return ResponseEntity.notFound().build();
-            }
-            return ResponseEntity.ok(dto);
-        } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().build();
-            }
+        ComputadoraDTO dto = computadoraService.actualizarResponsableInventario(
+                uuid,
+                body != null ? body.getResponsableInventario() : null,
+                uid(request)
+        );
+        if (dto == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(dto);
     }
 
     @PostMapping("/{uuid}/comando")

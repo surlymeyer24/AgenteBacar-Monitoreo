@@ -7,7 +7,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class UnidadStockDTO {
 
+    private String id;
     private String codigo;
+    private String coleccion;
     private String tipo;
     private String marca;
     private String modelo;
@@ -16,4 +18,7 @@ public class UnidadStockDTO {
     private String estadoDeposito;
     private String fechaIngreso;
     private String ubicacion;
+    private Integer cantidad;
+    private String comentarios;
+    private String descripcionCompleta;
 }

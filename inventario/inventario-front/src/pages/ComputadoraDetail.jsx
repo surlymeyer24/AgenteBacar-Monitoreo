@@ -203,8 +203,9 @@ function ComputadoraDetail() {
   const puedeArmarCombo = c.origenAlta === 'STOCK'
     && prepSinArmar
     && (c.estadoActual ?? '').toLowerCase() === 'sin asignar';
-  const puedeIngresarStock = c.origenAlta === 'STOCK'
-    && (c.estadoActual ?? '').toLowerCase() !== 'sin asignar';
+  const puedeIngresarStock = !c.enDeposito
+    && (c.estadoActual ?? '').toLowerCase() !== 'baja'
+    && !(c.origenAlta === 'STOCK' && (c.estadoActual ?? '').toLowerCase() === 'sin asignar');
   const mostrarSacarPipeline = puedeSacarDePipeline(c);
 
   function solicitarSacarDePipeline() {
@@ -404,7 +405,7 @@ function ComputadoraDetail() {
               className="px-4 py-2 border border-teal-700/50 bg-teal-950/40 text-teal-200 hover:bg-teal-900/50 font-bold text-base rounded-lg flex items-center gap-2 transition-colors shrink-0"
             >
               <Package className="w-4 h-4" />
-              Ingresar a stock
+              Ingresar a depósito
             </button>
           )}
           {puedeArmarCombo && (

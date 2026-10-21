@@ -1,6 +1,7 @@
 package com.bacarsa.inventario.services;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -8,125 +9,92 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.bacarsa.inventario.models.Computadora;
-import com.bacarsa.inventario.models.TipoEquipo;
-import com.bacarsa.inventario.repository.AccessPointRepository;
-import com.bacarsa.inventario.repository.CamaraRepository;
+import com.bacarsa.inventario.models.Celular;
+import com.bacarsa.inventario.models.PerifericoManual;
 import com.bacarsa.inventario.repository.CelularRepository;
 import com.bacarsa.inventario.repository.ComputadoraRepository;
-import com.bacarsa.inventario.repository.MergeCodigoInterno;
 import com.bacarsa.inventario.repository.PerifericoManualRepository;
-import com.bacarsa.inventario.repository.RouterRepository;
-import com.bacarsa.inventario.repository.SwitchRedRepository;
-import com.bacarsa.inventario.repository.TelevisorRepository;
 
 @ExtendWith(MockitoExtension.class)
 class StockUnidadesServiceTest {
 
     @Mock
-    private ComputadoraRepository computadoraRepository;
-    @Mock
     private PerifericoManualRepository perifericoManualRepository;
     @Mock
     private CelularRepository celularRepository;
     @Mock
-    private CamaraRepository camaraRepository;
-    @Mock
-    private TelevisorRepository televisorRepository;
-    @Mock
-    private RouterRepository routerRepository;
-    @Mock
-    private SwitchRedRepository switchRedRepository;
-    @Mock
-    private AccessPointRepository accessPointRepository;
+    private ComputadoraRepository computadoraRepository;
 
     private StockUnidadesService service;
 
     @BeforeEach
-    void setUp() throws Exception {
-        service = new StockUnidadesService(
-                computadoraRepository,
-                perifericoManualRepository,
-                celularRepository,
-                camaraRepository,
-                televisorRepository,
-                routerRepository,
-                switchRedRepository,
-                accessPointRepository);
-        when(computadoraRepository.findAll()).thenReturn(List.of());
-        when(perifericoManualRepository.findAll()).thenReturn(List.of());
-        when(celularRepository.findAll()).thenReturn(List.of());
-        when(camaraRepository.findAll()).thenReturn(List.of());
-        when(televisorRepository.findAll()).thenReturn(List.of());
-        when(routerRepository.findAll()).thenReturn(List.of());
-        when(switchRedRepository.findAll()).thenReturn(List.of());
-        when(accessPointRepository.findAll()).thenReturn(List.of());
+    void setUp() {
+        service = new StockUnidadesService(perifericoManualRepository, celularRepository, computadoraRepository);
     }
 
     @Test
     void elGetNoEscribe() throws Exception {
-        Computadora pc = desktop("pc-1", "PC-1");
-        when(computadoraRepository.findAll()).thenReturn(List.of(pc));
+        PerifericoManual p = item("p-1", "TEC-1", "teclado");
+        when(perifericoManualRepository.findAll()).thenReturn(List.of(p));
 
         assertEquals(1, service.listar().size());
-        assertEquals("PC-1", service.listar().get(0).getCodigo());
+        assertEquals("TEC-1", service.listar().get(0).getCodigo());
 
-        verify(computadoraRepository, never()).mergeUpdates(anyString(), org.mockito.ArgumentMatchers.anyMap());
         verify(perifericoManualRepository, never()).mergeCodigoInterno(anyString(), anyString());
-        verify(celularRepository, never()).mergeCodigoInterno(anyString(), anyString());
-        verify(camaraRepository, never()).mergeCodigoInterno(anyString(), anyString());
-        verify(televisorRepository, never()).mergeCodigoInterno(anyString(), anyString());
-        verify(routerRepository, never()).mergeCodigoInterno(anyString(), anyString());
-        verify(switchRedRepository, never()).mergeCodigoInterno(anyString(), anyString());
-        verify(accessPointRepository, never()).mergeCodigoInterno(anyString(), anyString());
+    }
+
+    @Test
+    void listar_incluyeCelularesEnStock() throws Exception {
+        Celular cel = new Celular();
+        cel.setId("cel-1");
+        cel.setCodigoInterno("CEL-10");
+        cel.setMarca("Samsung");
+        cel.setModelo("Galaxy A54");
+        cel.setImei("352000000000001");
+        cel.setEstado("en_stock");
+
+        when(celularRepository.findAll()).thenReturn(List.of(cel));
+
+        assertEquals(1, service.listar().size());
+        assertEquals("CEL-10", service.listar().get(0).getCodigo());
+        assertEquals("celular", service.listar().get(0).getTipo());
+        assertEquals("Samsung", service.listar().get(0).getMarca());
+        assertEquals("Galaxy A54", service.listar().get(0).getModelo());
     }
 
     @Test
     void elBackfillEscribeSoloElCampoCodigoEnLaFichaSinCodigo() throws Exception {
-        Computadora yaTiene = desktop("pc-vieja", "PC-7");
-        Computadora falta = desktop("pc-nueva", null);
-        when(computadoraRepository.findAll()).thenReturn(List.of(yaTiene, falta));
+        PerifericoManual yaTiene = item("p-vieja", "TEC-7", "teclado");
+        PerifericoManual falta = item("p-nueva", null, "teclado");
+        when(perifericoManualRepository.findAll()).thenReturn(List.of(yaTiene, falta));
 
         service.backfill();
 
-        @SuppressWarnings("unchecked")
-        ArgumentCaptor<Map<String, Object>> parche = ArgumentCaptor.forClass(Map.class);
-        verify(computadoraRepository, times(1)).mergeUpdates(org.mockito.ArgumentMatchers.eq("pc-nueva"), parche.capture());
-        assertEquals(Map.of(MergeCodigoInterno.CAMPO, "PC-8"), parche.getValue());
-        verify(computadoraRepository, never()).mergeUpdates(org.mockito.ArgumentMatchers.eq("pc-vieja"), org.mockito.ArgumentMatchers.anyMap());
+        verify(perifericoManualRepository, times(1)).mergeCodigoInterno("p-nueva", "TEC-8");
+        verify(perifericoManualRepository, never()).mergeCodigoInterno("p-vieja", "TEC-7");
     }
 
     @Test
-    void siUnaColeccionFallaElListadoSigueConElResto() throws Exception {
-        when(computadoraRepository.findAll()).thenThrow(new ExecutionException("caida", null));
-        com.bacarsa.inventario.models.Celular celular = new com.bacarsa.inventario.models.Celular();
-        celular.setId("cel-1");
-        celular.setCodigoInterno("CEL-1");
-        celular.setMarca("Nokia");
-        when(celularRepository.findAll()).thenReturn(List.of(celular));
+    void siFallaLecturaRetornaVacio() throws Exception {
+        when(perifericoManualRepository.findAll()).thenThrow(new ExecutionException("caida", null));
 
-        assertEquals(1, service.listar().size());
-        assertEquals("CEL-1", service.listar().get(0).getCodigo());
-        assertEquals("celular", service.listar().get(0).getTipo());
+        assertTrue(service.listar().isEmpty());
     }
 
-    private static Computadora desktop(String uuid, String codigo) {
-        Computadora computadora = new Computadora();
-        computadora.setUuid(uuid);
-        computadora.setCodigoInterno(codigo);
-        TipoEquipo tipo = new TipoEquipo();
-        tipo.setTipo("desktop");
-        computadora.setTipoEquipo(tipo);
-        return computadora;
+    private static PerifericoManual item(String id, String codigo, String tipo) {
+        PerifericoManual p = new PerifericoManual();
+        p.setId(id);
+        p.setCodigoInterno(codigo);
+        p.setTipo(tipo);
+        p.setCantidad(1);
+        return p;
     }
 }

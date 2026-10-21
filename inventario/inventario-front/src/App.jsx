@@ -1,9 +1,10 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useState, lazy, Suspense } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Menu, X, LogOut } from 'lucide-react';
+import { Menu, X, LogOut, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import SidebarNav from './components/SidebarNav';
 import SidebarAuthFooter from './components/SidebarAuthFooter';
+import TopBar from './components/TopBar';
 import { useFirebaseAuthUser } from './hooks/useFirebaseAuth';
 import { PermisosProvider } from './context/PermisosContext';
 import { PermisosBoot, RequireWrite, RequireAdmin } from './components/RoutePermiso';
@@ -42,11 +43,8 @@ const PerifericosMouseList = lazy(() => import('./pages/PerifericosMouseList'));
 const PerifericosWebcamsList = lazy(() => import('./pages/PerifericosWebcamsList'));
 const PerifericosParlantesList = lazy(() => import('./pages/PerifericosParlantesList'));
 const PerifericosMicrofonosList = lazy(() => import('./pages/PerifericosMicrofonosList'));
-const PerifericoManualList = lazy(() => import('./pages/PerifericoManualList'));
-const StockYAsignaciones = lazy(() => import('./pages/StockYAsignaciones'));
-const PerifericoManualNuevo = lazy(() => import('./pages/PerifericoManualNuevo'));
-const PerifericoManualDetail = lazy(() => import('./pages/PerifericoManualDetail'));
-const AsignacionesStock = lazy(() => import('./pages/AsignacionesStock'));
+const StockPage = lazy(() => import('./pages/StockPage'));
+const NvrsCamarasList = lazy(() => import('./pages/NvrsCamarasList'));
 const CamaraList = lazy(() => import('./pages/CamaraList'));
 const CamaraNueva = lazy(() => import('./pages/CamaraNueva'));
 const CamaraDetail = lazy(() => import('./pages/CamaraDetail'));
@@ -70,6 +68,7 @@ const System = lazy(() => import('./pages/System'));
 const UsuariosAdmin = lazy(() => import('./pages/UsuariosAdmin'));
 const CatalogosAdmin = lazy(() => import('./pages/CatalogosAdmin'));
 const MiPerfil = lazy(() => import('./pages/MiPerfil'));
+const ConfiguracionSistema = lazy(() => import('./pages/ConfiguracionSistema'));
 const EtiquetasQrList = lazy(() => import('./pages/EtiquetasQrList'));
 const EtiquetaQrFicha = lazy(() => import('./pages/EtiquetaQrFicha'));
 const EventosHardwareList = lazy(() => import('./pages/EventosHardwareList'));
@@ -86,7 +85,7 @@ function RouteFallback() {
 }
 
 function AppShell() {
-  const [isCollapsed, setIsCollapsed] = useState(true);
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleLogout = () => {
@@ -142,8 +141,12 @@ function AppShell() {
               </span>
               <span className="logo-version">v2.1</span>
             </span>
-            <button className="sidebar-toggle hidden lg:flex" onClick={() => setIsCollapsed(!isCollapsed)}>
-              <Menu size={20} />
+            <button
+              className="sidebar-toggle hidden lg:flex"
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              title={isCollapsed ? "Expandir sidebar" : "Colapsar sidebar"}
+            >
+              {isCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
             </button>
             <button
               onClick={() => setMobileMenuOpen(false)}
@@ -157,9 +160,10 @@ function AppShell() {
             sidebarCollapsed={isCollapsed && !mobileMenuOpen}
             onMobileClose={() => setMobileMenuOpen(false)}
           />
-          <SidebarAuthFooter />
+          <SidebarAuthFooter sidebarCollapsed={isCollapsed && !mobileMenuOpen} />
         </aside>
         <div className="main">
+          <TopBar />
           <div className="main-scroll">
             <Suspense fallback={<RouteFallback />}>
               <Outlet />
@@ -213,33 +217,31 @@ function AppRoutes() {
         </Route>
         <Route path="/conciliaciones" element={<ConciliacionesList />} />
         <Route path="/computadoras" element={<ComputadorasListLayout />}>
-          <Route path="asignaciones" element={<ComputadoraAsignaciones />} />
+          <Route path="asignaciones" element={<Navigate to="/computadoras" replace />} />
           <Route path="" element={<ComputadoraList />}>
             <Route path="nueva" element={<RequireWrite><ComputadoraNueva /></RequireWrite>} />
             <Route path=":uuid" element={<ComputadoraDetail />} />
           </Route>
         </Route>
-        <Route path="/responsables" element={<ResponsablesList />} />
+        <Route path="/responsables" element={<Navigate to="/configuracion?tab=responsables" replace />} />
         <Route path="/responsables/:id" element={<ResponsableDetail />} />
         <Route path="/perifericos" element={<PerifericosTodosList />} />
-        <Route path="/perifericos/dashboard" element={<PerifericosDashboard />} />
-        <Route path="/perifericos/impresoras" element={<PerifericosImpresorasList />} />
-        <Route path="/perifericos/monitores" element={<PerifericosMonitoresList />} />
-        <Route path="/perifericos/teclados" element={<PerifericosTecladosList />} />
-        <Route path="/perifericos/mouse" element={<PerifericosMouseList />} />
-        <Route path="/perifericos/webcams" element={<PerifericosWebcamsList />} />
-        <Route path="/perifericos/parlantes" element={<PerifericosParlantesList />} />
-        <Route path="/perifericos/microfonos" element={<PerifericosMicrofonosList />} />
-        <Route path="/perifericos/televisores" element={<TelevisorList />} />
-        <Route path="/perifericos/celulares" element={<CelularList />} />
-        <Route path="/asignaciones-stock" element={<Navigate to="/perifericos/stock" replace />} />
-        <Route path="/stock" element={<Navigate to="/perifericos/stock" replace />} />
-        <Route path="/perifericos/stock" element={<StockYAsignaciones />}>
-          <Route path=":id" element={<PerifericoManualDetail />} />
-        </Route>
-        <Route path="/perifericos/stock/nuevo" element={<RequireWrite><PerifericoManualNuevo /></RequireWrite>} />
+        <Route path="/perifericos/dashboard" element={<Navigate to="/perifericos" replace />} />
+        <Route path="/perifericos/monitores" element={<Navigate to="/perifericos?tipo=monitores" replace />} />
+        <Route path="/perifericos/teclados" element={<Navigate to="/perifericos?tipo=teclados" replace />} />
+        <Route path="/perifericos/mouse" element={<Navigate to="/perifericos?tipo=mouse" replace />} />
+        <Route path="/perifericos/webcams" element={<Navigate to="/perifericos?tipo=webcams" replace />} />
+        <Route path="/perifericos/parlantes" element={<Navigate to="/perifericos?tipo=audio" replace />} />
+        <Route path="/perifericos/microfonos" element={<Navigate to="/perifericos?tipo=audio" replace />} />
+        <Route path="/perifericos/impresoras" element={<Navigate to="/perifericos?tipo=impresoras" replace />} />
+        <Route path="/perifericos/televisores" element={<Navigate to="/perifericos?tipo=televisores" replace />} />
+        <Route path="/perifericos/celulares" element={<Navigate to="/perifericos?tipo=celulares" replace />} />
+        <Route path="/deposito" element={<StockPage />} />
+        <Route path="/asignaciones-stock" element={<Navigate to="/deposito?tab=asignaciones" replace />} />
+        <Route path="/perifericos/stock/*" element={<Navigate to="/deposito" replace />} />
+        <Route path="/perifericos/stock" element={<Navigate to="/deposito" replace />} />
         <Route path="/infraestructura" element={<InfraestructuraDashboard />} />
-        <Route path="/camaras" element={<CamaraList />}>
+        <Route path="/camaras" element={<NvrsCamarasList />}>
           <Route path=":id" element={<CamaraDetail />} />
         </Route>
         <Route path="/camaras/nueva" element={<RequireWrite><CamaraNueva /></RequireWrite>} />
@@ -253,7 +255,7 @@ function AppRoutes() {
         <Route path="/access-points" element={<AccessPointList />}>
           <Route path=":id" element={<AccessPointDetail />} />
         </Route>
-        <Route path="/nvrs" element={<NvrList />}>
+        <Route path="/nvrs" element={<NvrsCamarasList />}>
           <Route path=":id" element={<NvrDetail />} />
         </Route>
         <Route path="/nvrs/nueva" element={<RequireWrite><NvrNueva /></RequireWrite>} />
@@ -264,11 +266,12 @@ function AppRoutes() {
         <Route path="/servidores" element={<ServidorList />}>
           <Route path=":id" element={<ServidorDetalle />} />
         </Route>
-        <Route path="/system" element={<RequireAdmin><System /></RequireAdmin>} />
-        <Route path="/admin/usuarios" element={<RequireAdmin><UsuariosAdmin /></RequireAdmin>} />
-        <Route path="/admin/catalogos" element={<RequireAdmin><CatalogosAdmin /></RequireAdmin>} />
+        <Route path="/configuracion" element={<ConfiguracionSistema />} />
+        <Route path="/system" element={<Navigate to="/configuracion?tab=agente" replace />} />
+        <Route path="/admin/usuarios" element={<Navigate to="/configuracion?tab=usuarios" replace />} />
+        <Route path="/admin/catalogos" element={<Navigate to="/configuracion?tab=catalogos" replace />} />
         <Route path="/investigacion" element={<InvestigacionSesiones />} />
-        <Route path="/perfil" element={<MiPerfil />} />
+        <Route path="/perfil" element={<Navigate to="/configuracion?tab=perfil" replace />} />
       </Route>
     </Routes>
   );

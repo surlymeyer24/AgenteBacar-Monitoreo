@@ -2,7 +2,8 @@ import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, UserRound, Monitor } from 'lucide-react';
 import { useResponsableDetalle } from '../hooks/useQueries';
 import { labelUbicacionEnum } from '../constants/ubicaciones';
-import { StudioPageShell, StudioLoading, StudioError } from '../components/studio/StudioUi';
+import { StudioLoading, StudioError } from '../components/studio/StudioUi';
+import { ModuleHeader } from '../components/layout';
 
 function fmtFecha(iso) {
   if (!iso) return '—';
@@ -17,30 +18,43 @@ export default function ResponsableDetail() {
   if (isLoading) return <StudioLoading message="Cargando equipos asignados…" />;
   if (error || !data) {
     return (
-      <StudioPageShell title="Responsable no encontrado">
+      <div className="space-y-6 pb-12 w-full">
+        <ModuleHeader
+          title="Responsable no encontrado"
+          description={error ? 'No se pudo cargar el detalle.' : 'No existe ese responsable en el índice.'}
+          actions={
+            <Link
+              to="/configuracion?tab=responsables"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#f1f5f9] hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 transition-colors shadow-2xs cursor-pointer"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Volver a responsables</span>
+            </Link>
+          }
+        />
         <StudioError message={error ? 'No se pudo cargar el detalle.' : 'No existe ese responsable en el índice.'} />
-        <Link to="/responsables" className="inline-flex items-center gap-2 mt-4 text-sm font-bold text-accent">
-          <ArrowLeft className="w-4 h-4" />
-          Volver al listado
-        </Link>
-      </StudioPageShell>
+      </div>
     );
   }
 
   const equipos = data.equipos ?? [];
 
   return (
-    <StudioPageShell
-      title={data.nombre ?? data.id}
-      subtitle={`${equipos.length} computadora(s) asignada(s) en inventario.`}
-    >
-      <Link
-        to="/responsables"
-        className="inline-flex items-center gap-2 mb-4 text-sm font-bold text-slate-600 hover:text-slate-900"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        Volver a responsables
-      </Link>
+    <div className="space-y-6 pb-12 w-full">
+      <ModuleHeader
+        title={data.nombre ?? data.id}
+        badge={`${equipos.length} computadoras asignadas`}
+        description="Detalle de asignaciones del responsable en inventario."
+        actions={
+          <Link
+            to="/configuracion?tab=responsables"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#f1f5f9] hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 transition-colors shadow-2xs cursor-pointer"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Volver a responsables</span>
+          </Link>
+        }
+      />
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
         <div className="px-4 py-3 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
@@ -90,6 +104,6 @@ export default function ResponsableDetail() {
           </table>
         </div>
       </div>
-    </StudioPageShell>
+    </div>
   );
 }

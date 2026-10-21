@@ -37,4 +37,32 @@ public class MovimientoStock {
     @Getter(onMethod_ = @PropertyName("actor_uid"))
     @Setter(onMethod_ = @PropertyName("actor_uid"))
     private String actorUid;
+
+    @Getter(onMethod_ = @PropertyName("tipo_movimiento"))
+    @Setter(onMethod_ = @PropertyName("tipo_movimiento"))
+    private String tipoMovimiento;
+
+    @Getter(onMethod_ = @PropertyName("periferico_id"))
+    @Setter(onMethod_ = @PropertyName("periferico_id"))
+    private String perifericoId;
+
+    @Getter(onMethod_ = @PropertyName("computadora_uuid"))
+    @Setter(onMethod_ = @PropertyName("computadora_uuid"))
+    private String computadoraUuid;
+
+    @Getter(onMethod_ = @PropertyName("ubicacion_origen"))
+    @Setter(onMethod_ = @PropertyName("ubicacion_origen"))
+    private String ubicacionOrigen;
+
+    @Getter(onMethod_ = @PropertyName("ubicacion_destino"))
+    @Setter(onMethod_ = @PropertyName("ubicacion_destino"))
+    private String ubicacionDestino;
+
+    @Getter(onMethod_ = @PropertyName("estado_anterior"))
+    @Setter(onMethod_ = @PropertyName("estado_anterior"))
+    private String estadoAnterior;
+
+    @Getter(onMethod_ = @PropertyName("estado_nuevo"))
+    @Setter(onMethod_ = @PropertyName("estado_nuevo"))
+    private String estadoNuevo;
 }

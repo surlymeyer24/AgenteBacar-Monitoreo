@@ -168,6 +168,9 @@ public final class ComputadoraHistorialReglas {
         Map<String, Object> agenteUpdates = new LinkedHashMap<>();
         aplicarAgente(agenteUpdates, agente, false);
         quitarIguales(docExistente, agenteUpdates);
+        if (Boolean.TRUE.equals(docExistente.get("en_deposito"))) {
+            agenteUpdates.put("en_deposito", false);
+        }
         updates.putAll(agenteUpdates);
 
         if (altaNueva) {
@@ -249,6 +252,9 @@ public final class ComputadoraHistorialReglas {
         if (!cambiosFicha.isEmpty()) {
             updates.putAll(aplicarCambiosFicha(doc, cambiosFicha));
             historial.add(renglonFicha(actor, ahora, acto, "MANUAL", cambiosFicha));
+        }
+        if (fichaEnElMismoActo != null && fichaEnElMismoActo.containsKey("en_deposito")) {
+            updates.put("en_deposito", fichaEnElMismoActo.get("en_deposito"));
         }
         updates.put(HISTORIAL, historial);
         return EscrituraHistorial.actualizarConHistorial(updates);

@@ -14,4 +14,6 @@ public class ModificarUnidadStockDTO {
     private String ubicacion;
     private String hostname;
     private String notas;
+    private Integer cantidad;
+    private String comentarios;
 }

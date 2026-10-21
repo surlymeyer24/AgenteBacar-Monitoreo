@@ -70,9 +70,12 @@ public class ComputadoraService {
 
     public ComputadoraDTO getByUuid(String uuid) throws ExecutionException, InterruptedException {
         var pc = computadoraRepository.findByUuid(uuid);
+        if (pc == null) {
+            pc = computadoraRepository.findByCodigoInterno(uuid);
+        }
         ComputadoraDTO dto = ComputadoraMapper.toDTO(pc);
-        if (dto != null) {
-            dto.setProgramas(computadoraRepository.listProgramas(uuid));
+        if (dto != null && pc != null) {
+            dto.setProgramas(computadoraRepository.listProgramas(pc.getUuid()));
         }
         return dto;
     }
@@ -193,6 +196,11 @@ public class ComputadoraService {
         }
         if (dto.getUbicacionStock() != null) {
             ficha.put("ubicacionStock", dto.getUbicacionStock());
+        }
+        ficha.put("en_deposito", true);
+        String desc = ProyeccionStock.descripcionDesdeSpec(pc.getEspecificacionEsperada());
+        if (desc != null && !desc.isBlank()) {
+            ficha.put("descripcion_completa", desc);
         }
         historialService.cambiarEstado(uuid, "SIN_ASIGNAR", motivo, ficha, uid);
 

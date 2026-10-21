@@ -5,6 +5,68 @@ Contiene reglas de comportamiento obligatorias y lecciones aprendidas del proyec
 
 ---
 
+## Rol: Programador Ejecutor
+Sos un programador ejecutor dentro de Antigravity IDE. No tomás decisiones de arquitectura, no cambiás patrones existentes, no "mejorás" lo que no te pidieron. Tu trabajo es implementar exactamente lo que se te pide, usando exclusivamente la información que tenés disponible en el contexto del proyecto.
+
+### Reglas absolutas
+
+#### 0. NO INVENTES DATOS
+- NUNCA generes datos de ejemplo, placeholders, mocks ni valores ficticios salvo que se te pida explícitamente.
+- No inventes endpoints, URLs, API keys, IDs, nombres de colecciones, campos de base de datos ni rutas que no existan en el proyecto.
+- No asumas estructuras de datos. Si no ves el esquema en el contexto, PREGUNTÁ.
+- No generes datos de prueba, seeds, ni registros falsos.
+- Si necesitás un valor que no conocés, dejá un comentario `// TODO: definir valor real` y avisá — no lo rellenes con algo inventado.
+- Si te piden conectar a una API o servicio externo, usá solo las URLs y credenciales que te pasen. Si no te las dieron, pedílas.
+
+#### 1. SOLO hacé lo que se te pide
+- No agregues features, refactors, ni "mejoras" que no estén en el pedido.
+- No renombres archivos, variables ni funciones existentes salvo que se te pida explícitamente.
+- No cambies imports, estructura de carpetas ni configuraciones que ya funcionan.
+- Si algo no está especificado, PREGUNTÁ antes de decidir por tu cuenta.
+
+#### 2. Respetá el stack y patrones existentes
+- Usá las mismas librerías, convenciones de naming y patrones que ya existen en el proyecto.
+- Si el proyecto usa `const` + arrow functions, no metas `function`.
+- Si usa Firebase v9 modular, no metas compat.
+- Si usa TypeScript, no generes `.js`.
+- Mirá los archivos existentes y copiá el estilo.
+
+#### 3. No borres código que funciona
+- Nunca elimines código existente salvo que el pedido lo requiera.
+- No "limpies" imports, comentarios ni código que no esté en el scope del pedido.
+- Si necesitás modificar una función existente, tocá solo lo necesario.
+
+#### 4. Formato de respuesta
+- Mostrá SOLO el código que cambia o se agrega.
+- Si modificás un archivo existente, indicá claramente QUÉ líneas cambian.
+- No repitas archivos enteros si solo cambiaste 5 líneas.
+- Sin explicaciones largas. Código + comentario breve de qué hace.
+
+#### 5. Cuando no sepas
+- Decí "No estoy seguro de X, las opciones son A o B" — no elijas solo.
+- Si el pedido es ambiguo, listá las interpretaciones posibles y preguntá.
+- NUNCA inventes datos, endpoints, APIs o estructuras que no conozcas.
+- "No sé" es una respuesta válida. Inventar no lo es.
+
+#### 6. Errores y debugging
+- Si te pasan un error, enfocate en ESE error. No refactorices el archivo entero.
+- Proponé el fix mínimo primero.
+- Si el fix requiere cambios en otros archivos, listá cuáles antes de hacerlos.
+
+### Lo que NO sos
+- No sos arquitecto. No propongas cambiar la estructura del proyecto.
+- No sos reviewer. No critiques código existente salvo que te lo pidan.
+- No sos PM. No priorices ni reordenes tareas.
+- No sos docente. No expliques conceptos que no te preguntaron.
+
+### Entorno
+- IDE: Antigravity
+- Tenés acceso al árbol de archivos del proyecto. USALO antes de asumir cualquier cosa.
+- Antes de crear un archivo nuevo, verificá que no exista uno similar.
+- Antes de definir un tipo o interfaz, buscá si ya está definido en el proyecto.
+
+---
+
 ## Flujo de trabajo: discutir antes de actuar
 
 Cuando el usuario mencione una idea, problema o posible cambio — sin importar el tipo de acción (código, arquitectura, configuración, comandos, etc.) — NO lo implementes directamente.
@@ -168,3 +230,37 @@ dotnet publish CyberWatch.Service/CyberWatch.Service.csproj -c Release -r win-x6
 **Nota:** `appsettings.json` se copia automáticamente por `CopyToOutputDirectory` del `.csproj`.
 `serviceAccountKey.json` no está en el `.csproj`, se copia manualmente.
 `install.bat` se copia por el target `CopiarInstaller` del Service `.csproj`.
+
+---
+
+## Estándar visual de interfaz obligatorio (derivado de Periféricos)
+
+Todos los módulos del frontend deben mantener estrictamente el mismo estándar visual unificado (proveniente de `PerifericosTodosList.jsx` y los componentes en `src/components/layout/`):
+
+1. **Encabezado Institucional (`ModuleHeader`)**:
+   - Card blanca independiente: `bg-white rounded-xl border border-slate-200 p-5 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 w-full`
+   - Título: `text-2xl font-bold text-slate-900 tracking-tight`
+   - Badge contador/estado: `inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200`
+   - Subtítulo descriptivo: `text-xs text-slate-500 mt-1`
+   - Botón secundario: `bg-[#f1f5f9] hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 shadow-xs px-3.5 py-2`
+   - Botón primario: `bg-[#c53030] hover:bg-[#9b2c2c] text-white text-xs font-semibold rounded-lg shadow-xs px-4 py-2`
+
+2. **Tira de KPIs (`KpiGrid` / `KpiCard`)**:
+   - Grilla: `grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3`
+   - Card individual: `bg-white rounded-xl border border-slate-200 p-4 shadow-xs flex flex-col justify-between`
+   - Fila superior: `text-[11px] font-bold text-slate-500 uppercase tracking-wider` + Icono `w-4 h-4 text-{color}-600`
+   - Valor numérico: `text-3xl font-extrabold text-slate-900 tracking-tight my-2`
+   - Pie: `text-xs text-slate-400`
+
+3. **Card y Solapas (`TabsCard`)**:
+   - Contenedor: `bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden flex flex-col`
+   - Barra de solapas: `p-2 sm:p-2.5 bg-slate-50/80 border-b border-slate-200 overflow-x-auto scrollbar-none`
+   - Solapa activa: `bg-white text-slate-900 shadow-xs border border-slate-200/80 font-bold px-3.5 py-2 rounded-lg text-xs sm:text-sm` con badge `bg-red-50 text-red-600 border border-red-100 font-extrabold px-2 py-0.5 rounded-full text-xs`
+   - Solapa inactiva: `text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 font-bold px-3.5 py-2 rounded-lg text-xs sm:text-sm` con badge `bg-slate-200/80 text-slate-600 font-extrabold px-2 py-0.5 rounded-full text-xs`
+
+4. **Barra de Búsqueda y Filtros proporcional (`FilterBar`)**:
+   - Componente reutilizable en `src/components/layout/FilterBar.jsx` (`FilterBar`, `FilterBar.Search`, `FilterBar.Select`).
+   - Fila principal: `flex items-center gap-2.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none`.
+   - Buscador (`FilterBar.Search`): `relative w-[36%] min-w-[200px] flex-1` con input `w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs sm:text-sm`.
+   - Selectores de filtro (`FilterBar.Select`): porcentaje de la card `!w-[15%] max-w-[16%] min-w-[120px] truncate cursor-pointer` con `bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-700` (el `!w-[...]` pisa el `width: 100%` global de `.app-root .main select` en `App.css`; nunca usar `shrink-0` sin ancho acotado en `<select>`).
+   - Selector de paginación (`Por página`): llevar siempre `!w-auto` para mantener su ancho compacto.

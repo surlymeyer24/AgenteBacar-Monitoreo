@@ -121,12 +121,33 @@ export function resolveSpecFromItem(item) {
   return mergeSpecFields(stored, fromNombre);
 }
 
-/** Spec resuelta para computadora trazable (especificacion_esperada o hostname legacy). */
+/** Extrae specs del hardware reportado por el agente (procesador, ram, discos). */
+function specsFromAgente(pc) {
+  const cpu = pc?.procesador?.nombreRaw || '';
+  const ram = pc?.ramTotalGb != null && pc.ramTotalGb > 0
+    ? String(Math.ceil(pc.ramTotalGb))
+    : '';
+  let disco = '';
+  if (pc?.discos?.length) {
+    const totalGb = pc.discos.reduce((sum, d) => sum + (d.totalGB || 0), 0);
+    if (totalGb > 0) {
+      const tipos = [...new Set(pc.discos.map(d => d.tipoDisco).filter(Boolean))];
+      disco = `${Math.round(totalGb)} GB` + (tipos.length ? ` ${tipos.join('/')}` : '');
+    }
+  }
+  return { cpuModelo: cpu, ramTotalGb: ram, discoResumen: disco };
+}
+
+/** Spec resuelta para computadora trazable (especificacion_esperada o datos del agente o hostname legacy). */
 export function resolveSpecFromComputadora(pc) {
   const stored = pc?.especificacionEsperada;
-  const fromHostname = hasStoredSpec(stored)
-    ? { cpuModelo: '', ramTotalGb: '', discoResumen: '' }
-    : parseSpecFromNombre(pc?.hostname);
+  const agente = specsFromAgente(pc);
+  const fromHostname = parseSpecFromNombre(pc?.hostname);
+  const fallback = {
+    cpuModelo: agente.cpuModelo || fromHostname.cpuModelo || '',
+    ramTotalGb: agente.ramTotalGb || fromHostname.ramTotalGb || '',
+    discoResumen: agente.discoResumen || fromHostname.discoResumen || '',
+  };
   return mergeSpecFields(
     stored ? {
       cpuModelo: stored.cpuModelo,
@@ -135,7 +156,7 @@ export function resolveSpecFromComputadora(pc) {
       tipoEquipo: stored.tipoEquipo,
       condicion: stored.condicion,
     } : null,
-    fromHostname,
+    fallback,
   );
 }
 

@@ -20,6 +20,9 @@ public final class FichaLectura {
     private final String estadoDeposito;
     private final String fechaIngreso;
     private final String ubicacion;
+    private final Integer cantidad;
+    private final String comentarios;
+    private String descripcionCompleta = "";
 
     private FichaLectura(
             String coleccion,
@@ -34,7 +37,9 @@ public final class FichaLectura {
             String condicion,
             String estadoDeposito,
             String fechaIngreso,
-            String ubicacion) {
+            String ubicacion,
+            Integer cantidad,
+            String comentarios) {
         this.coleccion = coleccion;
         this.id = id == null ? "" : id;
         this.codigoInterno = codigoInterno;
@@ -48,6 +53,8 @@ public final class FichaLectura {
         this.estadoDeposito = estadoDeposito;
         this.fechaIngreso = fechaIngreso;
         this.ubicacion = ubicacion;
+        this.cantidad = cantidad;
+        this.comentarios = comentarios;
     }
 
     public static FichaLectura de(
@@ -64,8 +71,75 @@ public final class FichaLectura {
             String estadoDeposito,
             String fechaIngreso,
             String ubicacion) {
+        return de(
+                coleccion,
+                id,
+                codigoInterno,
+                prefijo,
+                motivoOmitir,
+                tipo,
+                marca,
+                modelo,
+                serieOImei,
+                condicion,
+                estadoDeposito,
+                fechaIngreso,
+                ubicacion,
+                1,
+                null);
+    }
+
+    public static FichaLectura de(
+            String coleccion,
+            String id,
+            String codigoInterno,
+            String prefijo,
+            String motivoOmitir,
+            String tipo,
+            String marca,
+            String modelo,
+            String serieOImei,
+            String condicion,
+            String estadoDeposito,
+            String fechaIngreso,
+            String ubicacion,
+            Integer cantidad) {
+        return de(
+                coleccion,
+                id,
+                codigoInterno,
+                prefijo,
+                motivoOmitir,
+                tipo,
+                marca,
+                modelo,
+                serieOImei,
+                condicion,
+                estadoDeposito,
+                fechaIngreso,
+                ubicacion,
+                cantidad,
+                null);
+    }
+
+    public static FichaLectura de(
+            String coleccion,
+            String id,
+            String codigoInterno,
+            String prefijo,
+            String motivoOmitir,
+            String tipo,
+            String marca,
+            String modelo,
+            String serieOImei,
+            String condicion,
+            String estadoDeposito,
+            String fechaIngreso,
+            String ubicacion,
+            Integer cantidad,
+            String comentarios) {
         String codigo = enBlanco(codigoInterno) ? null : codigoInterno.trim();
-        String prefijoAsignable = motivoOmitir == null ? prefijo : null;
+        String prefijoAsignable = prefijo;
         return new FichaLectura(
                 coleccion,
                 id,
@@ -79,16 +153,20 @@ public final class FichaLectura {
                 vacio(condicion),
                 vacio(estadoDeposito),
                 vacio(fechaIngreso),
-                vacio(ubicacion));
+                vacio(ubicacion),
+                cantidad != null ? cantidad : 1,
+                vacio(comentarios));
     }
 
     public boolean entraEnListado() {
-        return motivoOmitir == null && codigoInterno != null;
+        return motivoOmitir == null && (codigoInterno != null || "perifericos_manuales".equals(coleccion) || "celulares".equals(coleccion) || "computadoras".equals(coleccion));
     }
 
     public UnidadStockDTO aDto() {
         UnidadStockDTO dto = new UnidadStockDTO();
-        dto.setCodigo(codigoInterno == null ? "" : codigoInterno);
+        dto.setId(id);
+        dto.setCodigo(codigoInterno != null && !codigoInterno.isBlank() ? codigoInterno : id);
+        dto.setColeccion(coleccion);
         dto.setTipo(tipo);
         dto.setMarca(marca);
         dto.setModelo(modelo);
@@ -97,7 +175,14 @@ public final class FichaLectura {
         dto.setEstadoDeposito(estadoDeposito);
         dto.setFechaIngreso(fechaIngreso);
         dto.setUbicacion(ubicacion);
+        dto.setCantidad(cantidad != null ? cantidad : 1);
+        dto.setComentarios(comentarios);
+        dto.setDescripcionCompleta(descripcionCompleta);
         return dto;
+    }
+
+    void setDescripcionCompleta(String descripcionCompleta) {
+        this.descripcionCompleta = descripcionCompleta != null ? descripcionCompleta : "";
     }
 
     public String referencia() {

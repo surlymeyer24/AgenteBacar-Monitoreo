@@ -3,16 +3,15 @@ import { Outlet, useNavigate } from 'react-router-dom';
 import { useEventosHardware } from '../hooks/useQueries';
 import TableFilters from '../components/TableFilters';
 import {
-  StudioPageShell,
   StudioLoading,
   StudioError,
-  StudioFilterBar,
   studioTableClass,
   studioTheadClass,
   studioThClass,
   studioTdClass,
   studioRowClass,
 } from '../components/studio/StudioUi';
+import { ModuleHeader } from '../components/layout';
 import { ShieldAlert, Monitor, HardDrive, Cpu, MemoryStick } from 'lucide-react';
 
 const ESTADOS_SEGUIMIENTO = [
@@ -116,104 +115,106 @@ function EventosHardwareList() {
   if (error) return <><StudioError message="No se pudieron cargar los eventos de hardware" /><EventosHardwareOutlet /></>;
 
   return (
-    <>
-    <StudioPageShell
-      title={`Auditoría de Hardware (${eventosFiltrados.length})`}
-      subtitle="Cambios de hardware detectados por el agente en las PCs del parque."
-      actions={null}
-    >
-      <StudioFilterBar>
-        <TableFilters>
-          <TableFilters.Search value={buscar} onChange={setBuscar} placeholder="Buscar PC, UUID..." />
-        </TableFilters>
-        <div className="flex flex-wrap items-center gap-2 text-sm">
-          <label className="font-bold text-slate-600 text-xs">Estado:</label>
-          <select
-            value={filtroEstado}
-            onChange={e => setFiltroEstado(e.target.value)}
-            className="bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#0c66e4]"
-          >
-            {ESTADOS_SEGUIMIENTO.map(e => (
-              <option key={e.value} value={e.value}>{e.label}</option>
-            ))}
-          </select>
-          <label className="font-bold text-slate-600 text-xs ml-2">Componente:</label>
-          <select
-            value={filtroComponente}
-            onChange={e => setFiltroComponente(e.target.value)}
-            className="bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#0c66e4]"
-          >
-            {TIPOS_COMPONENTE.map(t => (
-              <option key={t.value} value={t.value}>{t.label}</option>
-            ))}
-          </select>
-        </div>
-      </StudioFilterBar>
+    <div className="flex flex-col space-y-4 pb-6 w-full" id="modulo-auditoria-hw">
+      <ModuleHeader
+        title="Auditoría de Hardware"
+        badge={`${eventosFiltrados.length} eventos detectados`}
+        description="Cambios de hardware detectados por el agente en las PCs del parque."
+      />
 
-      {eventosFiltrados.length === 0 ? (
-        <div className="text-center py-16 text-slate-400 text-sm font-medium">
-          No hay eventos {filtroEstado ? `con estado "${fmtEstado(filtroEstado)}"` : ''} para mostrar.
-        </div>
-      ) : (
-        <div className="overflow-x-auto pt-2">
-          <table className={studioTableClass()}>
-            <thead className={studioTheadClass()}>
-              <tr>
-                <th className={studioThClass()}>PC</th>
-                <th className={studioThClass()}>Componente</th>
-                <th className={studioThClass()}>Evento</th>
-                <th className={studioThClass()}>Fingerprint</th>
-                <th className={studioThClass()}>Estado</th>
-                <th className={studioThClass()}>Fecha</th>
-              </tr>
-            </thead>
-            <tbody>
-              {eventosFiltrados.map(ev => (
-                <tr
-                  key={ev.id}
-                  className={studioRowClass(true)}
-                  onClick={() => navigate(`/eventos-hardware/${encodeURIComponent(ev.id)}`)}
-                >
-                  <td className={studioTdClass()}>
-                    <div className="flex flex-col">
-                      <span className="font-bold text-slate-800">{ev.hostname || '—'}</span>
-                      <span className="text-[10px] text-slate-400 font-mono">{ev.uuid}</span>
-                    </div>
-                  </td>
-                  <td className={studioTdClass()}>
-                    <div className="flex items-center gap-1.5">
-                      {iconoComponente(ev.tipoComponente)}
-                      <span className="font-semibold capitalize">{ev.tipoComponente}</span>
-                    </div>
-                  </td>
-                  <td className={studioTdClass()}>
-                    <span className={`inline-flex px-2 py-0.5 rounded text-xs font-bold ${TIPO_EVENTO_BADGE[ev.tipoEvento] ?? ''}`}>
-                      {TIPO_EVENTO_LABELS[ev.tipoEvento] ?? ev.tipoEvento}
-                    </span>
-                  </td>
-                  <td className={studioTdClass()}>
-                    <span className="font-mono text-xs text-slate-500">{ev.fingerprint}</span>
-                  </td>
-                  <td className={studioTdClass()}>
-                    <span className={`inline-flex px-2 py-0.5 rounded text-xs font-bold border ${ESTADO_BADGE[ev.estadoSeguimiento] ?? ''}`}>
-                      {fmtEstado(ev.estadoSeguimiento)}
-                    </span>
-                    {ev.leido === false && (
-                      <span className="ml-1.5 inline-block w-2 h-2 rounded-full bg-blue-500" title="No leído" />
-                    )}
-                  </td>
-                  <td className={studioTdClass()}>
-                    <span className="text-xs text-slate-500">{fmtFecha(ev.timestamp)}</span>
-                  </td>
-                </tr>
+      <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden flex flex-col p-4 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <TableFilters>
+            <TableFilters.Search value={buscar} onChange={setBuscar} placeholder="Buscar PC, UUID..." />
+          </TableFilters>
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <label className="font-bold text-slate-600 text-xs">Estado:</label>
+            <select
+              value={filtroEstado}
+              onChange={e => setFiltroEstado(e.target.value)}
+              className="bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-1 focus:ring-red-500 cursor-pointer"
+            >
+              {ESTADOS_SEGUIMIENTO.map(e => (
+                <option key={e.value} value={e.value}>{e.label}</option>
               ))}
-            </tbody>
-          </table>
+            </select>
+            <label className="font-bold text-slate-600 text-xs ml-2">Componente:</label>
+            <select
+              value={filtroComponente}
+              onChange={e => setFiltroComponente(e.target.value)}
+              className="bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-1 focus:ring-red-500 cursor-pointer"
+            >
+              {TIPOS_COMPONENTE.map(t => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </select>
+          </div>
         </div>
-      )}
-    </StudioPageShell>
-    <EventosHardwareOutlet />
-    </>
+
+        {eventosFiltrados.length === 0 ? (
+          <div className="text-center py-16 text-slate-400 text-sm font-medium">
+            No hay eventos {filtroEstado ? `con estado "${fmtEstado(filtroEstado)}"` : ''} para mostrar.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className={studioTableClass()}>
+              <thead className={studioTheadClass()}>
+                <tr>
+                  <th className={studioThClass()}>PC</th>
+                  <th className={studioThClass()}>Componente</th>
+                  <th className={studioThClass()}>Evento</th>
+                  <th className={studioThClass()}>Fingerprint</th>
+                  <th className={studioThClass()}>Estado</th>
+                  <th className={studioThClass()}>Fecha</th>
+                </tr>
+              </thead>
+              <tbody>
+                {eventosFiltrados.map(ev => (
+                  <tr
+                    key={ev.id}
+                    className={studioRowClass(true)}
+                    onClick={() => navigate(`/eventos-hardware/${encodeURIComponent(ev.id)}`)}
+                  >
+                    <td className={studioTdClass()}>
+                      <div className="flex flex-col">
+                        <span className="font-bold text-slate-800">{ev.hostname || '—'}</span>
+                        <span className="text-[10px] text-slate-400 font-mono">{ev.uuid}</span>
+                      </div>
+                    </td>
+                    <td className={studioTdClass()}>
+                      <div className="flex items-center gap-1.5">
+                        {iconoComponente(ev.tipoComponente)}
+                        <span className="font-semibold capitalize">{ev.tipoComponente}</span>
+                      </div>
+                    </td>
+                    <td className={studioTdClass()}>
+                      <span className={`inline-flex px-2 py-0.5 rounded text-xs font-bold ${TIPO_EVENTO_BADGE[ev.tipoEvento] ?? ''}`}>
+                        {TIPO_EVENTO_LABELS[ev.tipoEvento] ?? ev.tipoEvento}
+                      </span>
+                    </td>
+                    <td className={studioTdClass()}>
+                      <span className="font-mono text-xs text-slate-500">{ev.fingerprint}</span>
+                    </td>
+                    <td className={studioTdClass()}>
+                      <span className={`inline-flex px-2 py-0.5 rounded text-xs font-bold border ${ESTADO_BADGE[ev.estadoSeguimiento] ?? ''}`}>
+                        {fmtEstado(ev.estadoSeguimiento)}
+                      </span>
+                      {ev.leido === false && (
+                        <span className="ml-1.5 inline-block w-2 h-2 rounded-full bg-blue-500" title="No leído" />
+                      )}
+                    </td>
+                    <td className={studioTdClass()}>
+                      <span className="text-xs text-slate-500">{fmtFecha(ev.timestamp)}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+      <EventosHardwareOutlet />
+    </div>
   );
 }
 

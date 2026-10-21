@@ -99,6 +99,10 @@ public class Computadora {
     @Setter(onMethod_ = @PropertyName("origen_alta"))
     private OrigenAlta origenAlta;
 
+    @Getter(onMethod_ = @PropertyName("en_deposito"))
+    @Setter(onMethod_ = @PropertyName("en_deposito"))
+    private Boolean enDeposito;
+
     @Deprecated
     @Getter(onMethod_ = @PropertyName("estado_conciliacion"))
     @Setter(onMethod_ = @PropertyName("estado_conciliacion"))

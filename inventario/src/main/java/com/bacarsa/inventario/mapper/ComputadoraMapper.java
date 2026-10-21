@@ -89,6 +89,7 @@ public class ComputadoraMapper {
         dto.setAnydeskId(computadora.getAnydeskId());
         dto.setCondicion(computadora.getCondicion());
         dto.setOrigenAlta(computadora.getOrigenAlta() != null ? computadora.getOrigenAlta().name() : null);
+        dto.setEnDeposito(computadora.getEnDeposito());
         dto.setEstadoConciliacion(computadora.getEstadoConciliacion() != null ? computadora.getEstadoConciliacion().name() : null);
         mapEstadosSeparados(dto, computadora);
         dto.setBaselineEsperado(BaselineEsperadoMapper.toDTO(computadora.getBaselineEsperado()));

@@ -254,7 +254,7 @@ export function useEditPcStock({
     onSavedRef.current = null;
   };
 
-  const editPcYaEnDeposito = esSinAsignar(editPc?.estadoActual);
+  const editPcYaEnDeposito = editPc?.enDeposito === true || esSinAsignar(editPc?.estadoActual);
 
   return {
     editPcOpen,
