@@ -12,10 +12,15 @@ import {
   Cpu,
   Network,
   Smartphone,
+  Eye,
 } from 'lucide-react';
-import { KpiCard, KpiGrid } from '../layout';
+import ModalDetalleHistorial from './ModalDetalleHistorial';
+import { KpiCard, KpiGrid, FilterBar } from '../layout';
 import WriteGate from '../WriteGate';
 import { labelTipoStock } from '../../constants/tiposStock';
+import { useCatalogo } from '../../hooks/useCatalogo';
+import { labelUbicacion } from '../../constants/ubicaciones';
+import { formatearNombreEquipo } from '../../utils/stockListHelpers';
 
 const FILAS_POR_PAGINA = 25;
 
@@ -105,16 +110,41 @@ function getPageNumbers(current, total) {
 
 const TH = 'text-[11px] font-bold text-slate-500 uppercase tracking-wider px-4 py-3 whitespace-nowrap';
 
+function esAsignacionVigente(m) {
+  const estado = (m?.estado || '').trim().toLowerCase();
+  if (estado !== 'activa' && estado !== 'activo' && estado !== 'pendiente' && estado !== 'asignado') {
+    return false;
+  }
+  const accion = (m?.accion || '').trim().toLowerCase();
+  if (
+    accion.includes('baja') ||
+    accion.includes('reactiv') ||
+    accion.includes('devol') ||
+    accion === 'alta' ||
+    accion.includes('modific')
+  ) {
+    return false;
+  }
+  return true;
+}
+
 export default function AsignacionesTab({ asignaciones = [], onDevolver }) {
   const [categoriaActiva, setCategoriaActiva] = useState('todas');
   const [busqueda, setBusqueda] = useState('');
   const [filtroEstado, setFiltroEstado] = useState('');
   const [filtroArea, setFiltroArea] = useState('');
   const [pagina, setPagina] = useState(1);
+  const [detalleItem, setDetalleItem] = useState(null);
+  const { items: ubicCompItems } = useCatalogo('ubicaciones_computadora');
+
+  const asignacionesVigentes = useMemo(
+    () => asignaciones.filter(esAsignacionVigente),
+    [asignaciones]
+  );
 
   const conteosPorFamilia = useMemo(() => {
-    const conteos = { todas: asignaciones.length, pcs: 0, perifericos: 0, infraestructura: 0, celulares: 0 };
-    asignaciones.forEach((m) => {
+    const conteos = { todas: asignacionesVigentes.length, pcs: 0, perifericos: 0, infraestructura: 0, celulares: 0 };
+    asignacionesVigentes.forEach((m) => {
       const t = (m.tipo || '').toLowerCase().trim();
       if (['desktop', 'notebook', 'computadora', 'pc'].includes(t)) conteos.pcs++;
       else if (['monitor', 'teclado', 'mouse', 'impresora', 'webcam', 'parlante', 'microfono', 'micrófono'].includes(t)) conteos.perifericos++;
@@ -122,28 +152,26 @@ export default function AsignacionesTab({ asignaciones = [], onDevolver }) {
       else if (t === 'celular') conteos.celulares++;
     });
     return conteos;
-  }, [asignaciones]);
+  }, [asignacionesVigentes]);
 
   const kpis = useMemo(() => {
-    let activas = 0, entregasMes = 0, devolucionesMes = 0;
+    let entregasMes = 0, devolucionesMes = 0;
     asignaciones.forEach((m) => {
-      const estado = (m.estado || '').toLowerCase();
       const accion = (m.accion || '').toLowerCase();
       const fecha = m.fecha || m.fechaMovimiento || m.fechaHora;
-      if (estado === 'activa' || estado === 'activo') activas++;
       if (esDelMesActual(fecha)) {
-        if (accion.includes('asig') || accion.includes('alta') || accion.includes('entrega')) entregasMes++;
-        if (accion.includes('devol') || accion.includes('retorno') || accion.includes('baja')) devolucionesMes++;
+        if (accion.includes('asig') || accion.includes('liber') || accion.includes('entrega')) entregasMes++;
+        if (accion.includes('devol') || accion.includes('retorno')) devolucionesMes++;
       }
     });
-    return { activas, entregasMes, devolucionesMes };
-  }, [asignaciones]);
+    return { activas: asignacionesVigentes.length, entregasMes, devolucionesMes };
+  }, [asignaciones, asignacionesVigentes]);
 
   const areasDisponibles = useMemo(() => {
     const set = new Set();
-    asignaciones.forEach((m) => { if (m.area && m.area.trim()) set.add(m.area.trim()); });
+    asignacionesVigentes.forEach((m) => { if (m.area && m.area.trim()) set.add(m.area.trim()); });
     return Array.from(set).sort();
-  }, [asignaciones]);
+  }, [asignacionesVigentes]);
 
   const filtradas = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
@@ -151,7 +179,7 @@ export default function AsignacionesTab({ asignaciones = [], onDevolver }) {
     const areaTarget = filtroArea.toLowerCase();
     const famObj = FAMILIAS.find((f) => f.id === categoriaActiva);
 
-    return asignaciones.filter((m) => {
+    return asignacionesVigentes.filter((m) => {
       const t = (m.tipo || '').toLowerCase().trim();
       if (famObj && famObj.tipos && !famObj.tipos.includes(t)) return false;
       if (q) {
@@ -162,7 +190,7 @@ export default function AsignacionesTab({ asignaciones = [], onDevolver }) {
       if (areaTarget && (m.area || '').toLowerCase() !== areaTarget) return false;
       return true;
     });
-  }, [asignaciones, categoriaActiva, busqueda, filtroEstado, filtroArea]);
+  }, [asignacionesVigentes, categoriaActiva, busqueda, filtroEstado, filtroArea]);
 
   const totalPaginas = Math.ceil(filtradas.length / FILAS_POR_PAGINA) || 1;
   const paginaValida = Math.min(Math.max(1, pagina), totalPaginas);
@@ -240,52 +268,59 @@ export default function AsignacionesTab({ asignaciones = [], onDevolver }) {
       </div>
 
       {/* Filtros */}
-      <div className="flex flex-col md:flex-row gap-3 flex-wrap items-stretch">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <input
-            type="text"
-            value={busqueda}
-            onChange={(e) => { setBusqueda(e.target.value); setPagina(1); }}
-            placeholder="Buscar por responsable, equipo, marca o modelo..."
-            className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-900 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0c66e4]/20 focus:border-[#0c66e4] transition-colors"
-          />
-        </div>
+      <FilterBar
+        className="!p-0"
+        activeCount={
+          [
+            Boolean(busqueda.trim()),
+            Boolean(filtroEstado),
+            Boolean(filtroArea),
+            categoriaActiva !== 'todas',
+          ].filter(Boolean).length
+        }
+        onReset={limpiarFiltros}
+      >
+        <FilterBar.Search
+          value={busqueda}
+          onChange={(val) => {
+            setBusqueda(val);
+            setPagina(1);
+          }}
+          placeholder="Buscar por responsable, equipo, marca o modelo..."
+        />
 
-        <select
+        <FilterBar.Select
           value={filtroEstado}
-          onChange={(e) => { setFiltroEstado(e.target.value); setPagina(1); }}
-          className="px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#0c66e4]/20 focus:border-[#0c66e4] transition-colors min-w-[150px]"
+          onChange={(val) => {
+            setFiltroEstado(val);
+            setPagina(1);
+          }}
+          widthClass="!w-[18%] max-w-[20%] min-w-[140px]"
         >
           <option value="">Estado: Todos</option>
           <option value="activa">Activa</option>
           <option value="finalizada">Finalizada</option>
           <option value="pendiente">Pendiente</option>
-        </select>
+        </FilterBar.Select>
 
         {areasDisponibles.length > 0 && (
-          <select
+          <FilterBar.Select
             value={filtroArea}
-            onChange={(e) => { setFiltroArea(e.target.value); setPagina(1); }}
-            className="px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#0c66e4]/20 focus:border-[#0c66e4] transition-colors min-w-[160px]"
+            onChange={(val) => {
+              setFiltroArea(val);
+              setPagina(1);
+            }}
+            widthClass="!w-[18%] max-w-[20%] min-w-[140px]"
           >
             <option value="">Área: Todas</option>
             {areasDisponibles.map((area) => (
-              <option key={area} value={area}>{area}</option>
+              <option key={area} value={area}>
+                {labelUbicacion(area, ubicCompItems)}
+              </option>
             ))}
-          </select>
+          </FilterBar.Select>
         )}
-
-        {hayFiltrosActivos && (
-          <button
-            type="button"
-            onClick={limpiarFiltros}
-            className="px-3 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 border border-slate-200 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer whitespace-nowrap"
-          >
-            Limpiar filtros
-          </button>
-        )}
-      </div>
+      </FilterBar>
 
       {/* Tabla */}
       <div className="overflow-x-auto rounded-lg border border-slate-200">
@@ -329,10 +364,18 @@ export default function AsignacionesTab({ asignaciones = [], onDevolver }) {
                     </td>
                     <td className="px-4 py-3.5">
                       <div className="font-semibold text-slate-900 text-sm leading-snug">
-                        {[m.marca, m.modelo].filter(Boolean).join(' ') || '—'}
+                        {formatearNombreEquipo(m)}
+                        {(m.cantidad ?? 1) > 1 && (
+                          <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-extrabold bg-slate-100 text-slate-700 border border-slate-200">
+                            x{m.cantidad}
+                          </span>
+                        )}
                       </div>
                       {m.codigo && (
-                        <div className="text-[11px] text-slate-400 font-mono mt-0.5">{m.codigo}</div>
+                        <div className="text-[11px] text-slate-400 font-mono mt-0.5">
+                          {m.codigo}
+                          {m.loteOrigen ? ` · lote ${m.loteOrigen}` : ''}
+                        </div>
                       )}
                     </td>
                     <td className="px-4 py-3.5 font-semibold text-slate-900 text-sm">
@@ -341,7 +384,7 @@ export default function AsignacionesTab({ asignaciones = [], onDevolver }) {
                     <td className="px-4 py-3.5">
                       {m.area ? (
                         <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-700">
-                          {m.area}
+                          {labelUbicacion(m.area, ubicCompItems)}
                         </span>
                       ) : '—'}
                     </td>
@@ -363,6 +406,15 @@ export default function AsignacionesTab({ asignaciones = [], onDevolver }) {
                       {formatFecha(m.fechaDevolucion)}
                     </td>
                     <td className="px-4 py-3.5 text-right">
+                      <button
+                        type="button"
+                        onClick={() => setDetalleItem(m)}
+                        className="px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 transition-colors inline-flex items-center gap-1 cursor-pointer mr-1.5"
+                        title="Ver ficha técnica e historial"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>Detalle</span>
+                      </button>
                       <WriteGate>
                         {esActiva && (
                           <button
@@ -397,7 +449,7 @@ export default function AsignacionesTab({ asignaciones = [], onDevolver }) {
             {Math.min(paginaValida * FILAS_POR_PAGINA, filtradas.length)}
           </strong>
           {' '}de <strong className="text-slate-700">{filtradas.length}</strong> movimientos
-          {hayFiltrosActivos ? ` (filtrados de ${asignaciones.length} totales)` : ''}
+          {hayFiltrosActivos ? ` (filtrados de ${asignacionesVigentes.length} totales)` : ''}
         </span>
 
         {totalPaginas > 1 && (
@@ -443,6 +495,12 @@ export default function AsignacionesTab({ asignaciones = [], onDevolver }) {
           </div>
         )}
       </div>
+
+      <ModalDetalleHistorial
+        open={Boolean(detalleItem)}
+        onClose={() => setDetalleItem(null)}
+        item={detalleItem}
+      />
     </div>
   );
 }

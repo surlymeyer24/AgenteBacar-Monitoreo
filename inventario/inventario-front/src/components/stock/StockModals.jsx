@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, AlertCircle, PlusCircle, Edit3, Trash2, UserCheck, CornerDownLeft } from 'lucide-react';
+import { X, AlertCircle, PlusCircle, Edit3, Trash2, UserCheck, CornerDownLeft, User, Building2 } from 'lucide-react';
 import {
   altaUnidadStock,
   modificarUnidadStock,
@@ -10,6 +10,12 @@ import {
 } from '../../api/stockApi';
 import { useStockInvalidation } from '../../hooks/useStockInvalidation';
 import { labelTipoStock, opcionesTipoStock } from '../../constants/tiposStock';
+import { useCatalogo, opcionesEnumCatalogo } from '../../hooks/useCatalogo';
+import {
+  UBICACIONES_COMPUTADORA,
+  UBICACIONES_COMPUTADORA_LABELS,
+  labelUbicacion,
+} from '../../constants/ubicaciones';
 
 const CONDICIONES = ['Nuevo', 'Usado', 'Reacondicionado', 'Para repuesto'];
 const UBICACIONES_SUGERIDAS = ['Depósito Central', 'Sistemas', 'Taller', 'Puesto IT', 'Rack Principal'];
@@ -582,15 +588,28 @@ export function ModalBaja({ open, unidad, onClose }) {
 }
 
 export function ModalAsignar({ open, unidad, onClose }) {
+  const [tipoAsignacion, setTipoAsignacion] = useState('PERSONA'); // 'PERSONA' | 'AREA'
+  const [cantidadAsignar, setCantidadAsignar] = useState(1);
   const [responsable, setResponsable] = useState('');
   const [area, setArea] = useState('');
   const [motivo, setMotivo] = useState('');
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
   const { invalidarTodo } = useStockInvalidation();
+  const { items: ubicCompItems } = useCatalogo('ubicaciones_computadora');
+
+  const opcionesArea =
+    ubicCompItems.length > 0
+      ? opcionesEnumCatalogo(ubicCompItems)
+      : UBICACIONES_COMPUTADORA.map((k) => ({
+          value: k,
+          label: UBICACIONES_COMPUTADORA_LABELS[k] || k,
+        }));
 
   useEffect(() => {
     if (open) {
+      setTipoAsignacion('PERSONA');
+      setCantidadAsignar(1);
       setResponsable('');
       setArea('');
       setMotivo('');
@@ -600,19 +619,31 @@ export function ModalAsignar({ open, unidad, onClose }) {
 
   if (!open || !unidad) return null;
 
+  const disponible = Math.max(1, unidad.cantidad ?? 1);
+
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!responsable.trim()) {
+    if (cantidadAsignar < 1 || cantidadAsignar > disponible) {
+      setError(`La cantidad debe estar entre 1 y ${disponible}.`);
+      return;
+    }
+    if (tipoAsignacion === 'PERSONA' && !responsable.trim()) {
       setError('El nombre del responsable es obligatorio.');
+      return;
+    }
+    if (tipoAsignacion === 'AREA' && !area.trim()) {
+      setError('Debe seleccionar el área / sector de destino.');
       return;
     }
     setGuardando(true);
     setError('');
     try {
       await asignarUnidadStock(unidad.codigo, {
-        responsable: responsable.trim(),
+        asignacionTipo: tipoAsignacion,
+        responsable: tipoAsignacion === 'PERSONA' ? responsable.trim() : null,
         area: area.trim(),
         motivo: motivo.trim(),
+        cantidad: cantidadAsignar,
       });
       await invalidarTodo();
       onClose();
@@ -666,28 +697,102 @@ export function ModalAsignar({ open, unidad, onClose }) {
               )}
             </div>
 
+            {disponible > 1 && (
+              <div>
+                <label className={labelClass}>Cantidad a asignar (disponibles: {disponible})</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={disponible}
+                  value={cantidadAsignar}
+                  onChange={(e) => setCantidadAsignar(parseInt(e.target.value, 10) || 1)}
+                  className={inputClass}
+                />
+              </div>
+            )}
+
+            {/* Selector Tipo Asignación */}
             <div>
-              <label className={labelClass}>Responsable *</label>
-              <input
-                type="text"
-                value={responsable}
-                onChange={(e) => setResponsable(e.target.value)}
-                placeholder="Nombre y Apellido del colaborador"
-                required
-                className={inputClass}
-              />
+              <label className={labelClass}>Destino de asignación</label>
+              <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-lg">
+                <button
+                  type="button"
+                  onClick={() => setTipoAsignacion('PERSONA')}
+                  className={`py-1.5 px-3 rounded-md text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    tipoAsignacion === 'PERSONA'
+                      ? 'bg-white text-slate-900 shadow-xs border border-slate-200/60'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <User className="w-3.5 h-3.5 text-blue-600" />
+                  A Persona
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTipoAsignacion('AREA')}
+                  className={`py-1.5 px-3 rounded-md text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    tipoAsignacion === 'AREA'
+                      ? 'bg-white text-slate-900 shadow-xs border border-slate-200/60'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Building2 className="w-3.5 h-3.5 text-purple-600" />
+                  A Área (uso común)
+                </button>
+              </div>
             </div>
 
-            <div>
-              <label className={labelClass}>Área / Sector</label>
-              <input
-                type="text"
-                value={area}
-                onChange={(e) => setArea(e.target.value)}
-                placeholder="Ej. Operaciones, Cobranzas, IT"
-                className={inputClass}
-              />
-            </div>
+            {tipoAsignacion === 'PERSONA' ? (
+              <>
+                <div>
+                  <label className={labelClass}>Responsable *</label>
+                  <input
+                    type="text"
+                    value={responsable}
+                    onChange={(e) => setResponsable(e.target.value)}
+                    placeholder="Nombre y Apellido del colaborador"
+                    required
+                    className={inputClass}
+                  />
+                </div>
+
+                <div>
+                  <label className={labelClass}>Área / Sector (opcional)</label>
+                  <select
+                    value={area}
+                    onChange={(e) => setArea(e.target.value)}
+                    className={inputClass}
+                  >
+                    <option value="">Seleccionar área…</option>
+                    {opcionesArea.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            ) : (
+              <div>
+                <label className={labelClass}>Área / Sector de destino *</label>
+                <select
+                  value={area}
+                  onChange={(e) => setArea(e.target.value)}
+                  required
+                  className={inputClass}
+                >
+                  <option value="">Seleccionar área…</option>
+                  {opcionesArea.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-slate-500 mt-1">
+                  El equipo quedará asignado para uso general de este sector, sin un custodio personal único.
+                </p>
+              </div>
+            )}
 
             <div>
               <label className={labelClass}>Motivo / Observaciones (opcional)</label>
@@ -726,27 +831,35 @@ export function ModalAsignar({ open, unidad, onClose }) {
 
 export function ModalDevolver({ open, movimientoOUnidad, onClose }) {
   const [motivo, setMotivo] = useState('');
+  const [cantidadDevolver, setCantidadDevolver] = useState(1);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
   const { invalidarTodo } = useStockInvalidation();
+  const { items: ubicCompItems } = useCatalogo('ubicaciones_computadora');
 
   useEffect(() => {
     if (open) {
       setMotivo('');
+      setCantidadDevolver(Math.max(1, movimientoOUnidad?.cantidad ?? 1));
       setError('');
     }
-  }, [open]);
+  }, [open, movimientoOUnidad]);
 
   if (!open || !movimientoOUnidad) return null;
 
   const codigo = movimientoOUnidad.codigo;
+  const asignadas = Math.max(1, movimientoOUnidad.cantidad ?? 1);
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (cantidadDevolver < 1 || cantidadDevolver > asignadas) {
+      setError(`La cantidad debe estar entre 1 y ${asignadas}.`);
+      return;
+    }
     setGuardando(true);
     setError('');
     try {
-      await devolverUnidadStock(codigo, { motivo: motivo.trim() });
+      await devolverUnidadStock(codigo, { motivo: motivo.trim(), cantidad: cantidadDevolver });
       await invalidarTodo();
       onClose();
     } catch (err) {
@@ -796,7 +909,7 @@ export function ModalDevolver({ open, movimientoOUnidad, onClose }) {
               )}
               {movimientoOUnidad.area && (
                 <div>
-                  <strong>Área:</strong> {movimientoOUnidad.area}
+                  <strong>Área:</strong> {labelUbicacion(movimientoOUnidad.area, ubicCompItems)}
                 </div>
               )}
               {movimientoOUnidad.marca && (
@@ -810,6 +923,19 @@ export function ModalDevolver({ open, movimientoOUnidad, onClose }) {
             </div>
 
             <div>
+              {asignadas > 1 && (
+                <div className="mb-3">
+                  <label className={labelClass}>Cantidad a devolver (asignadas: {asignadas})</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={asignadas}
+                    value={cantidadDevolver}
+                    onChange={(e) => setCantidadDevolver(parseInt(e.target.value, 10) || 1)}
+                    className={inputClass}
+                  />
+                </div>
+              )}
               <label className={labelClass}>Motivo de devolución (opcional)</label>
               <textarea
                 value={motivo}

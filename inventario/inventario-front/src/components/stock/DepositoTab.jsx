@@ -13,9 +13,12 @@ import {
   Smartphone,
   MapPin,
   ArrowRight,
+  Eye,
 } from 'lucide-react';
 import WriteGate from '../WriteGate';
 import { labelTipoStock } from '../../constants/tiposStock';
+import { FilterBar } from '../layout';
+import ModalDetalleHistorial from './ModalDetalleHistorial';
 
 const FILAS_POR_PAGINA = 25;
 
@@ -25,7 +28,7 @@ const FAMILIAS = [
     id: 'pcs',
     label: 'PCs',
     icon: Laptop,
-    tipos: ['desktop', 'notebook', 'computadora', 'pc'],
+    tipos: ['desktop', 'notebook', 'computadora', 'pc', 'mini_pc'],
     grupoLabel: 'Computadoras',
   },
   {
@@ -58,6 +61,7 @@ const GRUPOS_TIPO = [
     opciones: [
       { value: 'desktop', label: 'Desktop' },
       { value: 'notebook', label: 'Notebook' },
+      { value: 'mini_pc', label: 'Mini PC' },
     ],
   },
   {
@@ -92,6 +96,48 @@ const GRUPOS_TIPO = [
     opciones: [{ value: 'celular', label: 'Celular' }],
   },
 ];
+
+const PREFIJO_A_TIPO = {
+  PC: 'desktop',
+  NB: 'notebook',
+  MON: 'monitor',
+  TEC: 'teclado',
+  MOU: 'mouse',
+  IMP: 'impresora',
+  WEB: 'webcam',
+  PAR: 'parlante',
+  MIC: 'microfono',
+  CEL: 'celular',
+  CAM: 'camara_ip',
+  TV: 'televisor',
+  RTR: 'router',
+  SW: 'switch',
+  AP: 'access_point',
+  TEL: 'telefono_ip',
+  OTR: 'otro',
+};
+
+function resolverTipoUnidad(u) {
+  const directo = (u?.tipo || u?.tipoEquipo || '').trim().toLowerCase();
+  if (directo) return directo;
+  const codigo = (u?.codigo || '').trim().toUpperCase();
+  const prefijo = codigo.split('-')[0];
+  return PREFIJO_A_TIPO[prefijo] || '';
+}
+
+function formatTipoEquipo(u) {
+  const raw = (u?.tipoEquipo || '').trim();
+  const base =
+    raw ||
+    (['desktop', 'notebook', 'mini_pc'].includes((u?.tipo || '').toLowerCase()) ? u.tipo : '');
+  if (!base) return '—';
+  const norm = base.toLowerCase().replace(/_/g, ' ').trim();
+  if (norm === 'mini pc' || norm === 'minipc') return 'Mini PC';
+  if (norm === 'notebook' || norm === 'laptop') return 'Notebook';
+  if (norm === 'desktop' || norm === 'pc' || norm === 'escritorio') return 'Desktop';
+  if (norm === 'all in one' || norm === 'aio') return 'All-in-One';
+  return base.charAt(0).toUpperCase() + base.slice(1);
+}
 
 function getIconForTipo(tipo) {
   const t = (tipo || '').toLowerCase();
@@ -164,37 +210,14 @@ export default function DepositoTab({ unidades = [], onEditar, onAsignar, onBaja
   const [filtroEstado, setFiltroEstado] = useState('');
   const [filtroCondicion, setFiltroCondicion] = useState('');
   const [pagina, setPagina] = useState(1);
+  const [detalleItem, setDetalleItem] = useState(null);
 
   const unidadesEnDeposito = useMemo(() => {
     return unidades.filter((u) => {
-      const uEstado = (u.estadoDeposito || '').toUpperCase();
-      if (uEstado.includes('BAJA') || uEstado.includes('RETIR')) return false;
-      if (
-        uEstado.includes('ASIGNAD') ||
-        uEstado.includes('OPERATIV') ||
-        uEstado.includes('EN USO') ||
-        uEstado.includes('EN_USO') ||
-        uEstado.includes('ACTIVA') ||
-        uEstado.includes('ACTIVO') ||
-        uEstado.includes('CONECTAD') ||
-        uEstado.includes('INSTALAD')
-      ) return false;
-      if (u.responsable && u.responsable.trim()) return false;
-      const uUbicacion = (u.ubicacion || '').toLowerCase().trim();
-      if (
-        uUbicacion &&
-        !uUbicacion.includes('deposito') &&
-        !uUbicacion.includes('depósito') &&
-        !uUbicacion.includes('stock') &&
-        !uUbicacion.includes('almacen') &&
-        !uUbicacion.includes('almacén') &&
-        !uUbicacion.includes('bodega') &&
-        !uUbicacion.includes('estante') &&
-        !uUbicacion.includes('pañol') &&
-        !uUbicacion.includes('panol') &&
-        !uUbicacion.includes('taller') &&
-        !uUbicacion.includes('sistemas')
-      ) return false;
+      if ((u.cantidad ?? 1) <= 0) return false;
+      const e = (u.estadoDeposito || u.estado || '').toUpperCase();
+      if (e.includes('BAJA') || e.includes('RETIR')) return false;
+      if (e.includes('ASIGNAD') || e.includes('ACTIVA') || e.includes('OPERATIV')) return false;
       return true;
     });
   }, [unidades]);
@@ -202,8 +225,8 @@ export default function DepositoTab({ unidades = [], onEditar, onAsignar, onBaja
   const conteosPorFamilia = useMemo(() => {
     const conteos = { todas: unidadesEnDeposito.length, pcs: 0, perifericos: 0, infraestructura: 0, celulares: 0 };
     unidadesEnDeposito.forEach((u) => {
-      const t = (u.tipo || '').toLowerCase();
-      if (['desktop', 'notebook', 'computadora', 'pc'].includes(t)) conteos.pcs++;
+      const t = resolverTipoUnidad(u);
+      if (['desktop', 'notebook', 'computadora', 'pc', 'mini_pc'].includes(t)) conteos.pcs++;
       else if (['monitor', 'teclado', 'mouse', 'impresora', 'webcam', 'parlante', 'microfono'].includes(t)) conteos.perifericos++;
       else if (['router', 'switch', 'access_point', 'camara', 'camara_ip', 'televisor', 'telefono_ip'].includes(t)) conteos.infraestructura++;
       else if (t === 'celular') conteos.celulares++;
@@ -225,11 +248,12 @@ export default function DepositoTab({ unidades = [], onEditar, onAsignar, onBaja
     const famObj = FAMILIAS.find((f) => f.id === categoriaActiva);
 
     return unidadesEnDeposito.filter((u) => {
-      const uTipo = (u.tipo || '').toLowerCase();
+      const uTipo = resolverTipoUnidad(u);
+      const uTipoEq = (u.tipoEquipo || '').trim().toLowerCase().replace(/\s+/g, '_');
       if (famObj && famObj.tipos && !famObj.tipos.includes(uTipo)) return false;
-      if (tipoTarget && uTipo !== tipoTarget) return false;
+      if (tipoTarget && uTipo !== tipoTarget && uTipoEq !== tipoTarget) return false;
       if (q) {
-        const blob = [u.codigo, u.descripcionCompleta, u.marca, u.modelo, u.serieOImei, u.ubicacion, u.comentarios].filter(Boolean).join(' ').toLowerCase();
+        const blob = [u.codigo, u.descripcionCompleta, u.marca, u.modelo, u.serieOImei, u.ubicacion, u.comentarios, u.tipoEquipo].filter(Boolean).join(' ').toLowerCase();
         if (!blob.includes(q)) return false;
       }
       if (estadoTarget) {
@@ -307,84 +331,102 @@ export default function DepositoTab({ unidades = [], onEditar, onAsignar, onBaja
       </div>
 
       {/* Filtros */}
-      <div className="flex flex-col md:flex-row gap-3 flex-wrap items-stretch">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <input
-            type="text"
-            value={busqueda}
-            onChange={(e) => { setBusqueda(e.target.value); setPagina(1); }}
-            placeholder="Buscar por código, serie o modelo..."
-            className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-900 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0c66e4]/20 focus:border-[#0c66e4] transition-colors"
-          />
-        </div>
+      <FilterBar
+        className="!p-0"
+        activeCount={
+          [
+            Boolean(busqueda.trim()),
+            Boolean(filtroTipo),
+            Boolean(filtroEstado),
+            Boolean(filtroCondicion),
+            categoriaActiva !== 'todas',
+          ].filter(Boolean).length
+        }
+        onReset={limpiarFiltros}
+      >
+        <FilterBar.Search
+          value={busqueda}
+          onChange={(val) => {
+            setBusqueda(val);
+            setPagina(1);
+          }}
+          placeholder="Buscar por código, serie o modelo..."
+        />
 
-        <select
+        <FilterBar.Select
           value={filtroTipo}
-          onChange={(e) => { setFiltroTipo(e.target.value); setPagina(1); }}
-          className="px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#0c66e4]/20 focus:border-[#0c66e4] transition-colors min-w-[150px]"
+          onChange={(val) => {
+            setFiltroTipo(val);
+            setPagina(1);
+          }}
+          widthClass="!w-[18%] max-w-[20%] min-w-[140px]"
         >
           <option value="">
-            {categoriaActiva === 'todas' ? 'Todos los tipos' : `Todos (${FAMILIAS.find((f) => f.id === categoriaActiva)?.label})`}
+            {categoriaActiva === 'todas'
+              ? 'Todos los tipos'
+              : `Todos (${FAMILIAS.find((f) => f.id === categoriaActiva)?.label})`}
           </option>
           {gruposTipoFiltrados.map((grupo) =>
             categoriaActiva === 'todas' ? (
               <optgroup key={grupo.label} label={grupo.label}>
                 {grupo.opciones.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
                 ))}
               </optgroup>
             ) : (
               grupo.opciones.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
               ))
             )
           )}
-        </select>
+        </FilterBar.Select>
 
-        <select
+        <FilterBar.Select
           value={filtroEstado}
-          onChange={(e) => { setFiltroEstado(e.target.value); setPagina(1); }}
-          className="px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#0c66e4]/20 focus:border-[#0c66e4] transition-colors min-w-[150px]"
+          onChange={(val) => {
+            setFiltroEstado(val);
+            setPagina(1);
+          }}
+          widthClass="!w-[18%] max-w-[20%] min-w-[140px]"
         >
           <option value="">Estado: Todos</option>
           <option value="sin asignar">Sin Asignar / Disponible</option>
           <option value="mantenimiento">En Mantenimiento</option>
-        </select>
+        </FilterBar.Select>
 
         {condicionesDisponibles.length > 0 && (
-          <select
+          <FilterBar.Select
             value={filtroCondicion}
-            onChange={(e) => { setFiltroCondicion(e.target.value); setPagina(1); }}
-            className="px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#0c66e4]/20 focus:border-[#0c66e4] transition-colors min-w-[140px]"
+            onChange={(val) => {
+              setFiltroCondicion(val);
+              setPagina(1);
+            }}
+            widthClass="!w-[18%] max-w-[20%] min-w-[130px]"
           >
             <option value="">Condición: Todas</option>
             {condicionesDisponibles.map((cond) => (
-              <option key={cond} value={cond}>{cond}</option>
+              <option key={cond} value={cond}>
+                {cond}
+              </option>
             ))}
-          </select>
+          </FilterBar.Select>
         )}
-
-        {hayFiltrosActivos && (
-          <button
-            type="button"
-            onClick={limpiarFiltros}
-            className="px-3 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 border border-slate-200 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer whitespace-nowrap"
-          >
-            Limpiar filtros
-          </button>
-        )}
-      </div>
+      </FilterBar>
 
       {/* Tabla */}
       <div className="overflow-x-auto rounded-lg border border-slate-200">
-        <table className="w-full text-left text-sm min-w-[1050px]">
+        <table className="w-full text-left text-sm min-w-[950px]">
           <thead>
             <tr className="bg-slate-50/80 border-b border-slate-200">
               <th className={TH}>Código Interno</th>
-              <th className={TH}>Tipo / Hardware</th>
+              <th className={TH}>Tipo</th>
+              {categoriaActiva === 'pcs' && <th className={TH}>Tipo de Equipo</th>}
               <th className={TH}>Marca y Modelo</th>
-              <th className={TH}>Serie / Identificador</th>
+              <th className={TH}>Cant.</th>
               <th className={TH}>Condición</th>
               <th className={TH}>Estado</th>
               <th className={TH}>Ubicación</th>
@@ -395,7 +437,7 @@ export default function DepositoTab({ unidades = [], onEditar, onAsignar, onBaja
           <tbody className="divide-y divide-slate-100 bg-white">
             {paginadas.length === 0 ? (
               <tr>
-                <td colSpan={9} className="py-14 text-center text-slate-400 text-sm">
+                <td colSpan={categoriaActiva === 'pcs' ? 10 : 9} className="py-14 text-center text-slate-400 text-sm">
                   {hayFiltrosActivos
                     ? 'No hay unidades que coincidan con los filtros aplicados.'
                     : 'No hay unidades registradas en el depósito.'}
@@ -411,7 +453,8 @@ export default function DepositoTab({ unidades = [], onEditar, onAsignar, onBaja
                   estadoNorm === 'disponible' ||
                   estadoNorm === 'en_stock' ||
                   estadoNorm === 'en deposito';
-                const TipoIcon = getIconForTipo(u.tipo);
+                const tipoResuelto = resolverTipoUnidad(u);
+                const TipoIcon = getIconForTipo(tipoResuelto);
 
                 return (
                   <tr key={u.codigo || u.id} className="hover:bg-slate-50/50 transition-colors">
@@ -422,15 +465,26 @@ export default function DepositoTab({ unidades = [], onEditar, onAsignar, onBaja
                       </span>
                     </td>
 
-                    {/* Tipo / Hardware */}
-                    <td className="px-4 py-3.5">
+                    {/* Tipo */}
+                    <td className="px-4 py-3.5 whitespace-nowrap">
                       <div className="flex items-center gap-2">
                         <TipoIcon className="w-4 h-4 text-slate-400 shrink-0" />
                         <span className="font-medium text-slate-700 text-sm">
-                          {labelTipoStock(u.tipo)}
+                          {categoriaActiva === 'pcs'
+                            ? 'Computadora'
+                            : labelTipoStock(tipoResuelto) || '—'}
                         </span>
                       </div>
                     </td>
+
+                    {/* Tipo de Equipo (PCs) */}
+                    {categoriaActiva === 'pcs' && (
+                      <td className="px-4 py-3.5 whitespace-nowrap">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                          {formatTipoEquipo(u)}
+                        </span>
+                      </td>
+                    )}
 
                     {/* Descripción / Marca y Modelo */}
                     <td className="px-4 py-3.5">
@@ -439,9 +493,9 @@ export default function DepositoTab({ unidades = [], onEditar, onAsignar, onBaja
                       </div>
                     </td>
 
-                    {/* Serie / Identificador */}
-                    <td className="px-4 py-3.5 font-mono text-xs text-slate-600">
-                      {u.serieOImei || '—'}
+                    {/* Cantidad */}
+                    <td className="px-4 py-3.5 whitespace-nowrap">
+                      <span className="font-bold text-slate-900 text-sm">{u.cantidad ?? 1}</span>
                     </td>
 
                     {/* Condición */}
@@ -488,8 +542,16 @@ export default function DepositoTab({ unidades = [], onEditar, onAsignar, onBaja
 
                     {/* Acciones */}
                     <td className="px-4 py-3.5 text-right">
-                      <WriteGate>
-                        <div className="inline-flex items-center gap-1.5 justify-end">
+                      <div className="inline-flex items-center gap-1.5 justify-end">
+                        <button
+                          type="button"
+                          onClick={() => setDetalleItem(u)}
+                          className="p-1.5 text-xs font-semibold rounded-lg bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 transition-colors inline-flex items-center cursor-pointer"
+                          title="Ver ficha técnica e historial"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                        </button>
+                        <WriteGate>
                           {esDisponible && (
                             <button
                               type="button"
@@ -532,8 +594,8 @@ export default function DepositoTab({ unidades = [], onEditar, onAsignar, onBaja
                               <Trash2 className="w-3 h-3" />
                             </button>
                           )}
-                        </div>
-                      </WriteGate>
+                        </WriteGate>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -601,6 +663,12 @@ export default function DepositoTab({ unidades = [], onEditar, onAsignar, onBaja
           </div>
         )}
       </div>
+
+      <ModalDetalleHistorial
+        open={Boolean(detalleItem)}
+        onClose={() => setDetalleItem(null)}
+        item={detalleItem}
+      />
     </div>
   );
 }
