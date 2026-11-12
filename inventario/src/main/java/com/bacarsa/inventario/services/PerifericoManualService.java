@@ -9,6 +9,9 @@ import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 
 import com.bacarsa.inventario.dto.ActualizarPerifericoDTO;
@@ -19,29 +22,30 @@ import com.bacarsa.inventario.dto.PerifericoManualCreateDTO;
 import com.bacarsa.inventario.dto.PerifericoManualDTO;
 import com.bacarsa.inventario.dto.SacarUnidadStockDTO;
 import com.bacarsa.inventario.dto.SacarUnidadStockResultDTO;
+import com.bacarsa.inventario.historial.ActorHistorial;
+import com.bacarsa.inventario.historial.PerifericoManualHistorialReglas;
 import com.bacarsa.inventario.mapper.EspecificacionStockMapper;
 import com.bacarsa.inventario.mapper.PerifericoManualMapper;
 import com.bacarsa.inventario.models.Computadora;
 import com.bacarsa.inventario.models.EspecificacionStock;
 import com.bacarsa.inventario.models.Estado;
-import com.bacarsa.inventario.models.TipoMovimiento;
 import com.bacarsa.inventario.models.EstadoConciliacion;
 import com.bacarsa.inventario.models.EstadoOperativo;
 import com.bacarsa.inventario.models.EstadoPreparacion;
 import com.bacarsa.inventario.models.EstadoReporteAgente;
 import com.bacarsa.inventario.models.OrigenAlta;
 import com.bacarsa.inventario.models.PerifericoManual;
+import com.bacarsa.inventario.models.RenglonHistorial;
+import com.bacarsa.inventario.models.TipoMovimiento;
+import com.bacarsa.inventario.models.Usuario;
 import com.bacarsa.inventario.repository.ComputadoraRepository;
 import com.bacarsa.inventario.repository.PerifericoManualRepository;
+import com.bacarsa.inventario.repository.UsuarioRepository;
 import com.google.cloud.Timestamp;
 import com.google.cloud.firestore.DocumentReference;
 import com.google.cloud.firestore.DocumentSnapshot;
 import com.google.cloud.firestore.FieldValue;
 import com.google.cloud.firestore.Firestore;
-
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Caching;
 
 @Service
 public class PerifericoManualService {
@@ -52,6 +56,7 @@ public class PerifericoManualService {
     private final ComputadoraService computadoraService;
     private final ComputadoraRepository computadoraRepository;
     private final AuditStockService auditService;
+    private final UsuarioRepository usuarioRepository;
     private final Firestore firestore;
     private final String computadorasCollection;
     private final String perifericosCollection;
@@ -60,6 +65,7 @@ public class PerifericoManualService {
             ComputadoraService computadoraService,
             ComputadoraRepository computadoraRepository,
             AuditStockService auditService,
+            UsuarioRepository usuarioRepository,
             Firestore firestore,
             @Value("${firebase.collection.computadoras}") String computadorasCollection,
             @Value("${firebase.collection.perifericos_manuales}") String perifericosCollection) {
@@ -67,6 +73,7 @@ public class PerifericoManualService {
         this.computadoraService = computadoraService;
         this.computadoraRepository = computadoraRepository;
         this.auditService = auditService;
+        this.usuarioRepository = usuarioRepository;
         this.firestore = firestore;
         this.computadorasCollection = computadorasCollection;
         this.perifericosCollection = perifericosCollection;
@@ -107,6 +114,16 @@ public class PerifericoManualService {
         LocalDate fa = dto.getFechaAlta() != null ? dto.getFechaAlta() : LocalDate.now();
         p.setFechaAlta(fa.toString());
 
+        ActorHistorial actor = actorDe(null);
+        RenglonHistorial altaRenglon = new RenglonHistorial();
+        altaRenglon.setTipo("ALTA_MANUAL");
+        altaRenglon.setActoId(UUID.randomUUID().toString());
+        altaRenglon.setCuando(Timestamp.now());
+        altaRenglon.setOrigen("MANUAL");
+        altaRenglon.setQuienUid(actor.uid());
+        altaRenglon.setQuienNombre(actor.nombre());
+        p.setHistorial(new ArrayList<>(List.of(altaRenglon)));
+
         String id = repository.create(p);
 
         String motivoAlta = (dto.getMotivo() != null && !dto.getMotivo().isBlank())
@@ -130,6 +147,11 @@ public class PerifericoManualService {
     }
 
     public PerifericoManualDTO actualizar(String id, ActualizarPerifericoDTO dto)
+            throws ExecutionException, InterruptedException {
+        return actualizar(id, dto, null);
+    }
+
+    public PerifericoManualDTO actualizar(String id, ActualizarPerifericoDTO dto, String uid)
             throws ExecutionException, InterruptedException {
         if (repository.findById(id) == null) return null;
         Map<String, Object> campos = new HashMap<>();
@@ -164,7 +186,12 @@ public class PerifericoManualService {
                 campos.put("descripcion_completa", ProyeccionStock.descripcionDesdeSpec(spec));
             }
         }
-        repository.actualizar(id, campos);
+
+        ActorHistorial actor = actorDe(uid);
+        repository.aplicarHistorial(id, (doc, ahora) ->
+            PerifericoManualHistorialReglas.editarFicha(doc, campos, actor, ahora)
+        );
+
         return obtenerPorId(id);
     }
 
@@ -197,7 +224,6 @@ public class PerifericoManualService {
         String pcUuid = UUID.randomUUID().toString();
 
         firestore.runTransaction(transaction -> {
-            // --- READ lote ---
             DocumentReference loteRef = firestore.collection(perifericosCollection).document(loteId);
             DocumentSnapshot loteDoc = transaction.get(loteRef).get();
             if (!loteDoc.exists()) {
@@ -232,7 +258,6 @@ public class PerifericoManualService {
                 throw new IllegalArgumentException("El lote no tiene especificación de hardware; editá el ítem y cargá CPU/RAM");
             }
 
-            // --- Resolver hostname ---
             String hostname;
             if (dto.getHostname() != null && !dto.getHostname().isBlank()) {
                 hostname = dto.getHostname().trim();
@@ -252,7 +277,6 @@ public class PerifericoManualService {
                 hostname = slug + "-" + sufijo;
             }
 
-            // --- Ubicación stock ---
             String loteUbicacion = loteDoc.getString("ubicacion");
             String ubicacionStock = (loteUbicacion != null && !loteUbicacion.isBlank())
                     ? loteUbicacion.trim()
@@ -262,7 +286,6 @@ public class PerifericoManualService {
                     ? dto.getMotivo().trim()
                     : "Ingreso a stock desde lote " + loteId;
 
-            // --- BUILD PC document ---
             Timestamp ahora = Timestamp.now();
 
             Map<String, Object> estadoMap = new HashMap<>();
@@ -298,17 +321,14 @@ public class PerifericoManualService {
                 pcData.put("condicion", spec.getCondicion());
             }
 
-            // --- WRITE PC ---
             DocumentReference pcRef = firestore.collection(computadorasCollection).document(pcUuid);
             transaction.set(pcRef, pcData);
 
-            // --- DECREMENT lote ---
             transaction.update(loteRef, "cantidad", FieldValue.increment(-1));
 
             return null;
         }).get();
 
-        // Post-transacción: leer datos frescos para el DTO de respuesta
         SacarUnidadStockResultDTO result = new SacarUnidadStockResultDTO();
         result.setComputadora(computadoraService.getByUuid(pcUuid));
         result.setLote(obtenerPorId(loteId));
@@ -323,10 +343,6 @@ public class PerifericoManualService {
         return result;
     }
 
-    /**
-     * Devuelve una unidad al lote de Stock de PCs y borra el documento de computadora.
-     * Así no queda en /computadoras ni en el pipeline.
-     */
     @Caching(evict = {
             @CacheEvict(value = "pc-listado", allEntries = true),
             @CacheEvict(value = "pc-detalle", allEntries = true),
@@ -588,6 +604,11 @@ public class PerifericoManualService {
 
     public PerifericoManualDTO cambiarEstado(String id, String estadoRaw, String motivo)
             throws ExecutionException, InterruptedException {
+        return cambiarEstado(id, estadoRaw, motivo, null);
+    }
+
+    public PerifericoManualDTO cambiarEstado(String id, String estadoRaw, String motivo, String uid)
+            throws ExecutionException, InterruptedException {
         PerifericoManual p = repository.findById(id);
         if (p == null) return null;
 
@@ -605,8 +626,26 @@ public class PerifericoManualService {
         Estado estado = new Estado();
         estado.setNombre(estadoOperativo.getNombre());
         estado.setDescripcion(estadoOperativo.getDescripcion());
-        repository.cambiarEstado(id, estado, motivo);
+
+        ActorHistorial actor = actorDe(uid);
+        repository.aplicarHistorial(id, (doc, ahora) ->
+            PerifericoManualHistorialReglas.cambiarEstado(doc, estado, motivo, actor, ahora)
+        );
+
         return obtenerPorId(id);
+    }
+
+    private ActorHistorial actorDe(String uid) {
+        if (uid == null || uid.isBlank()) {
+            return ActorHistorial.SISTEMA;
+        }
+        try {
+            return usuarioRepository.findById(uid)
+                    .map(u -> new ActorHistorial(uid, u.getNombre()))
+                    .orElseGet(() -> new ActorHistorial(uid, uid));
+        } catch (Exception e) {
+            return new ActorHistorial(uid, uid);
+        }
     }
 
     private static String blankToNull(String s) {
@@ -640,5 +679,4 @@ public class PerifericoManualService {
         return (lote.getComputadoraUuid() == null || lote.getComputadoraUuid().isBlank())
                 && (lote.getComputadoraHostname() == null || lote.getComputadoraHostname().isBlank());
     }
-
 }

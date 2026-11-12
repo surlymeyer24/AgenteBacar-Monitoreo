@@ -16,4 +16,6 @@ public class ComputadoraStockUpdateDTO {
     private EspecificacionStockDTO especificacionEsperada;
     private String descripcionStock;
     private String hostname;
+    private String notas;
+    private String comentarios;
 }

@@ -2,15 +2,19 @@ package com.bacarsa.inventario.repository;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
+import java.util.function.BiFunction;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Repository;
 
+import com.bacarsa.inventario.historial.EscrituraHistorial;
+import com.bacarsa.inventario.historial.HistorialLectura;
 import com.bacarsa.inventario.mapper.EspecificacionStockMapper;
 import com.bacarsa.inventario.models.EspecificacionStock;
 import com.bacarsa.inventario.models.Estado;
@@ -201,6 +205,44 @@ public class PerifericoManualRepository {
         }).get();
     }
 
+    @CacheEvict(value = "perifericosManuales", allEntries = true)
+    public void aplicarHistorial(String id, BiFunction<Map<String, Object>, Timestamp, EscrituraHistorial> plan)
+            throws ExecutionException, InterruptedException {
+        DocumentReference ref = firestore.collection(collectionName).document(id);
+        try {
+            firestore.runTransaction(transaction -> {
+                DocumentSnapshot doc = transaction.get(ref).get();
+                Map<String, Object> data = doc.exists() ? doc.getData() : null;
+                EscrituraHistorial escritura = plan.apply(data, Timestamp.now());
+                if (escritura.modo() == EscrituraHistorial.Modo.NADA) {
+                    return null;
+                }
+                Map<String, Object> campos = conBorrados(escritura.campos());
+                if (!doc.exists()) {
+                    if (escritura.modo() != EscrituraHistorial.Modo.CREAR_CON_HISTORIAL) {
+                        throw new IllegalArgumentException("Periférico no encontrado: " + id);
+                    }
+                    transaction.set(ref, campos);
+                } else {
+                    transaction.update(ref, campos);
+                }
+                return null;
+            }).get();
+        } catch (ExecutionException ex) {
+            Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
+            if (cause instanceof RuntimeException re) throw re;
+            throw ex;
+        }
+    }
+
+    private static Map<String, Object> conBorrados(Map<String, Object> campos) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> entry : campos.entrySet()) {
+            out.put(entry.getKey(), entry.getValue() == null ? FieldValue.delete() : entry.getValue());
+        }
+        return out;
+    }
+
     private static PerifericoManual snapshotToPeriferico(DocumentSnapshot doc) {
         PerifericoManual p = doc.toObject(PerifericoManual.class);
         if (p == null) {
@@ -213,6 +255,7 @@ public class PerifericoManualRepository {
                 p.setComputadoraHostname(legacy);
             }
         }
+        p.setHistorial(HistorialLectura.desdeDocumento(doc.get("historial")));
         EspecificacionStock spec = EspecificacionStockMapper.fromFirestoreMap(doc.get("especificacion_stock"));
         String tipo = p.getTipo() != null ? p.getTipo().trim().toLowerCase(java.util.Locale.ROOT) : "";
         if ("computadora".equals(tipo)) {

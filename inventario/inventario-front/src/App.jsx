@@ -64,19 +64,12 @@ const ServidorDetalle = lazy(() => import('./pages/ServidorDetalle'));
 const TelefonoIpList = lazy(() => import('./pages/TelefonoIpList'));
 const TelevisorList = lazy(() => import('./pages/TelevisorList'));
 const CelularList = lazy(() => import('./pages/CelularList'));
-const System = lazy(() => import('./pages/System'));
-const UsuariosAdmin = lazy(() => import('./pages/UsuariosAdmin'));
-const CatalogosAdmin = lazy(() => import('./pages/CatalogosAdmin'));
-const MiPerfil = lazy(() => import('./pages/MiPerfil'));
 const ConfiguracionSistema = lazy(() => import('./pages/ConfiguracionSistema'));
 const EtiquetasQrList = lazy(() => import('./pages/EtiquetasQrList'));
 const EtiquetaQrFicha = lazy(() => import('./pages/EtiquetaQrFicha'));
-const EventosHardwareList = lazy(() => import('./pages/EventosHardwareList'));
 const ConciliacionesList = lazy(() => import('./pages/ConciliacionesList'));
-const EventoHardwareDetail = lazy(() => import('./pages/EventoHardwareDetail'));
 const ResponsablesList = lazy(() => import('./pages/ResponsablesList'));
 const ResponsableDetail = lazy(() => import('./pages/ResponsableDetail'));
-const InvestigacionSesiones = lazy(() => import('./pages/InvestigacionSesiones'));
 
 function RouteFallback() {
   return (
@@ -212,9 +205,8 @@ function AppRoutes() {
         <Route path="/reportes" element={<Reportes />} />
         <Route path="/etiquetas-qr" element={<EtiquetasQrList />} />
         <Route path="/etiquetas-qr/:uuid" element={<EtiquetaQrFicha />} />
-        <Route path="/eventos-hardware" element={<EventosHardwareList />}>
-          <Route path=":id" element={<EventoHardwareDetail />} />
-        </Route>
+        <Route path="/eventos-hardware" element={<Navigate to="/" replace />} />
+        <Route path="/eventos-hardware/:id" element={<Navigate to="/" replace />} />
         <Route path="/conciliaciones" element={<ConciliacionesList />} />
         <Route path="/computadoras" element={<ComputadorasListLayout />}>
           <Route path="asignaciones" element={<Navigate to="/computadoras" replace />} />
@@ -270,7 +262,7 @@ function AppRoutes() {
         <Route path="/system" element={<Navigate to="/configuracion?tab=agente" replace />} />
         <Route path="/admin/usuarios" element={<Navigate to="/configuracion?tab=usuarios" replace />} />
         <Route path="/admin/catalogos" element={<Navigate to="/configuracion?tab=catalogos" replace />} />
-        <Route path="/investigacion" element={<InvestigacionSesiones />} />
+        <Route path="/investigacion" element={<Navigate to="/" replace />} />
         <Route path="/perfil" element={<Navigate to="/configuracion?tab=perfil" replace />} />
       </Route>
     </Routes>

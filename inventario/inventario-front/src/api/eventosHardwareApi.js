@@ -25,7 +25,12 @@ export async function fetchEventoHardware(id) {
   if (res.status === 404) return null;
   if (!res.ok) {
     let msg = `HTTP ${res.status}`;
-    try { const body = await res.json(); if (body.error) msg = body.error; } catch {}
+    try {
+      const body = await res.json();
+      if (body.error) msg = body.error;
+    } catch {
+      // Ignorar error de parsing y usar msg HTTP por defecto
+    }
     throw new Error(msg);
   }
   return res.json();

@@ -14,7 +14,7 @@ import {
   X,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
-import { fetchServidores, crearServidor, actualizarServidor } from '../api/servidorApi';
+import { fetchServidores, crearServidor, actualizarServidor, eliminarServidor } from '../api/servidorApi';
 import ImportModal from '../components/ImportModal';
 import { servidoresSchema } from '../lib/importSchemas/servidoresSchema';
 import { StudioLoading, StudioError } from '../components/studio/StudioUi';
@@ -180,9 +180,14 @@ export default function ServidorList() {
     setIsModalOpen(true);
   };
 
-  const handleDeleteItem = (item) => {
+  const handleDeleteItem = async (item) => {
     if (window.confirm(`¿Desea eliminar el servidor ${item.nombre || item.id}?`)) {
-      setLista((prev) => prev.filter((i) => i.id !== item.id));
+      try {
+        await eliminarServidor(item.id);
+        setLista((prev) => prev.filter((i) => i.id !== item.id));
+      } catch (err) {
+        alert('Error al eliminar servidor: ' + (err.message || 'Error desconocido'));
+      }
     }
   };
 
@@ -282,77 +287,73 @@ export default function ServidorList() {
       {/* ── 2. CARD PRINCIPAL CON FILTROS Y GRILLA ── */}
       <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-4">
         {/* Barra de herramientas */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-slate-100">
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Ubicación */}
-            <select
-              value={filtroUbicacion}
-              onChange={(e) => setFiltroUbicacion(e.target.value)}
-              className="pl-3 pr-7 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-600"
-            >
-              <option value="">UBICACIÓN: Todas ({lista.length})</option>
-              {ubicacionesUnicas.map((u) => (
-                <option key={u} value={u}>
-                  {u}
-                </option>
-              ))}
-            </select>
-
-            {/* Estado */}
-            <select
-              value={filtroEstado}
-              onChange={(e) => setFiltroEstado(e.target.value)}
-              className="pl-3 pr-7 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-600"
-            >
-              <option value="">ESTADO: Todos</option>
-              <option value="activo">Activo</option>
-              <option value="inactivo">Inactivo</option>
-              <option value="mantenimiento">Mantenimiento</option>
-            </select>
-
-            {/* Orden */}
-            <select
-              value={ordenNombre}
-              onChange={(e) => setOrdenNombre(e.target.value)}
-              className="pl-3 pr-7 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-600"
-            >
-              <option value="">ORDEN: Sin ordenar</option>
-              <option value="asc">Nombre (A → Z)</option>
-              <option value="desc">Nombre (Z → A)</option>
-            </select>
+        <div className="flex items-center gap-2.5 overflow-x-auto pb-3 border-b border-slate-100 scrollbar-none">
+          {/* Buscador */}
+          <div className="relative w-[36%] min-w-[200px] flex-1">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Buscar por nombre, hostname, IP..."
+              value={buscar}
+              onChange={(e) => setBuscar(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-blue-500 transition-colors"
+            />
           </div>
 
-          <div className="flex items-center gap-3">
-            {/* Buscador */}
-            <div className="relative flex-1 sm:w-64">
-              <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Buscar por nombre, hostname, IP..."
-                value={buscar}
-                onChange={(e) => setBuscar(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-600"
-              />
-            </div>
+          {/* Ubicación */}
+          <select
+            value={filtroUbicacion}
+            onChange={(e) => setFiltroUbicacion(e.target.value)}
+            className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 focus:bg-white focus:outline-none focus:border-blue-500 !w-[16%] max-w-[18%] min-w-[130px] truncate cursor-pointer"
+          >
+            <option value="">UBICACIÓN: Todas ({lista.length})</option>
+            {ubicacionesUnicas.map((u) => (
+              <option key={u} value={u}>
+                {u}
+              </option>
+            ))}
+          </select>
 
-            {/* Seleccionar todo */}
-            <button
-              type="button"
-              onClick={toggleSelectPagina}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 transition-colors whitespace-nowrap cursor-pointer"
-            >
-              {todosSeleccionados ? (
-                <CheckSquare className="w-3.5 h-3.5 text-blue-600" />
-              ) : (
-                <Square className="w-3.5 h-3.5 text-slate-400" />
-              )}
-              <span>Sel. Todo</span>
-            </button>
+          {/* Estado */}
+          <select
+            value={filtroEstado}
+            onChange={(e) => setFiltroEstado(e.target.value)}
+            className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 focus:bg-white focus:outline-none focus:border-blue-500 !w-[16%] max-w-[18%] min-w-[130px] truncate cursor-pointer"
+          >
+            <option value="">ESTADO: Todos</option>
+            <option value="activo">Activo</option>
+            <option value="inactivo">Inactivo</option>
+            <option value="mantenimiento">Mantenimiento</option>
+          </select>
 
-            <span className="text-xs font-bold text-slate-600 whitespace-nowrap">
-              Total: <span className="text-slate-900 font-black">{itemsFiltrados.length}</span>
-            </span>
-          </div>
+          {/* Orden */}
+          <select
+            value={ordenNombre}
+            onChange={(e) => setOrdenNombre(e.target.value)}
+            className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 focus:bg-white focus:outline-none focus:border-blue-500 !w-[16%] max-w-[18%] min-w-[130px] truncate cursor-pointer"
+          >
+            <option value="">ORDEN: Sin ordenar</option>
+            <option value="asc">Nombre (A → Z)</option>
+            <option value="desc">Nombre (Z → A)</option>
+          </select>
+
+          {/* Seleccionar todo */}
+          <button
+            type="button"
+            onClick={toggleSelectPagina}
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+          >
+            {todosSeleccionados ? (
+              <CheckSquare className="w-3.5 h-3.5 text-blue-600" />
+            ) : (
+              <Square className="w-3.5 h-3.5 text-slate-400" />
+            )}
+            <span>Sel. Todo</span>
+          </button>
+
+          <span className="text-xs font-bold text-slate-600 whitespace-nowrap shrink-0">
+            Total: <span className="text-slate-900 font-black">{itemsFiltrados.length}</span>
+          </span>
         </div>
 
         {/* Grilla de Tarjetas (4 columnas) */}

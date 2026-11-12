@@ -20,6 +20,7 @@ import {
   Filter,
   CheckCircle2,
   Layers,
+  MapPin,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -235,6 +236,14 @@ export default function NvrsCamarasList() {
         (c.estado || 'OPERATIVO').toUpperCase() !== 'FUERA_DE_SERVICIO' &&
         (c.estado || 'OPERATIVO').toUpperCase() !== 'INACTIVO',
     ).length;
+  }, [camaras]);
+
+  const camarasSinNvr = useMemo(() => {
+    return camaras.filter((c) => !c.nvrId).length;
+  }, [camaras]);
+
+  const sectoresCctv = useMemo(() => {
+    return new Set(camaras.map((c) => c.ubicacion).filter(Boolean)).size;
   }, [camaras]);
 
   // Acciones de Selección Múltiple
@@ -505,16 +514,16 @@ export default function NvrsCamarasList() {
           icon={<Server className="w-4 h-4 text-blue-600" />}
         />
         <KpiCard
-          title="Almacenamiento RAID"
-          value="48 TB"
-          subtitle="Capacidad de grabación continua"
-          icon={<HardDrive className="w-4 h-4 text-slate-600" />}
+          title="Cámaras Sin NVR"
+          value={camarasSinNvr}
+          subtitle="Pendientes de asignación"
+          icon={<Layers className="w-4 h-4 text-amber-600" />}
         />
         <KpiCard
-          title="Ciclo Retención"
-          value="45 Días"
-          subtitle="Reserva de video en codec H.265+"
-          icon={<Cloud className="w-4 h-4 text-indigo-600" />}
+          title="Sectores con CCTV"
+          value={sectoresCctv}
+          subtitle="Ubicaciones con cobertura"
+          icon={<MapPin className="w-4 h-4 text-indigo-600" />}
         />
       </KpiGrid>
 
@@ -575,11 +584,6 @@ export default function NvrsCamarasList() {
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5 overflow-x-auto pb-1">
           {nvrsFiltrados.map((nvr) => {
             const camarasAsignadas = camarasPorNvrCount.get(String(nvr.id).trim()) || 0;
-            const maxCanales = nvr.nombre?.includes('64')
-              ? 64
-              : nvr.nombre?.includes('16')
-              ? 16
-              : 32;
             const isSelectedNvr = filtroNvrId === nvr.id;
 
             return (
@@ -630,7 +634,7 @@ export default function NvrsCamarasList() {
                         <span>NVR</span>
                       </span>
                       <span className="font-mono text-emerald-600">
-                        {camarasAsignadas}/{maxCanales} ch
+                        {camarasAsignadas} {camarasAsignadas === 1 ? 'cámara' : 'cámaras'}
                       </span>
                     </span>
                   </div>
@@ -650,84 +654,74 @@ export default function NvrsCamarasList() {
       {/* ── 4. SECCIÓN: CÁMARAS (FILTROS, ACCIONES Y GRILLA) ── */}
       <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-4">
         {/* Barra de filtros superior */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-slate-100">
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Ubicación */}
-            <div className="relative">
-              <select
-                value={filtroUbicacion}
-                onChange={(e) => setFiltroUbicacion(e.target.value)}
-                className="pl-3 pr-7 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-600"
-              >
-                <option value="">UBICACIÓN: Todas ({camaras.length})</option>
-                {opcionesUbicacion.map((u) => (
-                  <option key={u} value={u}>
-                    {u}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* NVR */}
-            <div className="relative">
-              <select
-                value={filtroNvrId}
-                onChange={(e) => setFiltroNvrId(e.target.value)}
-                className="pl-3 pr-7 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-600"
-              >
-                <option value="">NVR: Todas</option>
-                {nvrs.map((n) => (
-                  <option key={n.id} value={n.id}>
-                    {n.nombre || n.id}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Orden */}
-            <div className="relative">
-              <select
-                value={ordenNombre}
-                onChange={(e) => setOrdenNombre(e.target.value)}
-                className="pl-3 pr-7 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-600"
-              >
-                <option value="">ORDEN: Sin ordenar</option>
-                <option value="asc">Nombre (A → Z)</option>
-                <option value="desc">Nombre (Z → A)</option>
-              </select>
-            </div>
+        <div className="flex items-center gap-2.5 overflow-x-auto pb-3 border-b border-slate-100 scrollbar-none">
+          {/* Buscador */}
+          <div className="relative w-[36%] min-w-[200px] flex-1">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Buscar cámara por nombre, IP o ID..."
+              value={buscarCamara}
+              onChange={(e) => setBuscarCamara(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-blue-500 transition-colors"
+            />
           </div>
 
-          <div className="flex items-center gap-3">
-            {/* Buscador */}
-            <div className="relative flex-1 sm:w-64">
-              <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Buscar cámara por nombre, IP o ID..."
-                value={buscarCamara}
-                onChange={(e) => setBuscarCamara(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-600"
-              />
-            </div>
+          {/* Ubicación */}
+          <select
+            value={filtroUbicacion}
+            onChange={(e) => setFiltroUbicacion(e.target.value)}
+            className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 focus:bg-white focus:outline-none focus:border-blue-500 !w-[16%] max-w-[18%] min-w-[130px] truncate cursor-pointer"
+          >
+            <option value="">UBICACIÓN: Todas ({camaras.length})</option>
+            {opcionesUbicacion.map((u) => (
+              <option key={u} value={u}>
+                {u}
+              </option>
+            ))}
+          </select>
 
-            {/* Seleccionar todo */}
-            <button
-              onClick={toggleSelectPagina}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 transition-colors whitespace-nowrap cursor-pointer"
-            >
-              {todasPaginaSeleccionadas ? (
-                <CheckSquare className="w-3.5 h-3.5 text-blue-600" />
-              ) : (
-                <Square className="w-3.5 h-3.5 text-slate-400" />
-              )}
-              <span>Sel. Todo</span>
-            </button>
+          {/* NVR */}
+          <select
+            value={filtroNvrId}
+            onChange={(e) => setFiltroNvrId(e.target.value)}
+            className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 focus:bg-white focus:outline-none focus:border-blue-500 !w-[16%] max-w-[18%] min-w-[130px] truncate cursor-pointer"
+          >
+            <option value="">NVR: Todas</option>
+            {nvrs.map((n) => (
+              <option key={n.id} value={n.id}>
+                {n.nombre || n.id}
+              </option>
+            ))}
+          </select>
 
-            <span className="text-xs font-bold text-slate-600 whitespace-nowrap">
-              Total: <span className="text-slate-900 font-black">{camarasFiltradas.length}</span>
-            </span>
-          </div>
+          {/* Orden */}
+          <select
+            value={ordenNombre}
+            onChange={(e) => setOrdenNombre(e.target.value)}
+            className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 focus:bg-white focus:outline-none focus:border-blue-500 !w-[16%] max-w-[18%] min-w-[130px] truncate cursor-pointer"
+          >
+            <option value="">ORDEN: Sin ordenar</option>
+            <option value="asc">Nombre (A → Z)</option>
+            <option value="desc">Nombre (Z → A)</option>
+          </select>
+
+          {/* Seleccionar todo */}
+          <button
+            onClick={toggleSelectPagina}
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+          >
+            {todasPaginaSeleccionadas ? (
+              <CheckSquare className="w-3.5 h-3.5 text-blue-600" />
+            ) : (
+              <Square className="w-3.5 h-3.5 text-slate-400" />
+            )}
+            <span>Sel. Todo</span>
+          </button>
+
+          <span className="text-xs font-bold text-slate-600 whitespace-nowrap shrink-0">
+            Total: <span className="text-slate-900 font-black">{camarasFiltradas.length}</span>
+          </span>
         </div>
 
         {/* Barra contextual de selección masiva */}
@@ -751,7 +745,7 @@ export default function NvrsCamarasList() {
                   <select
                     value={nvrAsignarLote}
                     onChange={(e) => setNvrAsignarLote(e.target.value)}
-                    className="p-1.5 bg-white border border-blue-200 rounded-lg text-xs font-semibold text-slate-800"
+                    className="p-1.5 bg-white border border-blue-200 rounded-lg text-xs font-semibold text-slate-800 !w-auto"
                   >
                     <option value="">Seleccionar NVR a asignar...</option>
                     {nvrs.map((n) => (

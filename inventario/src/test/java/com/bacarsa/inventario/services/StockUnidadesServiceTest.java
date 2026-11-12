@@ -18,7 +18,10 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.bacarsa.inventario.models.Celular;
+import com.bacarsa.inventario.models.Estado;
 import com.bacarsa.inventario.models.PerifericoManual;
+import com.bacarsa.inventario.models.StockFicha;
+import com.bacarsa.inventario.repository.StockFichaRepository;
 import com.bacarsa.inventario.repository.CelularRepository;
 import com.bacarsa.inventario.repository.ComputadoraRepository;
 import com.bacarsa.inventario.repository.PerifericoManualRepository;
@@ -32,12 +35,14 @@ class StockUnidadesServiceTest {
     private CelularRepository celularRepository;
     @Mock
     private ComputadoraRepository computadoraRepository;
+    @Mock
+    private StockFichaRepository stockFichaRepository;
 
     private StockUnidadesService service;
 
     @BeforeEach
     void setUp() {
-        service = new StockUnidadesService(perifericoManualRepository, celularRepository, computadoraRepository);
+        service = new StockUnidadesService(perifericoManualRepository, celularRepository, computadoraRepository, stockFichaRepository);
     }
 
     @Test
@@ -59,6 +64,8 @@ class StockUnidadesServiceTest {
         cel.setMarca("Samsung");
         cel.setModelo("Galaxy A54");
         cel.setImei("352000000000001");
+        cel.setCondicion("NUEVO");
+        cel.setArea("Sistemas");
         cel.setEstado("en_stock");
 
         when(celularRepository.findAll()).thenReturn(List.of(cel));
@@ -68,6 +75,29 @@ class StockUnidadesServiceTest {
         assertEquals("celular", service.listar().get(0).getTipo());
         assertEquals("Samsung", service.listar().get(0).getMarca());
         assertEquals("Galaxy A54", service.listar().get(0).getModelo());
+        assertEquals("NUEVO", service.listar().get(0).getCondicion());
+        assertEquals("Sistemas", service.listar().get(0).getUbicacion());
+    }
+
+    @Test
+    void listar_conStockFichas_retornaFichasDirectamente() throws Exception {
+        StockFicha ficha = StockFicha.builder()
+                .codigoInterno("PC-100")
+                .tipo("DESKTOP")
+                .descripcion("Core i5 · 16 GB RAM · 512 GB SSD")
+                .estado("EN_DEPOSITO")
+                .ubicacion("DEPOSITO CENTRAL")
+                .condicion("USADA")
+                .build();
+
+        when(stockFichaRepository.findAll()).thenReturn(List.of(ficha));
+
+        var items = service.listar();
+        assertEquals(1, items.size());
+        assertEquals("PC-100", items.get(0).getCodigo());
+        assertEquals("desktop", items.get(0).getTipo());
+        assertEquals("DEPOSITO CENTRAL", items.get(0).getUbicacion());
+        assertEquals("Core i5 · 16 GB RAM · 512 GB SSD", items.get(0).getDescripcionCompleta());
     }
 
     @Test
@@ -87,6 +117,12 @@ class StockUnidadesServiceTest {
         when(perifericoManualRepository.findAll()).thenThrow(new ExecutionException("caida", null));
 
         assertTrue(service.listar().isEmpty());
+    }
+
+    private static Estado crearEstado(String nombre) {
+        Estado e = new Estado();
+        e.setNombre(nombre);
+        return e;
     }
 
     private static PerifericoManual item(String id, String codigo, String tipo) {

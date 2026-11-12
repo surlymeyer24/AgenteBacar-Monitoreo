@@ -24,4 +24,8 @@ public class UsuarioCreateDTO {
     @NotNull
     private String rol;
 
+    private String departamento;
+    private String cargo;
+    private String avatarColor;
+
 }

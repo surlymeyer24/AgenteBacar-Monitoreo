@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.google.cloud.Timestamp;
+import com.google.cloud.firestore.annotation.Exclude;
 import com.google.cloud.firestore.annotation.PropertyName;
 
 import lombok.Getter;
@@ -88,6 +89,10 @@ public class Computadora {
     @Getter(onMethod_ = @PropertyName("responsable_inventario"))
     @Setter(onMethod_ = @PropertyName("responsable_inventario"))
     private String responsableInventario;
+
+    @Getter(onMethod_ = @PropertyName("asignacion_tipo"))
+    @Setter(onMethod_ = @PropertyName("asignacion_tipo"))
+    private String asignacionTipo;
 
     @Getter(onMethod_ = @PropertyName("anydesk_id"))
     @Setter(onMethod_ = @PropertyName("anydesk_id"))
@@ -184,6 +189,27 @@ public class Computadora {
     @Setter(onMethod_ = @PropertyName("asset_tag"))
     private String assetTag;
 
+    // Los cuatro campos siguientes no se serializan con toObject/set: se cargan a mano desde el documento.
+    /** Campo raíz {@code ubicacion_stock}. */
+    @Getter(onMethod_ = @Exclude)
+    @Setter(onMethod_ = @Exclude)
+    private String ubicacionStock;
+
+    /** Campo raíz {@code tiene_agente}: se persiste la primera vez que el agente reporta. */
+    @Getter(onMethod_ = @Exclude)
+    @Setter(onMethod_ = @Exclude)
+    private Boolean tieneAgente;
+
+    /** Mapa {@code software_critico} que escribe el agente. */
+    @Getter(onMethod_ = @Exclude)
+    @Setter(onMethod_ = @Exclude)
+    private Map<String, Object> softwareCritico;
+
+    /** Mapa {@code windows_updates} que escribe el agente. */
+    @Getter(onMethod_ = @Exclude)
+    @Setter(onMethod_ = @Exclude)
+    private Map<String, Object> windowsUpdates;
+
     public Computadora() {
         this.historialEstados = new ArrayList<>();
         this.historial = new ArrayList<>();
@@ -203,6 +229,12 @@ public class Computadora {
     }
 
     public Estado getEstadoActual() {
+        // El campo raíz es la fuente de verdad (igual que el listado). El tramo abierto de
+        // historialEstados solo se usa si el documento no tiene estadoActual.
+        if (estadoActual != null && estadoActual.getNombre() != null
+                && !estadoActual.getNombre().isBlank()) {
+            return estadoActual;
+        }
         if (historialEstados != null) {
             for (CambioEstado cambio : historialEstados) {
                 if (cambio.esEstadoActual()) {

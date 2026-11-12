@@ -1,27 +1,26 @@
-import { useEffect, useState } from 'react';
-import { collection, onSnapshot } from 'firebase/firestore';
-import { initFirebase, isFirebaseConfigured, mensajeFirebaseNoConfig, COLLECTIONS } from '../lib/firebase';
+import { useCallback, useEffect, useState } from 'react';
+import { fetchComputadorasSesion } from '../api/sesionBloqueoApi';
 import { normalizarUltimaSincronizacion } from '../utils/syncActividad';
 
-function docToSesion(id, data) {
-  const ultimaSyncRaw = data.ultima_sincronizacion ?? data.ultimaSincronizacion ?? null;
+function itemToSesion(item) {
+  const ultimaSyncRaw = item.ultimaSincronizacion ?? item.ultima_sincronizacion ?? null;
   const ultimaSync = normalizarUltimaSincronizacion(ultimaSyncRaw) ?? ultimaSyncRaw;
-  const resumen = data.sesion_resumen_hoy ?? null;
+  const resumen = item.sesionResumenHoy ?? item.sesion_resumen_hoy ?? null;
   return {
-    id,
-    hostname: data.hostname ?? null,
-    ubicacion: data.ubicacion ?? null,
+    id: item.id,
+    hostname: item.hostname ?? null,
+    ubicacion: item.ubicacion ?? null,
     ultima_sincronizacion: ultimaSync,
-    sesion_estado: data.sesion_estado ?? null,
-    sesion_bloqueo_auto_min: data.sesion_bloqueo_auto_min ?? null,
+    sesion_estado: item.sesionEstado ?? item.sesion_estado ?? null,
+    sesion_bloqueo_auto_min: item.sesionBloqueoAutoMin ?? item.sesion_bloqueo_auto_min ?? null,
     sesion_resumen_hoy: resumen
       ? {
           fecha: resumen.fecha ?? null,
-          horas_activa: resumen.horas_activa ?? 0,
-          horas_bloqueada: resumen.horas_bloqueada ?? 0,
-          horas_sin_usuario: resumen.horas_sin_usuario ?? 0,
+          horas_activa: resumen.horasActiva ?? resumen.horas_activa ?? 0,
+          horas_bloqueada: resumen.horasBloqueada ?? resumen.horas_bloqueada ?? 0,
+          horas_sin_usuario: resumen.horasSinUsuario ?? resumen.horas_sin_usuario ?? 0,
           transiciones: resumen.transiciones ?? 0,
-          max_horas_activa_continua: resumen.max_horas_activa_continua ?? 0,
+          max_horas_activa_continua: resumen.maxHorasActivaContinua ?? resumen.max_horas_activa_continua ?? 0,
         }
       : null,
   };
@@ -31,37 +30,32 @@ export function useComputadorasSesion() {
   const [computadoras, setComputadoras] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [refreshToken, setRefreshToken] = useState(0);
+
+  const refresh = useCallback(() => setRefreshToken((t) => t + 1), []);
 
   useEffect(() => {
-    if (!isFirebaseConfigured()) {
-      queueMicrotask(() => {
-        setError(mensajeFirebaseNoConfig());
-        setLoading(false);
+    let cancel = false;
+    setLoading(true);
+    fetchComputadorasSesion()
+      .then((data) => {
+        if (!cancel) {
+          const list = (Array.isArray(data) ? data : []).map(itemToSesion);
+          setComputadoras(list);
+          setLoading(false);
+          setError(null);
+        }
+      })
+      .catch((err) => {
+        if (!cancel) {
+          setError(err.message || 'Error al obtener computadoras de sesión.');
+          setLoading(false);
+        }
       });
-      return undefined;
-    }
-    const firestore = initFirebase();
-    if (!firestore) {
-      setError('No se pudo conectar a Firebase.');
-      setLoading(false);
-      return undefined;
-    }
-    const col = collection(firestore, COLLECTIONS.HW_COMPUTADORAS);
-    const unsub = onSnapshot(
-      col,
-      snap => {
-        const list = snap.docs.map(d => docToSesion(d.id, d.data()));
-        setComputadoras(list);
-        setLoading(false);
-        setError(null);
-      },
-      err => {
-        setError(err.message);
-        setLoading(false);
-      },
-    );
-    return () => unsub();
-  }, []);
+    return () => {
+      cancel = true;
+    };
+  }, [refreshToken]);
 
-  return { computadoras, loading, error };
+  return { computadoras, loading, error, refresh };
 }

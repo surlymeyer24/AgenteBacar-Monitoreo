@@ -13,11 +13,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.bacarsa.inventario.dto.MigracionEstadoMasivoResultDTO;
+import com.bacarsa.inventario.dto.MigracionStockFichasResultDTO;
 import com.bacarsa.inventario.dto.MigracionTrazabilidadResultDTO;
 import com.bacarsa.inventario.dto.MigracionUbicacionStockResultDTO;
 import com.bacarsa.inventario.services.MigracionEstadosService;
+import com.bacarsa.inventario.services.MigracionStockFichasService;
 import com.bacarsa.inventario.services.MigracionTrazabilidadService;
 import com.bacarsa.inventario.services.MigracionUbicacionStockService;
+import com.bacarsa.inventario.repository.ComputadoraRepository;
 import com.bacarsa.inventario.services.MatchingStockService;
 
 import jakarta.validation.Valid;
@@ -38,19 +41,31 @@ public class AdminMigracionController {
     @Value("${app.migration.trazabilidad-stock.enabled:false}")
     private boolean trazabilidadStockEnabled;
 
+    @Value("${app.migration.limpiar-usuario.enabled:false}")
+    private boolean limpiarUsuarioEnabled;
+
+    @Value("${app.migration.stock-fichas.enabled:false}")
+    private boolean stockFichasEnabled;
+
     private final MigracionEstadosService migracionEstadosService;
     private final MigracionUbicacionStockService migracionUbicacionStockService;
     private final MigracionTrazabilidadService migracionTrazabilidadService;
+    private final MigracionStockFichasService migracionStockFichasService;
     private final MatchingStockService matchingStockService;
+    private final ComputadoraRepository computadoraRepository;
 
     public AdminMigracionController(MigracionEstadosService migracionEstadosService,
                                      MigracionUbicacionStockService migracionUbicacionStockService,
                                      MigracionTrazabilidadService migracionTrazabilidadService,
-                                     MatchingStockService matchingStockService) {
+                                     MigracionStockFichasService migracionStockFichasService,
+                                     MatchingStockService matchingStockService,
+                                     ComputadoraRepository computadoraRepository) {
         this.migracionEstadosService = migracionEstadosService;
         this.migracionUbicacionStockService = migracionUbicacionStockService;
         this.migracionTrazabilidadService = migracionTrazabilidadService;
+        this.migracionStockFichasService = migracionStockFichasService;
         this.matchingStockService = matchingStockService;
+        this.computadoraRepository = computadoraRepository;
     }
 
     /**
@@ -97,6 +112,43 @@ public class AdminMigracionController {
             throws ExecutionException, InterruptedException {
         matchingStockService.reprocesar(uuid);
         return ResponseEntity.ok(Map.of("status", "ok", "uuid", uuid));
+    }
+
+    @PostMapping("/limpiar-usuario-actual")
+    public ResponseEntity<?> limpiarUsuarioActualResidual() throws ExecutionException, InterruptedException {
+        if (!limpiarUsuarioEnabled) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                    "error",
+                    "Migración deshabilitada. Definí app.migration.limpiar-usuario.enabled=true y reiniciá el servidor."));
+        }
+        Map<String, Object> resultado = computadoraRepository.limpiarUsuarioActualResidual();
+        return ResponseEntity.ok(resultado);
+    }
+
+    @PostMapping("/stock-fichas")
+    public ResponseEntity<?> migrarStockFichas(
+            @org.springframework.web.bind.annotation.RequestParam(name = "sobrescribir", defaultValue = "false") boolean sobrescribir)
+            throws ExecutionException, InterruptedException {
+        if (!stockFichasEnabled) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                    "error",
+                    "Migración deshabilitada. Definí app.migration.stock-fichas.enabled=true y reiniciá el servidor."));
+        }
+        MigracionStockFichasResultDTO r = migracionStockFichasService.migrar(sobrescribir);
+        return ResponseEntity.ok(r);
+    }
+
+        /**
+     * Normaliza a estado "Asignada" todas las computadoras que están "Sin Asignar" pero
+     * tienen responsable o área asignada fuera de depósito/stock.
+     */
+    @PostMapping("/normalizar-asignaciones-pcs")
+    public ResponseEntity<?> normalizarAsignacionesPcs(
+            @RequestBody(required = false) @Valid MigracionTodasAsignadaBody body)
+            throws ExecutionException, InterruptedException {
+        String motivo = body != null ? body.getMotivo() : null;
+        MigracionEstadoMasivoResultDTO r = migracionEstadosService.normalizarAsignacionesPcs(motivo);
+        return ResponseEntity.ok(r);
     }
 
     @Getter

@@ -44,6 +44,7 @@ public class ComputadoraDTO {
     /** Mapa {@code windows_version_detallada} del documento de la PC (solo en detalle completo). */
     private Map<String, Object> windowsVersionDetallada;
     private String responsableInventario;
+    private String asignacionTipo;
     /** ID numérico de AnyDesk reportado por el agente (Firestore {@code anydesk_id}). */
     private String anydeskId;
     private String condicion;
@@ -63,5 +64,11 @@ public class ComputadoraDTO {
     private EspecificacionStockDTO especificacionEsperada;
     private String descripcionStock;
     private String ubicacionStock;
+    /** true si el agente reportó alguna vez ({@code tiene_agente} persistido). */
+    private Boolean tieneAgente;
+    /** Mapa {@code software_critico} del agente (solo en detalle completo). */
+    private Map<String, Object> softwareCritico;
+    /** Mapa {@code windows_updates} del agente (solo en detalle completo). */
+    private Map<String, Object> windowsUpdates;
 
 }

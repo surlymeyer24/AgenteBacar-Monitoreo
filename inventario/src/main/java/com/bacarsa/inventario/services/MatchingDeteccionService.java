@@ -59,6 +59,7 @@ public class MatchingDeteccionService {
             }
             Map<String, Object> updates = new HashMap<>();
             updates.put("primer_reporte_agente_at", pc.getUltimaSincronizacion());
+            updates.put("tiene_agente", true);
             updates.put("matching_job_estado", MatchingJobEstado.MATCHING_PENDIENTE.name());
             updates.put("matching_intentos", 0);
             computadoraRepository.updateMatchingFields(pc.getUuid(), updates);

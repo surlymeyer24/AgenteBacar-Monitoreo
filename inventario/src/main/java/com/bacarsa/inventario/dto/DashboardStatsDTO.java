@@ -47,4 +47,6 @@ public class DashboardStatsDTO {
     private int totalNotebooks;
     private int totalDesktops;
     private int stockPcsSinAsignar;
+    private Map<String, Integer> porVersionWindows;
+    private Map<String, Integer> porProcesador;
 }

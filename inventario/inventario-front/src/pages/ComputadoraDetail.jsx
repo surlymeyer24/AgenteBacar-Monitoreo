@@ -22,11 +22,18 @@ import { StockEstadosUnidad, StockEstadoLeyenda } from '../components/StockEstad
 import { labelsEnumCatalogo } from '../hooks/useCatalogo';
 import { getComputerRamDetails } from '../utils/ramHelpers';
 import {
-  Trash2, Info, Monitor, CheckCircle, Clock, User, ChevronLeft, Laptop, SlidersHorizontal, ShieldCheck, Package, Edit2
+  Trash2, Info, Monitor, CheckCircle, Clock, User, Building2, ChevronLeft, Laptop, SlidersHorizontal, ShieldCheck, Package, Edit2
 } from 'lucide-react';
 import { StudioLoading, StudioError } from '../components/studio/StudioUi';
 import ArmarComboModal, { BaselineEsperadoBlock, EspecificacionEsperadaBlock } from '../components/ArmarComboModal';
 import { puedeSacarDePipeline } from '../utils/pipelinePcHelpers';
+
+function calcularTipoAsignacion(data) {
+  if (data?.asignacionTipo) return data.asignacionTipo;
+  if (data?.responsableInventario && data.responsableInventario.trim() !== 'SYSTEM') return 'PERSONA';
+  if (data?.ubicacion && data.ubicacion !== 'DEPOSITO' && data.ubicacion !== 'STOCK') return 'AREA';
+  return 'PERSONA';
+}
 
 function fmtFechaIso(s) {
   if (s == null || s === '') return '—';
@@ -147,6 +154,7 @@ function ComputadoraDetail() {
     hostname: '',
     ubicacion: '',
     responsableInventario: '',
+    tipoAsignacion: 'PERSONA',
     serialEquipo: '',
     anydeskId: '',
     notas: '',
@@ -177,6 +185,7 @@ function ComputadoraDetail() {
             hostname: data.hostname ?? '',
             ubicacion: data.ubicacion ?? '',
             responsableInventario: data.responsableInventario ?? '',
+            tipoAsignacion: calcularTipoAsignacion(data),
             serialEquipo: data.serialEquipo ?? '',
             anydeskId: data.anydeskId ?? '',
             notas: data.notas ?? '',
@@ -204,8 +213,7 @@ function ComputadoraDetail() {
     && prepSinArmar
     && (c.estadoActual ?? '').toLowerCase() === 'sin asignar';
   const puedeIngresarStock = !c.enDeposito
-    && (c.estadoActual ?? '').toLowerCase() !== 'baja'
-    && !(c.origenAlta === 'STOCK' && (c.estadoActual ?? '').toLowerCase() === 'sin asignar');
+    && (c.estadoActual ?? '').toLowerCase() !== 'baja';
   const mostrarSacarPipeline = puedeSacarDePipeline(c);
 
   function solicitarSacarDePipeline() {
@@ -235,6 +243,7 @@ function ComputadoraDetail() {
       hostname: data.hostname ?? '',
       ubicacion: data.ubicacion ?? '',
       responsableInventario: data.responsableInventario ?? '',
+      tipoAsignacion: calcularTipoAsignacion(data),
       serialEquipo: data.serialEquipo ?? '',
       anydeskId: data.anydeskId ?? '',
       notas: data.notas ?? '',
@@ -250,12 +259,17 @@ function ComputadoraDetail() {
       setMsgFicha('El hostname es obligatorio.');
       return;
     }
+    if (ficha.tipoAsignacion === 'AREA' && !ficha.ubicacion) {
+      setMsgFicha('Debe seleccionar el área designada para la asignación.');
+      return;
+    }
     setGuardandoFicha(true);
     setMsgFicha(null);
     updateFicha(uuid, {
       hostname: ficha.hostname.trim(),
       ubicacion: ficha.ubicacion,
-      responsableInventario: ficha.responsableInventario.trim(),
+      responsableInventario: ficha.tipoAsignacion === 'AREA' ? null : (ficha.responsableInventario || '').trim(),
+      asignacionTipo: ficha.tipoAsignacion,
       serialEquipo: ficha.serialEquipo.trim(),
       anydeskId: ficha.anydeskId.trim(),
       notas: ficha.notas.trim(),
@@ -560,8 +574,30 @@ function ComputadoraDetail() {
                   <span className="font-semibold text-slate-800 block mt-1">{c.usuarioActual ?? 'SYSTEM'}</span>
                 </div>
                 <div>
+                  <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">Tipo de Asignación</span>
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 mt-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                    {c.asignacionTipo === 'AREA' ? (
+                      <>
+                        <Building2 className="w-3.5 h-3.5 text-purple-600" />
+                        Área (Uso Común)
+                      </>
+                    ) : c.responsableInventario ? (
+                      <>
+                        <User className="w-3.5 h-3.5 text-blue-600" />
+                        Persona
+                      </>
+                    ) : (
+                      'Sin asignar'
+                    )}
+                  </span>
+                </div>
+                <div>
                   <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">Asignado a</span>
-                  <span className="font-semibold text-slate-800 block mt-1">{c.responsableInventario ?? '—'}</span>
+                  <span className="font-semibold text-slate-800 block mt-1">
+                    {c.asignacionTipo === 'AREA'
+                      ? `Área ${labelUbicacion(c.ubicacion, ubicCompItems) || '—'}`
+                      : c.responsableInventario || '—'}
+                  </span>
                 </div>
                 <div>
                   <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">Sistema Operativo</span>
@@ -597,6 +633,38 @@ function ComputadoraDetail() {
                 <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wide">Datos de la ficha</h4>
                 <p className="text-[10px] text-slate-400 mt-0.5">Un guardado deja un solo renglón con los campos que cambiaron.</p>
               </div>
+
+              {/* Selector Tipo Asignación */}
+              <div>
+                <span className="font-extrabold text-slate-700 block text-xs mb-1.5">Destino de asignación</span>
+                <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-lg max-w-md">
+                  <button
+                    type="button"
+                    onClick={() => setFicha(f => ({ ...f, tipoAsignacion: 'PERSONA' }))}
+                    className={`py-1.5 px-3 rounded-md text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      ficha.tipoAsignacion === 'PERSONA'
+                        ? 'bg-white text-slate-900 shadow-xs border border-slate-200/60'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <User className="w-3.5 h-3.5 text-blue-600" />
+                    A Persona
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFicha(f => ({ ...f, tipoAsignacion: 'AREA' }))}
+                    className={`py-1.5 px-3 rounded-md text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      ficha.tipoAsignacion === 'AREA'
+                        ? 'bg-white text-slate-900 shadow-xs border border-slate-200/60'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <Building2 className="w-3.5 h-3.5 text-purple-600" />
+                    A Área (Uso Común)
+                  </button>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-slate-800">
                 <label className="space-y-1">
                   <span className="font-extrabold text-slate-700 block">Hostname</span>
@@ -607,7 +675,9 @@ function ComputadoraDetail() {
                   />
                 </label>
                 <label className="space-y-1">
-                  <span className="font-extrabold text-slate-700 block">Ubicación</span>
+                  <span className="font-extrabold text-slate-700 block">
+                    {ficha.tipoAsignacion === 'AREA' ? 'Área designada *' : 'Ubicación'}
+                  </span>
                   <select
                     value={ficha.ubicacion}
                     onChange={e => setFicha(f => ({ ...f, ubicacion: e.target.value }))}
@@ -619,15 +689,24 @@ function ComputadoraDetail() {
                     ))}
                   </select>
                 </label>
-                <label className="space-y-1">
-                  <span className="font-extrabold text-slate-700 block">Responsable</span>
-                  <input
-                    value={ficha.responsableInventario}
-                    onChange={e => setFicha(f => ({ ...f, responsableInventario: e.target.value }))}
-                    placeholder="ej. Juan Pérez (Soporte)"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 font-semibold text-slate-700 focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#0c66e4]"
-                  />
-                </label>
+                {ficha.tipoAsignacion === 'PERSONA' ? (
+                  <label className="space-y-1">
+                    <span className="font-extrabold text-slate-700 block">Responsable</span>
+                    <input
+                      value={ficha.responsableInventario}
+                      onChange={e => setFicha(f => ({ ...f, responsableInventario: e.target.value }))}
+                      placeholder="ej. Juan Pérez (Soporte)"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 font-semibold text-slate-700 focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#0c66e4]"
+                    />
+                  </label>
+                ) : (
+                  <div className="space-y-1">
+                    <span className="font-extrabold text-slate-400 block">Responsable</span>
+                    <div className="w-full bg-slate-100 border border-slate-200 rounded-lg px-3 py-1.5 text-slate-500 font-medium italic">
+                      Equipo asignado a uso común del sector (sin custodio individual)
+                    </div>
+                  </div>
+                )}
                 <label className="space-y-1">
                   <span className="font-extrabold text-slate-700 block">Serie</span>
                   <input

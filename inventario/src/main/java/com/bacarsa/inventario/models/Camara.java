@@ -40,6 +40,8 @@ public class Camara {
     /** Credencial ONVIF / admin (UI enmascarada). */
     private String usuario;
     private String password;
+    /** Historial inmutable append-only. */
+    private List<RenglonHistorial> historial = new ArrayList<>();
 
     public Camara() {
         this.historialEstados = new ArrayList<>();

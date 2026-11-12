@@ -3,16 +3,12 @@ import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import {
   Home,
   Sliders,
-  SlidersHorizontal,
   User,
   Users,
   UserCircle,
   Building2,
   Network,
   Cpu,
-  Shield,
-  ShieldCheck,
-  History,
   Save,
   Copy,
   Check,
@@ -66,20 +62,6 @@ const COLOR_PRESETS = [
   { label: 'Emerald Forest', value: 'from-emerald-600 to-teal-500' },
 ];
 
-const PARAMETROS_DEFAULT = {
-  prefijoHostnamePc: 'PC-BACAR-',
-  prefijoHostnameNb: 'NB-BACAR-',
-  prefijoTesoreria: 'TSO-EQ-',
-  cicloAmortizacion: '36',
-  diasAlertaDesconexion: 15,
-};
-
-const POLITICAS_DEFAULT = {
-  inactividadMinutos: '30',
-  dobleAprobacion2fa: true,
-  qrAutomatico: true,
-};
-
 const FORM_USUARIO_INICIAL = {
   email: '',
   nombre: '',
@@ -120,7 +102,6 @@ export default function ConfiguracionSistema() {
   };
 
   // Modal de Auditoría
-  const [modalAuditoriaAbierto, setModalAuditoriaAbierto] = useState(false);
 
   // ─────────────────────────────────────────────────────────────
   // 1. Estado de Mi Perfil
@@ -438,33 +419,6 @@ export default function ConfiguracionSistema() {
   };
 
   // ─────────────────────────────────────────────────────────────
-  // 3. Estado de Parámetros Globales & Políticas
-  // ─────────────────────────────────────────────────────────────
-  const [parametros, setParametros] = useState(() => {
-    try {
-      const stored = localStorage.getItem('bacar_config_parametros_globales');
-      return stored ? { ...PARAMETROS_DEFAULT, ...JSON.parse(stored) } : PARAMETROS_DEFAULT;
-    } catch {
-      return PARAMETROS_DEFAULT;
-    }
-  });
-
-  const [politicas, setPoliticas] = useState(() => {
-    try {
-      const stored = localStorage.getItem('bacar_config_politicas_sesion');
-      return stored ? { ...POLITICAS_DEFAULT, ...JSON.parse(stored) } : POLITICAS_DEFAULT;
-    } catch {
-      return POLITICAS_DEFAULT;
-    }
-  });
-
-  const handleGuardarConfiguracionGeneral = () => {
-    localStorage.setItem('bacar_config_parametros_globales', JSON.stringify(parametros));
-    localStorage.setItem('bacar_config_politicas_sesion', JSON.stringify(politicas));
-    showToast('Configuración del sistema guardada correctamente.');
-  };
-
-  // ─────────────────────────────────────────────────────────────
   // Componentes de Tarjetas Reutilizables (Izquierda en Mockup)
   // ─────────────────────────────────────────────────────────────
   const OperadorSesionCard = () => (
@@ -542,55 +496,6 @@ export default function ConfiguracionSistema() {
     </div>
   );
 
-  const ResumenSeguridadCard = () => (
-    <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <ShieldCheck className="w-4 h-4 text-emerald-600" />
-          <h3 className="font-extrabold text-xs uppercase tracking-wider text-slate-800">
-            Resumen de Seguridad IT
-          </h3>
-        </div>
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-          99.2% Cumplimiento
-        </span>
-      </div>
-
-      <div className="space-y-2.5 text-xs">
-        <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100">
-          <span className="text-slate-600 font-medium">Autenticación de Dos Factores (2FA)</span>
-          <span className="font-bold text-slate-800 text-[11px] uppercase tracking-wider bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-200">
-            OBLIGATORIA
-          </span>
-        </div>
-
-        <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100">
-          <span className="text-slate-600 font-medium">Agentes Activos Desplegados</span>
-          <span className="font-mono font-bold text-slate-800">342 / 348</span>
-        </div>
-
-        <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100">
-          <span className="text-slate-600 font-medium">Última Sincronización Active Directory</span>
-          <span className="text-slate-500 font-medium">Hace 8 min</span>
-        </div>
-
-        <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100">
-          <span className="text-slate-600 font-medium">Registro de Logs Syslog</span>
-          <span className="font-mono font-bold text-blue-700">10.200.4.15:514</span>
-        </div>
-      </div>
-
-      <div className="space-y-1.5 pt-1">
-        <div className="flex items-center justify-between text-xs font-bold text-slate-700">
-          <span>Índice de Conciliación de Hardware</span>
-          <span className="font-mono">94.8%</span>
-        </div>
-        <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-          <div className="h-full bg-red-600 rounded-full" style={{ width: '94.8%' }} />
-        </div>
-      </div>
-    </div>
-  );
 
   const ConsolaRemotaCard = () => (
     <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-xs flex items-center justify-between gap-4">
@@ -614,208 +519,6 @@ export default function ConfiguracionSistema() {
       >
         Conectar
       </button>
-    </div>
-  );
-
-  const ParametrosGlobalesCard = () => (
-    <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-xs space-y-5">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
-        <div className="flex items-center gap-2">
-          <SlidersHorizontal className="w-4 h-4 text-red-600" />
-          <h3 className="font-extrabold text-sm text-slate-900 tracking-tight">
-            Parámetros Globales de Inventario y Nomenclatura
-          </h3>
-        </div>
-        <span className="text-[11px] font-semibold text-slate-400">
-          Aplicación Automática a Nuevos Activos
-        </span>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-        <div className="space-y-1.5">
-          <label className="block text-slate-600 font-bold">
-            Prefijo Hostname Computadoras (PC / Estaciones)
-          </label>
-          <div className="flex items-center gap-1.5">
-            <input
-              type="text"
-              value={parametros.prefijoHostnamePc}
-              onChange={(e) =>
-                setParametros((p) => ({ ...p, prefijoHostnamePc: e.target.value }))
-              }
-              className="flex-1 p-2.5 border border-slate-200 bg-slate-50 hover:bg-slate-50/70 focus:bg-white rounded-lg font-mono font-bold text-slate-800 text-xs focus:ring-1 focus:ring-red-500 focus:outline-none"
-            />
-            <span className="px-2 py-2.5 bg-slate-100 border border-slate-200 rounded-lg font-mono text-slate-500 font-semibold text-[10px]">
-              +[SERIE]
-            </span>
-          </div>
-          <p className="text-[10px] text-slate-400 font-mono">Ej: PC-BACAR-0941</p>
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="block text-slate-600 font-bold">
-            Prefijo Hostname Notebooks Portátiles
-          </label>
-          <div className="flex items-center gap-1.5">
-            <input
-              type="text"
-              value={parametros.prefijoHostnameNb}
-              onChange={(e) =>
-                setParametros((p) => ({ ...p, prefijoHostnameNb: e.target.value }))
-              }
-              className="flex-1 p-2.5 border border-slate-200 bg-slate-50 hover:bg-slate-50/70 focus:bg-white rounded-lg font-mono font-bold text-slate-800 text-xs focus:ring-1 focus:ring-red-500 focus:outline-none"
-            />
-            <span className="px-2 py-2.5 bg-slate-100 border border-slate-200 rounded-lg font-mono text-slate-500 font-semibold text-[10px]">
-              +[SERIE]
-            </span>
-          </div>
-          <p className="text-[10px] text-slate-400 font-mono">Ej: NB-BACAR-3312</p>
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="block text-slate-600 font-bold">
-            Prefijo Máquinas de Tesorería (Recuento/Bóveda)
-          </label>
-          <div className="flex items-center gap-1.5">
-            <input
-              type="text"
-              value={parametros.prefijoTesoreria}
-              onChange={(e) =>
-                setParametros((p) => ({ ...p, prefijoTesoreria: e.target.value }))
-              }
-              className="flex-1 p-2.5 border border-slate-200 bg-slate-50 hover:bg-slate-50/70 focus:bg-white rounded-lg font-mono font-bold text-slate-800 text-xs focus:ring-1 focus:ring-red-500 focus:outline-none"
-            />
-            <span className="px-2 py-2.5 bg-slate-100 border border-slate-200 rounded-lg font-mono text-slate-500 font-semibold text-[10px]">
-              +[COD_SUC]
-            </span>
-          </div>
-          <p className="text-[10px] text-slate-400">Equipos especiales blindados de tesorería.</p>
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="block text-slate-600 font-bold">
-            Ciclo de Amortización Contable de Hardware
-          </label>
-          <select
-            value={parametros.cicloAmortizacion}
-            onChange={(e) =>
-              setParametros((p) => ({ ...p, cicloAmortizacion: e.target.value }))
-            }
-            className="w-full p-2.5 border border-slate-200 bg-slate-50 hover:bg-slate-50/70 focus:bg-white rounded-lg font-semibold text-slate-800 text-xs focus:ring-1 focus:ring-red-500 focus:outline-none"
-          >
-            <option value="12">12 Meses (Rápido)</option>
-            <option value="24">24 Meses (Equipos Portátiles)</option>
-            <option value="36">36 Meses (Estándar Corporativo BACAR)</option>
-            <option value="48">48 Meses (Infraestructura / Servidores)</option>
-            <option value="60">60 Meses (Redes y Bóvedas)</option>
-          </select>
-          <p className="text-[10px] text-slate-400">Dispara banderas de recambio preventivo.</p>
-        </div>
-      </div>
-
-      <div className="p-3.5 bg-amber-50/60 border border-amber-200 rounded-xl flex items-center gap-3 text-xs text-amber-900">
-        <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
-        <div className="flex-1 font-medium">
-          <span className="font-bold">Alerta por Desconexión Prolongada de Agente: </span>
-          Marcar como 'Revisión Pendiente' si no reporta telemetría en:
-        </div>
-        <div className="flex items-center gap-1.5 shrink-0">
-          <input
-            type="number"
-            min={1}
-            max={90}
-            value={parametros.diasAlertaDesconexion}
-            onChange={(e) =>
-              setParametros((p) => ({ ...p, diasAlertaDesconexion: Number(e.target.value) || 15 }))
-            }
-            className="w-14 p-1.5 text-center font-bold font-mono border border-amber-300 rounded-md bg-white text-xs"
-          />
-          <span className="font-semibold text-xs">días corridos</span>
-        </div>
-      </div>
-    </div>
-  );
-
-  const PoliticasSesionCard = () => (
-    <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-xs space-y-4">
-      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-        <div className="flex items-center gap-2">
-          <Shield className="w-4 h-4 text-red-600" />
-          <h3 className="font-extrabold text-sm text-slate-900 tracking-tight">
-            Políticas de Sesión y Control de Asignaciones Críticas
-          </h3>
-        </div>
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-          Activas
-        </span>
-      </div>
-
-      <div className="space-y-4 text-xs">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-xl bg-slate-50 border border-slate-100">
-          <div>
-            <h4 className="font-bold text-slate-800">Tiempo de Inactividad de Sesión Web</h4>
-            <p className="text-slate-500 text-[11px] mt-0.5">
-              Cierre de sesión automático para terminales de administración técnica.
-            </p>
-          </div>
-          <select
-            value={politicas.inactividadMinutos}
-            onChange={(e) =>
-              setPoliticas((p) => ({ ...p, inactividadMinutos: e.target.value }))
-            }
-            className="p-2 border border-slate-200 bg-white rounded-lg font-bold text-slate-800 text-xs w-full sm:w-36 focus:ring-1 focus:ring-red-500 focus:outline-none"
-          >
-            <option value="15">15 minutos</option>
-            <option value="30">30 minutos</option>
-            <option value="60">60 minutos</option>
-            <option value="120">2 horas</option>
-          </select>
-        </div>
-
-        <div className="flex items-center justify-between gap-4 p-3 rounded-xl bg-slate-50 border border-slate-100">
-          <div>
-            <h4 className="font-bold text-slate-800">
-              Doble Aprobación (2FA) para Modificaciones en Tesorería y Bóvedas
-            </h4>
-            <p className="text-slate-500 text-[11px] mt-0.5">
-              Requiere confirmación de OTP para reasignar o dar de baja hardware dentro de áreas de caudales.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() =>
-              setPoliticas((p) => ({ ...p, dobleAprobacion2fa: !p.dobleAprobacion2fa }))
-            }
-            className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors cursor-pointer shrink-0 ${
-              politicas.dobleAprobacion2fa ? 'bg-red-600 justify-end' : 'bg-slate-300 justify-start'
-            }`}
-          >
-            <span className="bg-white w-4 h-4 rounded-full shadow-md transform transition-transform" />
-          </button>
-        </div>
-
-        <div className="flex items-center justify-between gap-4 p-3 rounded-xl bg-slate-50 border border-slate-100">
-          <div>
-            <h4 className="font-bold text-slate-800">
-              Generación Automática de Identificador QR al Registrar Alta
-            </h4>
-            <p className="text-slate-500 text-[11px] mt-0.5">
-              Asigna UID criptográfico compatible con impresoras de depósito Zebra ZD421.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() =>
-              setPoliticas((p) => ({ ...p, qrAutomatico: !p.qrAutomatico }))
-            }
-            className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors cursor-pointer shrink-0 ${
-              politicas.qrAutomatico ? 'bg-red-600 justify-end' : 'bg-slate-300 justify-start'
-            }`}
-          >
-            <span className="bg-white w-4 h-4 rounded-full shadow-md transform transition-transform" />
-          </button>
-        </div>
-      </div>
     </div>
   );
 
@@ -883,27 +586,6 @@ export default function ConfiguracionSistema() {
             </span>
           }
           description="Control centralizado de identidades, catálogos técnicos de hardware y reglas operativas de activos."
-          actions={
-            <>
-              <button
-                type="button"
-                onClick={() => setModalAuditoriaAbierto(true)}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#f1f5f9] hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 transition-colors shadow-xs cursor-pointer"
-              >
-                <History className="w-3.5 h-3.5 text-slate-500" />
-                <span>Auditoría de Cambios</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleGuardarConfiguracionGeneral}
-                className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#c53030] hover:bg-[#9b2c2c] text-white text-xs font-semibold rounded-lg transition-colors shadow-xs cursor-pointer"
-              >
-                <Save className="w-4 h-4" />
-                <span>Guardar Configuración</span>
-              </button>
-            </>
-          }
         />
 
         {/* Toast Alert */}
@@ -973,7 +655,6 @@ export default function ConfiguracionSistema() {
             {/* Columna Izquierda: Tarjetas de Estado y Operador en Sesión */}
             <div className="lg:col-span-4 space-y-6">
               <OperadorSesionCard />
-              <ResumenSeguridadCard />
               <ConsolaRemotaCard />
             </div>
 
@@ -1189,7 +870,6 @@ export default function ConfiguracionSistema() {
             {/* Columna Izquierda (Mockup ~1/3) */}
             <div className="lg:col-span-4 space-y-6">
               <OperadorSesionCard />
-              <ResumenSeguridadCard />
               <ConsolaRemotaCard />
             </div>
 
@@ -1223,21 +903,21 @@ export default function ConfiguracionSistema() {
                 </div>
 
                 {/* Filtro y buscador */}
-                <div className="flex flex-col sm:flex-row items-center gap-3">
-                  <div className="relative flex-1 w-full">
+                <div className="flex items-center gap-2.5 overflow-x-auto scrollbar-none">
+                  <div className="relative w-[65%] min-w-[200px] flex-1">
                     <input
                       type="search"
                       value={buscarUsuario}
                       onChange={(e) => setBuscarUsuario(e.target.value)}
                       placeholder="Buscar por nombre, correo o UID..."
-                      className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-xs bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-red-500"
+                      className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-xs sm:text-sm bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500"
                     />
-                    <Users className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                    <Users className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                   </div>
                   <select
                     value={filtroRol}
                     onChange={(e) => setFiltroRol(e.target.value)}
-                    className="w-full sm:w-44 p-2 border border-slate-200 rounded-lg text-xs bg-white text-slate-700 font-medium focus:ring-1 focus:ring-red-500 focus:outline-none"
+                    className="!w-[25%] max-w-[28%] min-w-[140px] px-3 py-2 border border-slate-200 rounded-lg text-xs bg-slate-50 text-slate-700 font-medium focus:bg-white focus:border-blue-500 focus:outline-none truncate cursor-pointer"
                   >
                     <option value="">Todos los roles</option>
                     <option value="SIN_ROL">Sin rol</option>
@@ -1251,7 +931,7 @@ export default function ConfiguracionSistema() {
                     type="button"
                     onClick={cargarUsuarios}
                     title="Actualizar lista"
-                    className="p-2 border border-slate-200 hover:bg-slate-50 rounded-lg text-slate-600 cursor-pointer"
+                    className="p-2 border border-slate-200 hover:bg-slate-50 rounded-lg text-slate-600 shrink-0 cursor-pointer"
                   >
                     <RefreshCw className={`w-4 h-4 ${usuariosCargando ? 'animate-spin' : ''}`} />
                   </button>
@@ -1552,69 +1232,6 @@ export default function ConfiguracionSistema() {
         </div>
       )}
 
-      {/* ── MODAL AUDITORÍA DE CAMBIOS ── */}
-      {modalAuditoriaAbierto && (
-        <div
-          className="fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200"
-          onClick={() => setModalAuditoriaAbierto(false)}
-        >
-          <div
-            className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-lg p-6 space-y-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
-                <History className="w-4 h-4 text-slate-600" />
-                Auditoría de Cambios del Sistema
-              </h3>
-              <button
-                type="button"
-                onClick={() => setModalAuditoriaAbierto(false)}
-                className="text-slate-400 hover:text-slate-600 cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="space-y-3 text-xs text-slate-600">
-              <p>
-                Todos los eventos de reasignación, cambios de estado de hardware y operaciones de configuración son
-                registrados de forma inmutable.
-              </p>
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-                <div className="flex items-center justify-between text-[11px] font-mono">
-                  <span className="text-slate-500">Última auditoría de hardware:</span>
-                  <span className="font-bold text-slate-800">Registro inmutable OK</span>
-                </div>
-                <div className="flex items-center justify-between text-[11px] font-mono">
-                  <span className="text-slate-500">Consistencia de bitácora:</span>
-                  <span className="text-emerald-700 font-bold">100% Verificado</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => {
-                  setModalAuditoriaAbierto(false);
-                  navigate('/eventos-hardware');
-                }}
-                className="text-xs text-blue-600 hover:underline font-bold"
-              >
-                Ver módulo Auditoría HW completo &rarr;
-              </button>
-              <button
-                type="button"
-                onClick={() => setModalAuditoriaAbierto(false)}
-                className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold cursor-pointer"
-              >
-                Cerrar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -2,21 +2,26 @@ package com.bacarsa.inventario.repository;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
+import java.util.function.BiFunction;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Repository;
 
+import com.bacarsa.inventario.historial.EscrituraHistorial;
+import com.bacarsa.inventario.historial.HistorialLectura;
 import com.bacarsa.inventario.models.Camara;
 import com.bacarsa.inventario.models.Estado;
 import com.google.api.core.ApiFuture;
 import com.google.cloud.Timestamp;
 import com.google.cloud.firestore.DocumentReference;
 import com.google.cloud.firestore.DocumentSnapshot;
+import com.google.cloud.firestore.FieldValue;
 import com.google.cloud.firestore.Firestore;
 import com.google.cloud.firestore.QueryDocumentSnapshot;
 import com.google.cloud.firestore.QuerySnapshot;
@@ -29,12 +34,12 @@ public class CamaraRepository {
     private final String collectionName;
 
     public CamaraRepository(Firestore firestore,
-            @Value("${firebase.collection.camaras}") String collectionName) {
+                            @Value("${firebase.collection.camaras}") String collectionName) {
         this.firestore = firestore;
         this.collectionName = collectionName;
     }
 
-    @Cacheable("camaras")
+    @Cacheable(value = "camaras")
     public List<Camara> findAll() throws ExecutionException, InterruptedException {
         ApiFuture<QuerySnapshot> future = firestore.collection(collectionName).get();
         List<QueryDocumentSnapshot> documents = future.get().getDocuments();
@@ -88,6 +93,7 @@ public class CamaraRepository {
             c = new Camara();
         }
         c.setId(doc.getId());
+        c.setHistorial(HistorialLectura.desdeDocumento(doc.get("historial")));
         return c;
     }
 
@@ -108,26 +114,23 @@ public class CamaraRepository {
         firestore.collection(collectionName).document(id).set(campos, SetOptions.merge()).get();
     }
 
+    /**
+     * Cierra el tramo del estado anterior en {@code historialEstados} y agrega el nuevo estado.
+     */
     @CacheEvict(value = "camaras", allEntries = true)
     public void cambiarEstado(String id, Estado nuevoEstado, String motivo) throws ExecutionException, InterruptedException {
         DocumentReference docRef = firestore.collection(collectionName).document(id);
-        String motivoGuardado = motivo != null ? motivo : "";
+        String motivoGuardado = (motivo == null || motivo.isBlank()) ? "Cambio de estado" : motivo.trim();
 
         firestore.runTransaction(transaction -> {
-            DocumentSnapshot doc = transaction.get(docRef).get();
-            if (!doc.exists()) {
-                throw new IllegalArgumentException("Cámara no encontrada: " + id);
-            }
+            DocumentSnapshot snapshot = transaction.get(docRef).get();
 
-            List<Map<String, Object>> historial = copiarHistorialMutableDesdeSnapshot(doc);
-
-            // Cerrar el estado vigente (fechaHoraFin == null)
+            List<Map<String, Object>> historial = copiarHistorialMutableDesdeSnapshot(snapshot);
             Timestamp ahora = Timestamp.now();
+
             for (int i = 0; i < historial.size(); i++) {
                 Map<String, Object> entrada = historial.get(i);
-                if (entrada == null) {
-                    continue;
-                }
+                if (entrada == null) continue;
                 if (entrada.get("fechaHoraFin") == null) {
                     Map<String, Object> copia = new HashMap<>(entrada);
                     copia.put("fechaHoraFin", ahora);
@@ -135,7 +138,6 @@ public class CamaraRepository {
                 }
             }
 
-            // Nueva entrada de estado
             Map<String, Object> estadoMap = new HashMap<>();
             estadoMap.put("nombre", nuevoEstado.getNombre());
             estadoMap.put("descripcion", nuevoEstado.getDescripcion());
@@ -148,7 +150,6 @@ public class CamaraRepository {
 
             historial.add(nuevaEntrada);
 
-            // Escribir historial + actualizar estadoActual top-level
             transaction.update(docRef,
                     "historialEstados", historial,
                     "estadoActual", estadoMap);
@@ -157,10 +158,44 @@ public class CamaraRepository {
         }).get();
     }
 
-    /**
-     * Lee {@code historialEstados} como lista de mapas mutables. Si el campo no es una lista o
-     * contiene elementos no mapa (p. ej. datos legacy), se ignoran esas entradas para no romper la transacción.
-     */
+    @CacheEvict(value = "camaras", allEntries = true)
+    public void aplicarHistorial(String id, BiFunction<Map<String, Object>, Timestamp, EscrituraHistorial> plan)
+            throws ExecutionException, InterruptedException {
+        DocumentReference ref = firestore.collection(collectionName).document(id);
+        try {
+            firestore.runTransaction(transaction -> {
+                DocumentSnapshot doc = transaction.get(ref).get();
+                Map<String, Object> data = doc.exists() ? doc.getData() : null;
+                EscrituraHistorial escritura = plan.apply(data, Timestamp.now());
+                if (escritura.modo() == EscrituraHistorial.Modo.NADA) {
+                    return null;
+                }
+                Map<String, Object> campos = conBorrados(escritura.campos());
+                if (!doc.exists()) {
+                    if (escritura.modo() != EscrituraHistorial.Modo.CREAR_CON_HISTORIAL) {
+                        throw new IllegalArgumentException("Cámara no encontrada: " + id);
+                    }
+                    transaction.set(ref, campos);
+                } else {
+                    transaction.update(ref, campos);
+                }
+                return null;
+            }).get();
+        } catch (ExecutionException ex) {
+            Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
+            if (cause instanceof RuntimeException re) throw re;
+            throw ex;
+        }
+    }
+
+    private static Map<String, Object> conBorrados(Map<String, Object> campos) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> entry : campos.entrySet()) {
+            out.put(entry.getKey(), entry.getValue() == null ? FieldValue.delete() : entry.getValue());
+        }
+        return out;
+    }
+
     private static List<Map<String, Object>> copiarHistorialMutableDesdeSnapshot(DocumentSnapshot doc) {
         Object raw = doc.get("historialEstados");
         List<Map<String, Object>> historial = new ArrayList<>();
@@ -215,9 +250,6 @@ public class CamaraRepository {
                 .set(MergeCodigoInterno.unSoloCampo(codigo), SetOptions.merge()).get();
     }
 
-    /**
-     * Recorre la colección una vez: id de NVR → cantidad de cámaras con ese {@code nvrId}.
-     */
     @Cacheable(value = "camaras", key = "'conteoNvr'")
     public Map<String, Long> contarCamarasPorNvrId() throws ExecutionException, InterruptedException {
         ApiFuture<QuerySnapshot> future = firestore.collection(collectionName).get();

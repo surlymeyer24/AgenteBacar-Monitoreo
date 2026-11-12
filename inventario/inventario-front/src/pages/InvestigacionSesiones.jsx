@@ -115,7 +115,7 @@ function bloqueoBadge(min) {
 }
 
 export default function InvestigacionSesiones() {
-  const { computadoras, loading, error } = useComputadorasSesion();
+  const { computadoras, loading, error, refresh: refreshComputadoras } = useComputadorasSesion();
   const { bloqueos, loading: loadingBloqueos, error: errorBloqueos, refresh: refreshBloqueos } = useSesionBloqueos();
   const { esAdministrador } = usePermisos();
   const { items: ubicItems } = useCatalogo('ubicaciones_computadora');
@@ -280,13 +280,14 @@ export default function InvestigacionSesiones() {
     try {
       const res = await sincronizarHistorialBloqueosInicial();
       refreshBloqueos();
+      refreshComputadoras();
       setSyncMsg(`Listo: ${res.registrados ?? 0} bloqueo(s) registrado(s).`);
     } catch (err) {
       setSyncMsg(err.message || 'No se pudo sincronizar el historial');
     } finally {
       setSyncing(false);
     }
-  }, [refreshBloqueos]);
+  }, [refreshBloqueos, refreshComputadoras]);
 
   const bloqueosHoy = useMemo(() => {
     const hoy = new Date().toLocaleDateString('es-AR');
@@ -402,7 +403,7 @@ export default function InvestigacionSesiones() {
         <select
           value={filtroEstado}
           onChange={e => setFiltroEstado(e.target.value)}
-          className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+          className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 focus:outline-none focus:border-blue-500 !w-[20%] max-w-[22%] min-w-[140px] truncate cursor-pointer"
         >
           <option value="">Todos los estados</option>
           <option value="activa">Activa</option>
@@ -413,7 +414,7 @@ export default function InvestigacionSesiones() {
         <select
           value={filtroBloqueo}
           onChange={e => setFiltroBloqueo(e.target.value)}
-          className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+          className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 focus:outline-none focus:border-blue-500 !w-[20%] max-w-[22%] min-w-[140px] truncate cursor-pointer"
         >
           <option value="">Bloqueo: todos</option>
           <option value="con">Con bloqueo auto</option>

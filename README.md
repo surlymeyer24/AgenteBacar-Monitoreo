@@ -267,6 +267,7 @@ Todos los repositorios de Firestore usan caché en memoria para evitar lecturas 
 | `perifericosManuales` | PerifericoManualRepository | findAll, findById |
 | `servidores` | ServidorRepository | findAll, findById |
 | `usuarios` | UsuarioRepository | findAll, findById, findByEmail |
+| `dashboard-stats` | DashboardService | getStats (TTL 120s, maxSize 1) |
 
 **Invalidación**: cada método de escritura (create, update, delete, cambiarEstado) usa `@CacheEvict(allEntries = true)` para limpiar el caché completo de la colección afectada.
 
@@ -366,7 +367,7 @@ Objetivo: exponer un endpoint de **estadísticas agregadas** del inventario y co
 
 - **DTOs** (`dto/`): `DashboardStatsDTO` (totales, conectadas/desconectadas, mapas por `EstadoOperativo` y por `Ubicacion` / `UbicacionCamara`, lista `ultimosCambios`) y `CambioRecienteDTO` (tipo, id, nombre, estado, motivo, fecha ISO-8601).
 - **Servicio** (`services/DashboardService.java`): `getStats()` carga `Computadora` + `Camara` directamente por los repos, sin pasar por mappers (evita cargar periféricos/historial completo). Cuenta totales en una sola pasada; detecta conectadas por `estado_conexion == "ONLINE"`; agrupa por estado y ubicación con mapas pre-inicializados (respuesta estable aunque no haya equipos en ese bucket); aplana todos los `CambioEstado` de ambas colecciones, ordena desc por `fechaHoraInicio` y toma los 10 más recientes.
-- **Controller** (`controller/DashboardController.java`): `GET /api/dashboard/stats` → `DashboardStatsDTO` (200 OK). Sin parámetros. Sin caché.
+- **Controller** (`controller/DashboardController.java`): `GET /api/dashboard/stats` → `DashboardStatsDTO` (200 OK). Sin parámetros. Cacheado en memoria vía Caffeine (`dashboard-stats`, TTL 120s).
 
 ### Frontend (`inventario-front/`)
 
@@ -565,7 +566,7 @@ Activo de inventario manual para periféricos no detectados por el agente.
 ### Admin / Migración
 
 - **`AdminImportController`**: endpoints de importación masiva (cámaras activas, etc.).
-- **`AdminMigracionController`**: endpoints internos para migraciones de datos en Firestore.
+- **AdminMigracionController**: endpoints internos para migraciones de datos en Firestore (incluye POST /api/admin/migracion/normalizar-asignaciones-pcs para pasar a Asignada computadoras con responsable/área que estaban Sin Asignar).
 - **`CamarasActivasImportService`**: importación de cámaras desde Excel.
 
 ### Dashboard de Infraestructura
@@ -639,7 +640,7 @@ Activo de inventario para el directorio de internos telefónicos IP.
 
 ## 25. Pendientes de implementación
 
-*(No hay tareas pendientes en este momento)*
+Para el mapa consolidado de fases futuras, auditorías y deudas técnicas por módulo, consultar [`docs/relevamiento-planes-pendientes.md`](docs/relevamiento-planes-pendientes.md).
 
 ---
 
@@ -755,6 +756,47 @@ Cada cambio que una persona hace sobre una computadora deja un renglón que no s
 
 - El listado que borra el documento de la PC no deja renglón. Queda para otra rama.
 
+### Historial inmutable en Stock: Periféricos manuales y Celulares (etapa 2)
+
+Extensión del patrón inmutable a activos individuales de stock manual:
+- **`PerifericoManual`**: campo `historial` append-only transaccional (`PerifericoManualHistorialReglas`, `aplicarHistorial` en `PerifericoManualRepository`). Registra `ALTA_MANUAL`, `EDICION_FICHA` (cambios en serie, marca, modelo, ubicación, cantidad) y `CAMBIO_ESTADO`.
+- **`Celular`**: campo `historial` append-only transaccional (`CelularHistorialReglas`, `aplicarHistorial` en `CelularRepository`). Registra altas, modificaciones de atributos y cambios de estado operativo/depósito con autoría resuelta (`ActorHistorial`).
+- **DTOs & Mappers**: `PerifericoManualDTO` y `CelularDTO` exponen el historial ordenado cronológicamente descendente (`HistorialLectura.aDtoOrdenado`).
+- **Controladores**: captura de `uid` desde la sesión (`request.getAttribute("uid")`) propagada a `PerifericoManualService` y `CelularService`.
+
+### Historial inmutable en Infraestructura: Red y Video (etapa 3 — fase 3A)
+
+Extensión del patrón inmutable a dispositivos de red y videovigilancia:
+- **`Camara`**: campo `historial` append-only transaccional (`CamaraHistorialReglas`, `aplicarHistorial` en `CamaraRepository`). Registra `ALTA_MANUAL`, `EDICION_FICHA` (con enmascaramiento seguro `••••••` de contraseñas) y `CAMBIO_ESTADO` manteniendo compatibilidad dual con el arreglo legacy `historialEstados`.
+- **`Router`**: campo `historial` append-only transaccional (`RouterHistorialReglas`, `aplicarHistorial` en `RouterRepository`). Registra altas, modificaciones de configuración IP / interfaces / Omada y cambios de estado operativo.
+- **`SwitchRed`**: campo `historial` append-only transaccional (`SwitchRedHistorialReglas`, `aplicarHistorial` en `SwitchRedRepository`). Registra altas, edición de puertos / VLANs / ubicación y cambios de estado.
+- **DTOs & Mappers**: `CamaraDTO`, `RouterDTO` y `SwitchRedDTO` exponen el historial cronológico (`HistorialLectura.aDtoOrdenado`).
+- **Controladores**: captura de `uid` propagada desde los controladores a los servicios correspondientes con autoría resuelta vía `ActorHistorial`.
+
+### Historial inmutable en Infraestructura: Periféricos y Servidores (etapa 3 — fase 3B)
+
+Extensión del patrón inmutable a puntos de acceso, televisores y servidores:
+- **`AccessPoint`**: campo `historial` append-only transaccional (`AccessPointHistorialReglas`, `aplicarHistorial` en `AccessPointRepository`). Registra altas, edición de red/uplink y cambios de estado con autoría (`ActorHistorial`).
+- **`Televisor`**: campo `historial` append-only transaccional (`TelevisorHistorialReglas`, `aplicarHistorial` en `TelevisorRepository`). Registra altas, cambios de área/IP y cambios de estado normalizados.
+- **`Servidor`**: campo `historial` append-only transaccional (`ServidorHistorialReglas`, `aplicarHistorial` en `ServidorRepository`). Registra altas, modificaciones de hostname/IP/SO/ubicación y cambios de estado.
+- **DTOs & Mappers**: `AccessPointDTO`, `TelevisorDTO` y `ServidorDTO` exponen el historial ordenado cronológicamente descendente.
+- **Controladores**: captura de `uid` propagada y endpoints `@PostMapping("/{id}/estado")` habilitados para transición de estado con motivo explícito.
+
+### Historial inmutable en Infraestructura: NVRs y Baja Lógica Atómica (etapa 3 — fase 3C)
+
+Blindaje completo de trazabilidad y eliminación del borrado destructivo en infraestructura:
+- **`Nvr`**: campo `historial` append-only transaccional (`NvrHistorialReglas`, `aplicarHistorial` en `NvrRepository`). Registra altas manuales, edición de ficha técnica (canales, almacenamiento, IP, con enmascaramiento seguro `••••••` de contraseñas) y transiciones de estado (`activo`, `inactivo`, `en_mantenimiento`).
+- **DTOs & Mappers**: `NvrDTO` y `NvrMapper` integran el array de historial cronológico inmutable (`HistorialLectura.aDtoOrdenado`).
+- **Blindaje de Baja Lógica Atómica**: reemplazo total de `deleteById` en operaciones de usuario por baja lógica (`cambiarEstado` con estado `BAJA`/`baja`/`inactivo` y motivo explícito de auditoría) en todos los servicios de infraestructura:
+  - `CamaraService.eliminar(id, actorUid)`
+  - `RouterService.eliminar(id, actorUid)`
+  - `SwitchRedService.eliminar(id, actorUid)`
+  - `AccessPointService.eliminar(id, actorUid)`
+  - `TelevisorService.eliminar(id, actorUid)`
+  - `ServidorService.eliminar(id, actorUid)`
+  - `NvrService.eliminar(id, actorUid)`
+- Garantiza que ningún activo pierda su historial de auditoría ni renglones de eventos tras ser dado de baja desde la interfaz de usuario.
+
 ---
 
 ## 30. Stock — Proyección de unidades y código interno (Stock 1)
@@ -805,7 +847,7 @@ Libro de asignaciones y bitácora de custodia donde cualquier unidad se asigna, 
 
 - **Asignación (`POST /api/stock/unidades/{codigo}/asignar`)**: exige `responsable` obligatorio (`@NotBlank`). Aplica el principio de resiliencia: el movimiento se escribe primero en la colección Firestore `movimientos_stock` con estado `Pendiente`. Luego se actualiza la ficha del equipo en `perifericos_manuales` con `responsable`, `ubicacion` y `estadoActual: ASIGNADA`. Al confirmarse la actualización de la ficha, el movimiento se actualiza a `Activa`. Si la escritura de la ficha falla, el movimiento permanece `Pendiente` y la ficha no muta.
 - **Devolución a Disponible (`POST /api/stock/unidades/{codigo}/devolver`)**: actualiza la unidad en `perifericos_manuales` para devolverla a `SIN_ASIGNAR` sin responsable y con ubicación `DEPOSITO`, cierra los movimientos activos previos marcándolos en `Finalizada` con `fechaDevolucion`, y genera el movimiento de acción `Devolución` en estado `Finalizada`.
-- **Libro unificado (`GET /api/stock/asignaciones`)**: expone el listado consolidado de asignaciones activas y movimientos históricos (leyendo `movimientos_stock` y proyectando periféricos/equipos asignados de `perifericos_manuales` así como PCs asignadas de `computadoras` con origen stock `OrigenAlta.STOCK` sin movimiento previo) ordenados cronológicamente desc.
+- **Libro unificado (`GET /api/stock/asignaciones`)**: expone el listado consolidado de asignaciones activas/vigentes en custodia (filtrando `movimientos_stock` para excluir bajas, reactivaciones, devoluciones y registros de auditoría, y proyectando periféricos/equipos asignados de `perifericos_manuales` así como PCs asignadas de `computadoras` con origen stock `OrigenAlta.STOCK` sin movimiento previo) ordenados cronológicamente desc.
 
 ### API
 
@@ -837,7 +879,7 @@ Consolidación visual y operativa de las existencias de depósito y la custodia 
     - KPIs reales calculados en cliente: *Asignaciones Activas*, *Entregas del Mes* y *Devoluciones del Mes*.
     - Barra de solapas por familia de hardware (**Todas**, **PCs**, **Periféricos**, **Infraestructura**, **Celulares**) con badges numéricos en vivo con la cantidad de asignaciones en cada categoría.
     - Filtro de búsqueda y selectores por estado de movimiento (Activa, Finalizada, Pendiente) y área/sector.
-    - Tabla simplificada sin columnas de código ni serie, priorizando equipo, responsable, área, acción, estado y fechas. Incluye equipos de red operativos e infraestructura (como Access Points) proyectados automáticamente.
+    - Tabla simplificada priorizando equipo, responsable, área, acción, estado y fechas exclusivamente para asignaciones vigentes en custodia (las devoluciones y reactivaciones vuelven a Depósito y las bajas se visualizan en Bajas; el historial completo por código se consulta desde el modal `Detalle`). Incluye equipos de red operativos e infraestructura (como Access Points) proyectados automáticamente.
     - Acción rápida `Devolver` al depósito sobre asignaciones activas.
   - **Pestaña Bajas (`BajasTab.jsx`)**:
     - Vista dedicada para unidades desincorporadas o dadas de baja definitiva.
@@ -1036,7 +1078,6 @@ A partir del módulo consolidado de **Periféricos** (`PerifericosTodosList.jsx`
 - [`ComputadoraList.jsx`](file:///d:/Desarrollo/MiniAgente-Inventario/inventario/inventario-front/src/pages/ComputadoraList.jsx): `ModuleHeader` institucional y simplificación de solapa secundaria redundante.
 - [`StockPage.jsx`](file:///d:/Desarrollo/MiniAgente-Inventario/inventario/inventario-front/src/pages/StockPage.jsx): `ModuleHeader`, `TabsCard` para *Depósito*, *Asignaciones* y *Bajas*, con tarjetas KPI estandarizadas en `AsignacionesTab.jsx` y `BajasTab.jsx` usando `KpiGrid` y `KpiCard`.
 - [`EtiquetasQrList.jsx`](file:///d:/Desarrollo/MiniAgente-Inventario/inventario/inventario-front/src/pages/EtiquetasQrList.jsx): `ModuleHeader` y botones estandarizados.
-- [`EventosHardwareList.jsx`](file:///d:/Desarrollo/MiniAgente-Inventario/inventario/inventario-front/src/pages/EventosHardwareList.jsx): `ModuleHeader` y card container estándar.
 - [`ConciliacionesList.jsx`](file:///d:/Desarrollo/MiniAgente-Inventario/inventario/inventario-front/src/pages/ConciliacionesList.jsx): `ModuleHeader` y `TabsCard` para conciliaciones pendientes/resueltas.
 - [`InfraestructuraDashboard.jsx`](file:///d:/Desarrollo/MiniAgente-Inventario/inventario/inventario-front/src/pages/InfraestructuraDashboard.jsx): `ModuleHeader` institucional y fila de 8 KPIs estandarizada con tarjetas verticales, tipografía `text-3xl font-extrabold` e iconos directos de Periféricos.
 - [`NvrsCamarasList.jsx`](file:///d:/Desarrollo/MiniAgente-Inventario/inventario/inventario-front/src/pages/NvrsCamarasList.jsx): `ModuleHeader` y 4 tarjetas KPI migradas a `KpiGrid` y `KpiCard` canónicos (*CCTV Terminales*, *Servidores NVR*, *Almacenamiento RAID*, *Ciclo Retención*).
@@ -1044,9 +1085,111 @@ A partir del módulo consolidado de **Periféricos** (`PerifericosTodosList.jsx`
 - [`RoutersSwitchesList.jsx`](file:///d:/Desarrollo/MiniAgente-Inventario/inventario/inventario-front/src/pages/RoutersSwitchesList.jsx): `ModuleHeader`, `TabsCard` y 3 tarjetas KPI unificadas al estándar vertical de Periféricos con toggle interactivo y resaltado visual.
 - [`MaquinaTesoreriaList.jsx`](file:///d:/Desarrollo/MiniAgente-Inventario/inventario/inventario-front/src/pages/MaquinaTesoreriaList.jsx): `ModuleHeader`, `KpiGrid` por tipo y `TabsCard` integrado.
 - [`TelefonoIpList.jsx`](file:///d:/Desarrollo/MiniAgente-Inventario/inventario/inventario-front/src/pages/TelefonoIpList.jsx): `ModuleHeader` institucional y acciones unificadas.
-- [`InvestigacionSesiones.jsx`](file:///d:/Desarrollo/MiniAgente-Inventario/inventario/inventario-front/src/pages/InvestigacionSesiones.jsx): `ModuleHeader` y `KpiCard` con tipografía estándar de Periféricos.
 - [`ResponsableDetail.jsx`](file:///d:/Desarrollo/MiniAgente-Inventario/inventario/inventario-front/src/pages/ResponsableDetail.jsx): `ModuleHeader` con botón de regreso estándar.
 
+---
 
+## 39. Ficha Única de Stock (`stock_fichas`), Asignación Dual (Persona/Área) y Auditoría (`movimientos_stock`)
 
+### 1. Modelo Unificado y Separación de Responsabilidades
+- **Telemetría vs. Custodia**: La colección `computadoras` almacena exclusivamente la telemetría del agente C# (hardware, procesador, RAM, discos, periféricos conectados, programas instalados, actividad). Los datos de custodia física, inventario y ciclo de vida residen en `stock_fichas/{codigoInterno}`.
+- **Ficha Única por Activo**:
+  - **`codigo_interno`**: ID canónico del documento (ej. `NB-0042`, `PC-10`, `TEC-05`).
+  - **`tipo`**: `NOTEBOOK` | `PC` | `CELULAR` | `MONITOR` | `PERIFERICO` | `AP` | etc.
+  - **`descripcion`**: Marca, modelo y especificaciones técnicas resumidas.
+  - **`estado`**: `EN_DEPOSITO` | `ASIGNADA` | `EN_MANTENIMIENTO` | `BAJA`.
+  - **`responsable_id`** / **`responsable_nombre`**: Persona asignada (o `null` si asignado a área).
+  - **`area`**: Sector o área de destino (ej. `Tesorería`, `Monitoreo`).
+  - **`ubicacion`**: Ubicación física (ej. `Depósito Sistemas`).
+  - **`condicion`**: `NUEVA` | `USADA` | `REPARADA` | `DEFECTUOSA`.
+  - **`ref_origen`**: Referencia al documento de origen (`computadoras/{uuid}`, `perifericos_manuales/{id}`, etc.).
+  - **`movimientos_stock/{autoId}`**: Actúa estrictamente como log inmutable de auditoría con puntero `ficha_codigo` que referencia a la ficha.
 
+### 2. Asignación Dual desde el Frontend
+- En el modal de asignación (`ModalAsignar`) y en el servicio de backend (`StockAsignacionesService`), se incorporó el soporte para declarar explícitamente:
+  - 👤 **Asignación a Persona**: Requiere responsable (persona física del catálogo) y área opcional.
+  - 🏢 **Asignación a Área / Sector de uso común**: Permite asignar el equipo a un área o departamento de uso general (ej. Guardia, Sala de Armas, Monitoreo, Mesa de Entrada) sin inventar responsables falsos, guardando `asignacion_tipo: "AREA"` y `responsable_nombre: null`.
+
+### 3. Regla de Visibilidad y Visualización en `/computadoras`
+- El listado operativo en `/computadoras` (`ComputadoraList.jsx`) muestra computadoras que tengan agente instalado y activo (`tieneAgente: true`), excluyendo equipos que se encuentren en depósito físico o dados de baja (`!enDeposito && estadoActual !== 'Baja'`).
+- **Columna RESPONSABLE y Exportación CSV**:
+  - Si la máquina está asignada a una persona: se renderiza el nombre del responsable y badge de usuario de sesión si difiere.
+  - Si la máquina está asignada a un área de uso común (`asignacionTipo === 'AREA'` o equipo asignado a sector sin responsable de persona): se muestra el pill distintivo `Área [Nombre]` con icono `Building2` (`bg-purple-50 text-purple-700 border-purple-100`), evitando el falso `"Sin responsable"`. En la exportación a CSV se exporta como `Área [Nombre]`.
+- **Ficha de Detalle (`ComputadoraDetail.jsx`)**:
+  - Selector de asignación (`Persona` / `Área de uso común`) en el formulario de ficha para conmutar directamente el destino del equipo.
+  - Sincronización automática de `stock_fichas` ante cambios de ficha mediante `ComputadoraService.sincronizarStockFicha`.
+
+### 4. Experiencia de Usuario y Frontend
+- **Solapas Depósito, Asignaciones y Bajas**: Leen directamente desde `stock_fichas` según su estado (`EN_DEPOSITO`, `ASIGNADA`, `BAJA`) sin deduplicaciones heurísticas client-side.
+- **Contador Real en Encabezado**: Los badges de conteo en `StockPage` reflejan las cantidades exactas por estado.
+- **Modal de Detalle e Historial (`ModalDetalleHistorial.jsx`)**: Accesible mediante botón con icono de ojo (`Eye`) en cada fila de las solapas. Permite inspeccionar la ficha completa del activo y el timeline vertical de movimientos históricos. Carga la unidad en vivo vía `fetchUnidadStock` y prioriza la especificación técnica de stock (`descripcionCompleta`) ante marcas/modelos genéricos (evitando repeticiones como "PC CLON PC CLON").
+- **Formateo Unificado de Hardware en Asignaciones (`formatearNombreEquipo`)**: La solapa de asignaciones y bajas formatea limpiamente los activos de cómputo y periféricos priorizando procesador/RAM/disco cuando el equipo es clon o no tiene marca comercial distintiva.
+
+---
+
+## 40. Cantidades y lotes en `stock_fichas` (asignación/devolución parcial)
+
+- **`StockFicha.cantidad`** (default 1): `1` = unidad individual, `> 1` = lote (ej. `TEC-0010` con 10 unidades). La migración copia `cantidad` desde `perifericos_manuales` (`sobrescribir=true` para fichas ya migradas); el alta/edición de stock también la escribe.
+- **Asignar N de un lote** (`POST /api/stock/unidades/{codigo}/asignar` con `cantidad`):
+  - `N > disponible` → `400`.
+  - `N == disponible` → la ficha completa pasa a `ASIGNADA` (flujo clásico, conserva su cantidad).
+  - `N < disponible` → el lote baja a `disponible − N` y se crea una **ficha hija** `ASIGNADA` (`{lote}-A{n}`, `cantidad = N`, `lote_origen = {lote}`) que aparece como un único ítem en Asignaciones.
+- **Devolver** (`POST /api/stock/unidades/{codigo}/devolver` con `cantidad` opcional): sobre una ficha hija reintegra las unidades al lote; devolución parcial deja la hija con el remanente, total la cierra (`DEVUELTA`, `cantidad = 0`).
+- **Trazabilidad**: `movimientos_stock` suma `cantidad` y `lote_origen`. El historial del lote (`GET /api/stock/asignaciones/{codigo}/historial`) incluye los movimientos de sus fichas hijas.
+- **Depósito** oculta fichas con `cantidad <= 0` y muestra la columna **Cant.**; **Asignaciones** muestra `xN` y `lote`; el modal del ojito muestra cantidad y lote de origen.
+- `asignarUnidadStock` en `stockApi.js` envía también `asignacionTipo`.
+
+---
+
+## 41. Optimizaciones de Rendimiento, Descalces de DTOs, Retiro de Módulos Innecesarios y Limpieza de Frontend
+
+### 1. Rendimiento y Concurrencia
+- **Dashboard Optimizado (`DashboardService.java`, `Dashboard.jsx`)**:
+  - Traslado del cálculo de versiones de Windows (`porVersionWindows`) y top procesadores (`porProcesador`) al backend.
+  - Eliminado el consumo redundante de `useComputadoras()` en `Dashboard.jsx`, reduciendo drásticamente el peso de carga inicial.
+- **Sincronización de Caché y Estampida en `/perifericos` (`ComputadoraRepository.java`)**:
+  - Habilitado `sync = true` en `@Cacheable(value = "computadoras-gordo", sync = true)` y `@Cacheable(value = "pc-listado", sync = true)`.
+  - Evita la triple consulta paralela a Firestore al abrir `/perifericos` (servicios de periféricos, monitores e impresoras), sincronizando la invocación para que solo un hilo consulte la base de datos mientras los demás leen instantáneamente del resultado en memoria.
+- **Proyección Liviana de Sesiones (`InvestigacionSesiones.jsx`, `SesionBloqueoController.java`)**:
+  - Reemplazada la suscripción en tiempo real `onSnapshot` de Firestore en el navegador que descargaba la colección completa de `computadoras` con todos sus componentes.
+  - Implementado endpoint `GET /api/sesion-bloqueos/computadoras` con proyección de campos en el servidor (`Query.select(...)` en `SesionBloqueoRepository`), reduciendo el payload de red más del 95% y añadiendo soporte de refresco bajo demanda (`refresh()`).
+
+### 2. Saneamiento de Datos y Regla 0 (Cero datos ficticios)
+- **Descalces en Periféricos corregidos (`PerifericosTodosList.jsx`, `PerifericoManualDTO.java`, `PerifericoManualMapper.java`)**:
+  - Exposición y consumo de `codigoInterno`, `responsable` y `condicion` para periféricos manuales.
+  - Corrección de mapeo de campos cruzados para Televisores (`numeroSerie`, `area`) y Celulares (`lineaNumero`, `area`, `asignadoA`, `estado`).
+- **Proyección de Celulares en Stock (`ProyeccionStock.java`)**:
+  - `desdeCelular()` traslada la condición real y el área física al stock de unidades.
+- **Estado real en Periféricos Manuales asignados (`PerifericoManual.java`, `ProyeccionStock.java`)**:
+  - `PerifericoManual.getEstadoActual()` prioriza el campo raíz `estadoActual` como fuente de verdad (usando `historialEstados` únicamente como fallback), y `ProyeccionStock.desdePeriferico()` normaliza a `"Asignada"` cualquier unidad con `responsable` asignado para evitar que siga figurando en Depósito.
+- **Reportes (`Reportes.jsx`)**:
+  - Desacoplado el conteo de Webcams (`perifericosCounts.webcams`) y Otros periféricos en la tarjeta 7 de `/reportes`.
+- **Eliminación de datos ficticios y consolidación en CCTV e Infraestructura (`NvrsCamarasList.jsx`, `InfraestructuraDashboard.jsx`)**:
+  - Removidos textos hardcodeados de almacenamiento RAID, días de retención, puertos PoE fijos y carga en kW, reemplazados por conteos y métricas reales.
+  - En `InfraestructuraDashboard.jsx`: corregidos errores de referencia en tiempo de ejecución (`nvrs.length` por `totalNvrs`, `switches.length` por `totalSwitches`), normalizadas las barras de distribución de Routers a porcentaje proporcional (`maxRouters`), agregado pie consolidado de routers por ubicación, y removido el modelo hardcodeado ficticio de teléfono (`Grandstream GXP1625` -> `—`).
+- **Limpieza de Configuración del Sistema (`ConfiguracionSistema.jsx`)**:
+  - Eliminada la tarjeta con métricas simuladas `ResumenSeguridadCard` (348 agentes, Active Directory inexistente, Syslog ficticio), cumpliendo estrictamente con la Regla 0.
+  - Eliminado el botón fantasma "Guardar Configuración" y el modal con enlaces rotos "Auditoría de Cambios" del encabezado institucional.
+  - Removidas ~390 líneas de código muerto no renderizado (`ParametrosGlobalesCard`, `PoliticasSesionCard`, `PARAMETROS_DEFAULT`, `POLITICAS_DEFAULT`, `modalAuditoriaAbierto`).
+
+### 3. Persistencia y ABM
+- **Persistencia completa de Usuarios (`Usuario.java`, `UsuarioDTO.java`, `UsuarioRepository.java`)**:
+  - Agregados los campos `departamento`, `cargo` y `avatarColor` con persistencia mediante `SetOptions.merge()`, preservando la sede/cargo sin pisar campos extra.
+- **Bugs de borrado resueltos (Servidores y Máquinas de Tesorería)**:
+  - Implementado endpoint `DELETE /api/maquinas-tesoreria/{id}` en backend y conectado al frontend en `MaquinaTesoreriaList.jsx`.
+  - Conectado borrado asíncrono con `eliminarServidor(id)` en `ServidorList.jsx`.
+
+### 4. Retiro de Módulos Innecesarios
+- **Retiro de "Investigación de Sesiones" y "Auditoría HW"**:
+  - Removidos los accesos del menú lateral en `SidebarNav.jsx` y redirección limpia a `/` en `App.jsx`.
+  - Desactivado el listener en tiempo real `onSnapshot` de `useComputadorasSesion.js`, eliminando la descarga continua de megabytes de la colección `computadoras`.
+  - Desactivado el scheduler de segundo plano `app.sesion-bloqueo.scheduler.enabled=false` en `application.properties`.
+  - Eliminados los imports `lazy()` muertos de vistas retiradas en `App.jsx`, reduciendo el precache y tamaño de bundle.
+
+### 5. Cifrado de Credenciales en Reposo (P3.1)
+- **Cifrado de Credenciales de Red y Video (`CredencialCryptoService.java`)**:
+  - Implementado cifrado simétrico reversible **AES-256-GCM** con vector aleatorio (IV de 12 bytes) para credenciales de acceso a cámaras y NVRs en reposo en Firestore.
+  - Almacenamiento seguro en base de datos con formato `ENC:<base64(iv + ciphertext + auth_tag)>`.
+  - Integrado de forma transparente en `CamaraService.java` y `NvrService.java` para `crear` y `update`.
+  - Entrega segura en DTOs con descifrado al vuelo y fallback retrocompatible para contraseñas en texto plano legacy.
+  - Clave simétrica configurable vía `app.security.crypto.secret-key` / `APP_CRYPTO_SECRET_KEY`.

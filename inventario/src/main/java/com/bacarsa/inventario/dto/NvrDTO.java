@@ -19,4 +19,6 @@ public class NvrDTO {
     private List<CamaraDTO> camaras;
     /** Cámaras con este {@code nvrId}; informado en listados y detalle. */
     private Integer cantidadCamaras;
+    private String estado;
+    private List<RenglonHistorialDTO> historial;
 }

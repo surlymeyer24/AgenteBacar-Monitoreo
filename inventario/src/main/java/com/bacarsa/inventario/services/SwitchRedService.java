@@ -1,7 +1,10 @@
 package com.bacarsa.inventario.services;
 
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
@@ -9,20 +12,26 @@ import org.springframework.stereotype.Service;
 
 import com.bacarsa.inventario.dto.SwitchRedCreateDTO;
 import com.bacarsa.inventario.dto.SwitchRedDTO;
+import com.bacarsa.inventario.historial.ActorHistorial;
+import com.bacarsa.inventario.historial.SwitchRedHistorialReglas;
 import com.bacarsa.inventario.mapper.SwitchRedMapper;
 import com.bacarsa.inventario.models.Estado;
 import com.bacarsa.inventario.models.EstadoOperativo;
 import com.bacarsa.inventario.models.SwitchRed;
 import com.bacarsa.inventario.models.UbicacionRed;
+import com.bacarsa.inventario.models.Usuario;
 import com.bacarsa.inventario.repository.SwitchRedRepository;
+import com.bacarsa.inventario.repository.UsuarioRepository;
 
 @Service
 public class SwitchRedService {
 
     private final SwitchRedRepository switchRedRepository;
+    private final UsuarioRepository usuarioRepository;
 
-    public SwitchRedService(SwitchRedRepository switchRedRepository) {
+    public SwitchRedService(SwitchRedRepository switchRedRepository, UsuarioRepository usuarioRepository) {
         this.switchRedRepository = switchRedRepository;
+        this.usuarioRepository = usuarioRepository;
     }
 
     public List<SwitchRedDTO> listarTodos() throws ExecutionException, InterruptedException {
@@ -36,6 +45,10 @@ public class SwitchRedService {
     }
 
     public SwitchRedDTO crear(SwitchRedCreateDTO dto) throws ExecutionException, InterruptedException {
+        return crear(dto, null);
+    }
+
+    public SwitchRedDTO crear(SwitchRedCreateDTO dto, String actorUid) throws ExecutionException, InterruptedException {
         validarCrear(dto);
         UbicacionRed ubicacion;
         try {
@@ -44,24 +57,35 @@ public class SwitchRedService {
             throw new IllegalArgumentException("Ubicación de red inválida: " + dto.getUbicacion(), ex);
         }
 
-        SwitchRed sw = new SwitchRed();
-        sw.setNombre(dto.getNombre().trim());
-        sw.setMarca(blankToNull(dto.getMarca()));
-        sw.setModelo(blankToNull(dto.getModelo()));
-        sw.setIp(blankToNull(dto.getIp()));
-        sw.setNumeroSerie(blankToNull(dto.getNumeroSerie()));
-        sw.setCantidadPuertos(dto.getCantidadPuertos());
-        sw.setTipo(blankToNull(dto.getTipo()));
-        sw.setVlans(dto.getVlans() != null ? dto.getVlans() : List.of());
-        sw.setUbicacion(ubicacion);
+        String id = UUID.randomUUID().toString();
         LocalDate fa = dto.getFechaAlta() != null ? dto.getFechaAlta() : LocalDate.now();
-        sw.setFechaAlta(fa.toString());
 
-        String id = switchRedRepository.create(sw);
-        return SwitchRedMapper.toDTO(switchRedRepository.findById(id));
+        Map<String, Object> cuerpo = new HashMap<>();
+        cuerpo.put("nombre", dto.getNombre().trim());
+        if (blankToNull(dto.getMarca()) != null) cuerpo.put("marca", dto.getMarca().trim());
+        if (blankToNull(dto.getModelo()) != null) cuerpo.put("modelo", dto.getModelo().trim());
+        if (blankToNull(dto.getIp()) != null) cuerpo.put("ip", dto.getIp().trim());
+        if (blankToNull(dto.getNumeroSerie()) != null) cuerpo.put("numero_serie", dto.getNumeroSerie().trim());
+        cuerpo.put("cantidad_puertos", dto.getCantidadPuertos());
+        if (blankToNull(dto.getTipo()) != null) cuerpo.put("tipo", dto.getTipo().trim());
+        cuerpo.put("vlans", dto.getVlans() != null ? dto.getVlans() : List.of());
+        cuerpo.put("ubicacion", ubicacion.name());
+        cuerpo.put("fecha_alta", fa.toString());
+
+        ActorHistorial actor = resolverActor(actorUid);
+
+        switchRedRepository.aplicarHistorial(id, (doc, ahora) ->
+                SwitchRedHistorialReglas.altaManual(id, cuerpo, actor, ahora));
+
+        return obtenerPorId(id);
     }
 
     public SwitchRedDTO cambiarEstado(String id, String estadoRaw, String motivo)
+            throws ExecutionException, InterruptedException {
+        return cambiarEstado(id, estadoRaw, motivo, null);
+    }
+
+    public SwitchRedDTO cambiarEstado(String id, String estadoRaw, String motivo, String actorUid)
             throws ExecutionException, InterruptedException {
         SwitchRed sw = switchRedRepository.findById(id);
         if (sw == null) {
@@ -77,42 +101,21 @@ public class SwitchRedService {
         Estado estado = new Estado();
         estado.setNombre(estadoOperativo.getNombre());
         estado.setDescripcion(estadoOperativo.getDescripcion());
-        switchRedRepository.cambiarEstado(id, estado, motivo);
+
+        ActorHistorial actor = resolverActor(actorUid);
+
+        switchRedRepository.aplicarHistorial(id, (doc, ahora) ->
+                SwitchRedHistorialReglas.cambioEstado(doc, estado, motivo, actor, ahora));
+
         return obtenerPorId(id);
     }
 
-    private static void validarCrear(SwitchRedCreateDTO dto) {
-        if (dto.getNombre() == null || dto.getNombre().isBlank()) {
-            throw new IllegalArgumentException("El nombre es obligatorio");
-        }
-        if (dto.getUbicacion() == null || dto.getUbicacion().isBlank()) {
-            throw new IllegalArgumentException("La ubicación es obligatoria");
-        }
-    }
-
-    private static String blankToNull(String s) {
-        if (s == null || s.isBlank()) {
-            return null;
-        }
-        return s.trim();
-    }
-
-    /** Firestore {@code update} no acepta null; los campos editables del form van como string (vacío si se limpia). */
-    private static String blankToEmpty(String s) {
-        if (s == null || s.isBlank()) {
-            return "";
-        }
-        return s.trim();
-    }
-
-    /** Solo incluye el campo si el cliente lo envió (evita pisar datos Omada no editados en el modal). */
-    private static void putSiPresente(java.util.Map<String, Object> campos, String key, String value) {
-        if (value != null && !value.isBlank()) {
-            campos.put(key, value.trim());
-        }
-    }
-
     public SwitchRedDTO update(String id, SwitchRedCreateDTO dto) throws ExecutionException, InterruptedException {
+        return update(id, dto, null);
+    }
+
+    public SwitchRedDTO update(String id, SwitchRedCreateDTO dto, String actorUid)
+            throws ExecutionException, InterruptedException {
         SwitchRed swExistente = switchRedRepository.findById(id);
         if (swExistente == null) {
             throw new IllegalArgumentException("Switch no encontrado: " + id);
@@ -127,7 +130,7 @@ public class SwitchRedService {
             throw new IllegalArgumentException("Ubicación de red inválida: " + dto.getUbicacion(), ex);
         }
 
-        java.util.Map<String, Object> campos = new java.util.HashMap<>();
+        Map<String, Object> campos = new HashMap<>();
         campos.put("nombre", dto.getNombre().trim());
         campos.put("marca", blankToEmpty(dto.getMarca()));
         campos.put("modelo", blankToEmpty(dto.getModelo()));
@@ -151,16 +154,65 @@ public class SwitchRedService {
             campos.put("salto", dto.getSalto());
         }
 
-        switchRedRepository.update(id, campos);
+        ActorHistorial actor = resolverActor(actorUid);
+
+        switchRedRepository.aplicarHistorial(id, (doc, ahora) ->
+                SwitchRedHistorialReglas.edicionFicha(doc, campos, actor, ahora));
 
         return obtenerPorId(id);
     }
 
     public boolean eliminar(String id) throws ExecutionException, InterruptedException {
+        return eliminar(id, null);
+    }
+
+    public boolean eliminar(String id, String actorUid) throws ExecutionException, InterruptedException {
         if (switchRedRepository.findById(id) == null) {
             return false;
         }
-        switchRedRepository.deleteById(id);
+        cambiarEstado(id, "BAJA", "Baja de equipo solicitada por usuario", actorUid);
         return true;
+    }
+
+    private ActorHistorial resolverActor(String uid) {
+        if (uid == null || uid.isBlank()) {
+            return ActorHistorial.SISTEMA;
+        }
+        try {
+            return usuarioRepository.findById(uid)
+                    .map(u -> new ActorHistorial(u.getId(), u.getNombre() != null ? u.getNombre() : u.getEmail()))
+                    .orElseGet(() -> new ActorHistorial(uid, ""));
+        } catch (Exception ex) {
+            return new ActorHistorial(uid, "");
+        }
+    }
+
+    private static void validarCrear(SwitchRedCreateDTO dto) {
+        if (dto.getNombre() == null || dto.getNombre().isBlank()) {
+            throw new IllegalArgumentException("El nombre es obligatorio");
+        }
+        if (dto.getUbicacion() == null || dto.getUbicacion().isBlank()) {
+            throw new IllegalArgumentException("La ubicación es obligatoria");
+        }
+    }
+
+    private static String blankToNull(String s) {
+        if (s == null || s.isBlank()) {
+            return null;
+        }
+        return s.trim();
+    }
+
+    private static String blankToEmpty(String s) {
+        if (s == null || s.isBlank()) {
+            return "";
+        }
+        return s.trim();
+    }
+
+    private static void putSiPresente(Map<String, Object> campos, String key, String value) {
+        if (value != null && !value.isBlank()) {
+            campos.put(key, value.trim());
+        }
     }
 }

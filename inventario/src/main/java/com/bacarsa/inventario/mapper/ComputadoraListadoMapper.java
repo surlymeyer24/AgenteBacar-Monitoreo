@@ -8,6 +8,7 @@ import com.bacarsa.inventario.models.EstadoOperativo;
 import com.bacarsa.inventario.models.EstadoPreparacion;
 import com.bacarsa.inventario.models.EstadoReporteAgente;
 import com.bacarsa.inventario.models.Ubicacion;
+import com.bacarsa.inventario.util.UsuarioSesionHelper;
 import com.google.cloud.Timestamp;
 import com.google.cloud.firestore.DocumentSnapshot;
 
@@ -25,6 +26,7 @@ public final class ComputadoraListadoMapper {
         ComputadoraListadoDTO dto = new ComputadoraListadoDTO();
         dto.setUuid(doc.getId());
         dto.setHostname(doc.getString("hostname"));
+        dto.setCodigoInterno(doc.getString("codigo_interno"));
 
         dto.setTipoEquipo(getStringSafe(doc, "tipo_equipo"));
 
@@ -62,6 +64,11 @@ public final class ComputadoraListadoMapper {
                 usuarioActual = s;
             }
         }
+        if (!(usuariosObj instanceof Map)) {
+            // Mismo criterio que el detalle: sin mapa "usuarios" se usa usuarioActual de la raíz.
+            usuarioActual = doc.getString("usuarioActual");
+        }
+        usuarioActual = UsuarioSesionHelper.limpiar(usuarioActual);
         dto.setUsuarioActual(usuarioActual);
 
         Object estadoActualObj = doc.get("estadoActual");
@@ -96,8 +103,46 @@ public final class ComputadoraListadoMapper {
         dto.setEspecificacionEsperada(EspecificacionStockMapper.toDTO(specEsperada));
         dto.setDescripcionStock(doc.getString("descripcion_stock"));
         dto.setLoteOrigenId(doc.getString("lote_origen_id"));
+        dto.setTieneAgente(Boolean.TRUE.equals(doc.getBoolean("tiene_agente"))
+                || doc.get("primer_reporte_agente_at") != null
+                || ts != null);
+
+        String asigTipoDoc = doc.getString("asignacion_tipo");
+        if (asigTipoDoc == null || asigTipoDoc.isBlank()) {
+            asigTipoDoc = doc.getString("asignacionTipo");
+        }
+        if (asigTipoDoc != null && !asigTipoDoc.isBlank()) {
+            dto.setAsignacionTipo(asigTipoDoc.trim().toUpperCase(java.util.Locale.ROOT));
+        } else {
+            String respInv = dto.getResponsableInventario();
+            String ubi = dto.getUbicacion();
+            boolean enDep = Boolean.TRUE.equals(dto.getEnDeposito());
+            if (respInv != null && !respInv.isBlank() && !UsuarioSesionHelper.esUsuarioSistema(respInv)) {
+                dto.setAsignacionTipo("PERSONA");
+            } else if (ubi != null && !ubi.isBlank() && !"DEPOSITO".equalsIgnoreCase(ubi.trim()) && !"STOCK".equalsIgnoreCase(ubi.trim()) && !enDep) {
+                dto.setAsignacionTipo("AREA");
+            } else {
+                dto.setAsignacionTipo("SIN_ASIGNAR");
+            }
+        }
+
+        if (!esBajaOMantenimiento(dto.getEstadoActual())) {
+            if ("PERSONA".equals(dto.getAsignacionTipo()) || "AREA".equals(dto.getAsignacionTipo())) {
+                dto.setEstadoActual(EstadoOperativo.ASIGNADA.getNombre());
+            } else if ("SIN_ASIGNAR".equals(dto.getAsignacionTipo())) {
+                dto.setEstadoActual(EstadoOperativo.SIN_ASIGNAR.getNombre());
+            }
+        }
 
         return dto;
+    }
+
+    private static boolean esBajaOMantenimiento(String estado) {
+        if (estado == null || estado.isBlank()) {
+            return false;
+        }
+        String u = estado.trim().toUpperCase(java.util.Locale.ROOT);
+        return u.contains("BAJA") || u.contains("MANTENIMIENTO");
     }
 
     private static String normalizarUbicacion(String raw) {

@@ -30,7 +30,6 @@ export default function AsignacionesBoard({ computadoras, onUpdateComputer }) {
   const [rowMotive, setRowMotive] = useState({});
   const [rowUbicacionStock, setRowUbicacionStock] = useState({});
   const [rowAsignarA, setRowAsignarA] = useState({});
-  const [copiedAnydesk, setCopiedAnydesk] = useState(null);
 
   // Derive unique locations
   const locations = ['All', ...new Set(computadoras.map(c => c.ubicacion || 'CAPITAL_HUMANO'))];
@@ -75,14 +74,6 @@ export default function AsignacionesBoard({ computadoras, onUpdateComputer }) {
   const countSinAsignar = computadoras.filter(c => (c.estadoIt || c.estadoActual || 'Asignada') === 'Sin Asignar').length;
   const countMantenimiento = computadoras.filter(c => (c.estadoIt || c.estadoActual || 'Asignada') === 'En mantenimiento').length;
 
-  const handleCopyAnydesk = (id, e) => {
-    e.stopPropagation();
-    if (!id) return;
-    navigator.clipboard.writeText(id);
-    setCopiedAnydesk(id);
-    setTimeout(() => setCopiedAnydesk(null), 1800);
-  };
-
   const handleSaveCustody = async (c) => {
     const value = rowAssignee[c.uuid] !== undefined ? rowAssignee[c.uuid] : (c.responsableInventario || c.responsable_inventario || '');
     try {
@@ -122,7 +113,7 @@ export default function AsignacionesBoard({ computadoras, onUpdateComputer }) {
     }
 
     try {
-      const result = await updateEstado(c.uuid, selectedKey, motiveText, extras);
+      await updateEstado(c.uuid, selectedKey, motiveText, extras);
       const newLabel = ESTADO_KEY_TO_LABEL[selectedKey] || selectedKey;
       if (onUpdateComputer) {
         const updated = { ...c, estadoActual: newLabel, estadoIt: newLabel };

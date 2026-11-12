@@ -170,12 +170,6 @@ function buildCambiarTipoPayload(tipoOrigen, tipoDestino, id, form) {
   return payload;
 }
 
-async function eliminarPorTipo(type, id) {
-  const enc = encodeURIComponent(id);
-  const base = `${API_ORIGIN}/api/${type === 'access-point' ? 'access-points' : `${type}s`}`;
-  return apiFetch(`${base}/${enc}`, { method: 'DELETE' });
-}
-
 function normIp(ip) {
   return String(ip ?? '').trim().toLowerCase();
 }
@@ -756,65 +750,61 @@ export default function RoutersSwitchesList({ defaultTab = 'all' }) {
         <div className="p-5 space-y-4">
 
         {/* Barra de filtros */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-slate-100">
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Ubicación */}
-            <select
-              value={filtroUbicacion}
-              onChange={(e) => setFiltroUbicacion(e.target.value)}
-              className="pl-3 pr-7 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-600"
-            >
-              <option value="">UBICACIÓN: Todas ({datasetFull.length})</option>
-              {ubicacionesUnicas.map((u) => (
-                <option key={u} value={u}>
-                  {u}
-                </option>
-              ))}
-            </select>
-
-            {/* Orden */}
-            <select
-              value={ordenNombre}
-              onChange={(e) => setOrdenNombre(e.target.value)}
-              className="pl-3 pr-7 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-600"
-            >
-              <option value="">ORDEN: Sin ordenar</option>
-              <option value="asc">Nombre (A → Z)</option>
-              <option value="desc">Nombre (Z → A)</option>
-            </select>
+        <div className="flex items-center gap-2.5 overflow-x-auto pb-3 border-b border-slate-100 scrollbar-none">
+          {/* Buscador */}
+          <div className="relative w-[40%] min-w-[200px] flex-1">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Buscar por nombre, IP, MAC o modelo..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-blue-500 transition-colors"
+            />
           </div>
 
-          <div className="flex items-center gap-3">
-            {/* Buscador */}
-            <div className="relative flex-1 sm:w-64">
-              <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Buscar por nombre, IP, MAC o modelo..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-600"
-              />
-            </div>
+          {/* Ubicación */}
+          <select
+            value={filtroUbicacion}
+            onChange={(e) => setFiltroUbicacion(e.target.value)}
+            className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 focus:bg-white focus:outline-none focus:border-blue-500 !w-[18%] max-w-[20%] min-w-[140px] truncate cursor-pointer"
+          >
+            <option value="">UBICACIÓN: Todas ({datasetFull.length})</option>
+            {ubicacionesUnicas.map((u) => (
+              <option key={u} value={u}>
+                {u}
+              </option>
+            ))}
+          </select>
 
-            {/* Seleccionar todo */}
-            <button
-              type="button"
-              onClick={toggleSelectPagina}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 transition-colors whitespace-nowrap cursor-pointer"
-            >
-              {todosSeleccionados ? (
-                <CheckSquare className="w-3.5 h-3.5 text-blue-600" />
-              ) : (
-                <Square className="w-3.5 h-3.5 text-slate-400" />
-              )}
+          {/* Orden */}
+          <select
+            value={ordenNombre}
+            onChange={(e) => setOrdenNombre(e.target.value)}
+            className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 focus:bg-white focus:outline-none focus:border-blue-500 !w-[18%] max-w-[20%] min-w-[140px] truncate cursor-pointer"
+          >
+            <option value="">ORDEN: Sin ordenar</option>
+            <option value="asc">Nombre (A → Z)</option>
+            <option value="desc">Nombre (Z → A)</option>
+          </select>
+
+          {/* Seleccionar todo */}
+          <button
+            type="button"
+            onClick={toggleSelectPagina}
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+          >
+            {todosSeleccionados ? (
+              <CheckSquare className="w-3.5 h-3.5 text-blue-600" />
+            ) : (
+              <Square className="w-3.5 h-3.5 text-slate-400" />
+            )}
               <span>Sel. Todo</span>
             </button>
 
-            <span className="text-xs font-bold text-slate-600 whitespace-nowrap">
+            <span className="text-xs font-bold text-slate-600 whitespace-nowrap shrink-0">
               Total: <span className="text-slate-900 font-black">{dataset.length}</span>
             </span>
-          </div>
         </div>
 
         {/* Grilla de Tarjetas (4 columnas) */}

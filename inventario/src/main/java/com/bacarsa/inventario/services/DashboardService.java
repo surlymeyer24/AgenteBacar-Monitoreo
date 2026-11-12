@@ -10,6 +10,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import com.bacarsa.inventario.dto.CambioRecienteDTO;
@@ -70,6 +71,7 @@ public class DashboardService {
         this.nvrRepository = nvrRepository;
     }
 
+    @Cacheable("dashboard-stats")
     public DashboardStatsDTO getStats() throws ExecutionException, InterruptedException {
         CompletableFuture<List<Computadora>> fPc = supplyAsyncRepo(computadoraRepository::findAll);
         CompletableFuture<List<Camara>> fCam = supplyAsyncRepo(camaraRepository::findAll);
@@ -175,6 +177,44 @@ public class DashboardService {
             }
         }
         stats.setPorUbicacionComputadoras(porUbPC);
+
+        // Distribución por versión de Windows
+        Map<String, Integer> porWin = new LinkedHashMap<>();
+        porWin.put("Windows 11", 0);
+        porWin.put("Windows 10", 0);
+        porWin.put("Otros", 0);
+        for (Computadora c : pcsOperativas) {
+            String so = normLower(c.getSistemaOperativo());
+            if (so.contains("11")) {
+                porWin.merge("Windows 11", 1, Integer::sum);
+            } else if (so.contains("10")) {
+                porWin.merge("Windows 10", 1, Integer::sum);
+            } else {
+                porWin.merge("Otros", 1, Integer::sum);
+            }
+        }
+        stats.setPorVersionWindows(porWin);
+
+        // Top procesadores (top 6 ordenados descendentemente por cantidad con desempate alfabético)
+        Map<String, Integer> rawCpu = new HashMap<>();
+        for (Computadora c : pcsOperativas) {
+            String nombre = c.getProcesadorRaw();
+            if ((nombre == null || nombre.isBlank()) && c.getProcesadorDetallado() != null) {
+                nombre = c.getProcesadorDetallado().getNombreCompleto();
+            }
+            String key = (nombre != null && !nombre.isBlank()) ? nombre.trim() : "Sin dato";
+            rawCpu.merge(key, 1, Integer::sum);
+        }
+        List<Map.Entry<String, Integer>> sortedCpu = rawCpu.entrySet().stream()
+                .sorted(Map.Entry.<String, Integer>comparingByValue().reversed()
+                        .thenComparing(Map.Entry::getKey))
+                .limit(6)
+                .toList();
+        Map<String, Integer> porCpu = new LinkedHashMap<>();
+        for (Map.Entry<String, Integer> entry : sortedCpu) {
+            porCpu.put(entry.getKey(), entry.getValue());
+        }
+        stats.setPorProcesador(porCpu);
 
         Map<String, Integer> porUbCam = new LinkedHashMap<>();
         for (Camara cam : camaras) {

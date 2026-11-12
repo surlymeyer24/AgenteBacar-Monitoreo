@@ -62,6 +62,7 @@ public class SwitchRed {
     private UbicacionRed ubicacion;
     private Estado estadoActual;
     private List<CambioEstado> historialEstados;
+    private List<RenglonHistorial> historial = new ArrayList<>();
 
     /** ISO-8601 fecha calendario ({@code yyyy-MM-dd}); Firestore no serializa bien {@link java.time.LocalDate} en POJOs. */
     @Getter(onMethod_ = @PropertyName("fecha_alta"))

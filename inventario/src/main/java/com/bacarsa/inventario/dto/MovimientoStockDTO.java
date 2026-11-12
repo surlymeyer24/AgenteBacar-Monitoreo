@@ -25,4 +25,7 @@ public class MovimientoStockDTO {
     private String fechaDevolucion;
     private String motivo;
     private String actorUid;
+    private String descripcionCompleta;
+    private Integer cantidad;
+    private String loteOrigen;
 }

@@ -15,6 +15,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Check,
+  Building2,
 } from 'lucide-react';
 import { fetchComputadoras, updateUbicacion, deleteComputadora } from '../api/computadoraApi';
 import { useComputadorasList } from '../context/ComputadorasListContext';
@@ -33,7 +34,7 @@ import {
 } from '../components/studio/StudioUi';
 import WriteGate from '../components/WriteGate';
 import { usePermisos } from '../hooks/usePermisos';
-import { ModuleHeader } from '../components/layout';
+import { ModuleHeader, FilterBar } from '../components/layout';
 
 const ORDEN_OPTS = [
   { value: 'reciente', label: 'Ordenar por: Recientes' },
@@ -61,6 +62,19 @@ function cmpUbicacion(a, b) {
   return ua.localeCompare(ub, 'es') || cmpHostname(a, b, false);
 }
 
+function estadoEfectivo(c) {
+  const raw = String(c?.estadoActual || '').trim().toLowerCase();
+  if (raw.includes('baja') || raw.includes('mantenimiento')) {
+    return c.estadoActual;
+  }
+  const tieneResp = Boolean(c?.responsableInventario && !['SYSTEM', 'LOCAL SERVICE', 'NETWORK SERVICE'].includes(String(c.responsableInventario).trim().toUpperCase()));
+  const esArea = c?.asignacionTipo === 'AREA' || (Boolean(c?.ubicacion) && !['DEPOSITO', 'STOCK'].includes(String(c.ubicacion).trim().toUpperCase()) && !c?.enDeposito);
+  if (tieneResp || esArea) {
+    return 'Asignada';
+  }
+  return c?.estadoActual || 'Sin Asignar';
+}
+
 function coincideBusqueda(c, q) {
   if (!q || !q.trim()) return true;
   const n = q.trim().toLowerCase();
@@ -71,7 +85,7 @@ function coincideBusqueda(c, q) {
     c.uuid,
     c.ubicacion,
     c.sistemaOperativo,
-    c.estadoActual,
+    estadoEfectivo(c),
     anydeskIdDe(c),
   ]
     .filter(Boolean)
@@ -232,10 +246,13 @@ export default function ComputadoraList() {
     setTimeout(() => setCopiedAnydesk(null), 1500);
   }
 
-  // Colección estricta computadoras (excluyendo origen STOCK)
+  // Colección computadoras operativas con agente (excluyendo equipos en depósito o dados de baja)
   const pcsColeccion = useMemo(() => {
     return (todas || []).filter(
-      c => Boolean(c?.uuid || c?.hostname) && c?.origenAlta !== 'STOCK'
+      c => Boolean(c?.uuid || c?.hostname) &&
+        Boolean(c?.tieneAgente) &&
+        !c?.enDeposito &&
+        c?.estadoActual !== 'Baja'
     );
   }, [todas]);
 
@@ -416,11 +433,11 @@ export default function ComputadoraList() {
       `"${(c.hostname || '').replace(/"/g, '""')}"`,
       `"${(c.uuid || '').replace(/"/g, '""')}"`,
       `"${(labelDeCatalogo(tiposEquipoItems, c.tipoEquipo) || c.tipoEquipo || '').replace(/"/g, '""')}"`,
-      `"${(c.responsableInventario || c.usuarioActual || '').replace(/"/g, '""')}"`,
+      `"${(c.responsableInventario || c.usuarioActual || ((c.asignacionTipo === 'AREA' || (!c.responsableInventario && c.ubicacion && c.ubicacion !== 'DEPOSITO')) ? ('Área ' + (labelDeCatalogo(ubicCompItems, c.ubicacion) || c.ubicacion)) : '')).replace(/"/g, '""')}"`,
       `"${(labelDeCatalogo(ubicCompItems, c.ubicacion) || c.ubicacion || '').replace(/"/g, '""')}"`,
       `"${(anydeskIdDe(c) || '').replace(/"/g, '""')}"`,
       `"${(c.sistemaOperativo || '').replace(/"/g, '""')}"`,
-      `"${(c.estadoActual || '').replace(/"/g, '""')}"`,
+      `"${(estadoEfectivo(c) || '').replace(/"/g, '""')}"`,
       `"${(c.origenAlta || '').replace(/"/g, '""')}"`,
       `"${(textoConexionAgente(c) || '').replace(/"/g, '""')}"`,
     ]);
@@ -499,79 +516,11 @@ export default function ComputadoraList() {
 
       <div className="flex flex-col flex-1 min-h-0 space-y-3">
           {/* TOOLBAR DE FILTROS */}
-          <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs space-y-3">
-            <div className="flex items-center gap-2.5">
-              {/* Buscador amplio */}
-              <div className="relative min-w-[240px] flex-1 max-w-[360px]">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                <input
-                  id="inv-buscar-pcs"
-                  type="text"
-                  value={buscar}
-                  onChange={e => setBuscar(e.target.value)}
-                  placeholder="Buscar computadora..."
-                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 focus:bg-white transition-colors"
-                />
-              </div>
-
-              {/* Dropdowns al lado en una sola fila */}
-              <select
-                value={filtroUbicacion}
-                onChange={e => setFiltroUbicacion(e.target.value)}
-                className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 focus:outline-none focus:border-blue-500 flex-1 max-w-[190px] truncate"
-              >
-                <option value="">Ubicación: Todas</option>
-                {opcionesEnumCatalogo(ubicCompItems).map(o => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-
-              <select
-                value={filtroTipoEquipo}
-                onChange={e => setFiltroTipoEquipo(e.target.value)}
-                className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 focus:outline-none focus:border-blue-500 flex-1 max-w-[170px] truncate"
-              >
-                <option value="">Tipo: Todos</option>
-                {tiposEquipoItems.map(item => (
-                  <option key={item.codigo} value={item.codigo}>{item.label}</option>
-                ))}
-              </select>
-
-              <select
-                value={filtroPreparacion}
-                onChange={e => setFiltroPreparacion(e.target.value)}
-                className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 focus:outline-none focus:border-blue-500 flex-1 max-w-[170px] truncate"
-              >
-                <option value="">Preparación: Todas</option>
-                <option value="SIN_ARMAR">Sin armar</option>
-                <option value="ARMADO">Combo armado</option>
-                <option value="NO_APLICA">No aplica</option>
-              </select>
-
-              <select
-                value={filtroConexion}
-                onChange={e => setFiltroConexion(e.target.value)}
-                className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 focus:outline-none focus:border-blue-500 flex-1 max-w-[170px] truncate"
-              >
-                <option value="">Actividad: Todas</option>
-                <option value="activo">{`Reciente (< ~${MINUTOS_LABEL_UMBRAL_ACTIVO}m)`}</option>
-                <option value="intermedio">Entre ~12m y 1h</option>
-                <option value="sin_actividad">Sin actividad (+1h)</option>
-              </select>
-
-              <select
-                value={orden}
-                onChange={e => setOrden(e.target.value)}
-                className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 focus:outline-none focus:border-blue-500 flex-1 max-w-[180px] truncate"
-              >
-                {ORDEN_OPTS.map(o => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Fila inferior de filtros */}
-            <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-100">
+          <FilterBar
+            card
+            activeCount={filtrosActivosCount}
+            onReset={limpiarFiltros}
+            extraFooterLeft={
               <label
                 htmlFor="inv-incluir-legacy"
                 className="flex items-center gap-2 text-xs font-medium text-slate-600 cursor-pointer select-none"
@@ -585,29 +534,70 @@ export default function ComputadoraList() {
                 />
                 <span>Incluir equipos legacy (Win 7 / No agente)</span>
               </label>
+            }
+          >
+            <FilterBar.Search
+              id="inv-buscar-pcs"
+              value={buscar}
+              onChange={val => setBuscar(val)}
+              placeholder="Buscar computadora..."
+              widthClass="w-[28%] min-w-[200px] flex-1"
+            />
 
-              <div className="flex items-center gap-3">
-                {filtrosActivosCount > 0 && (
-                  <span className="text-xs text-slate-500">
-                    Filtros aplicados:{' '}
-                    <strong className="text-slate-800 font-semibold">
-                      {filtrosActivosCount} activo{filtrosActivosCount > 1 ? 's' : ''}
-                    </strong>
-                  </span>
-                )}
-                {filtrosActivosCount > 0 && (
-                  <button
-                    type="button"
-                    onClick={limpiarFiltros}
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-red-600 hover:text-red-700 transition-colors cursor-pointer"
-                  >
-                    <FilterX className="w-3.5 h-3.5" />
-                    <span>Limpiar filtros</span>
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
+            <FilterBar.Select
+              value={filtroUbicacion}
+              onChange={val => setFiltroUbicacion(val)}
+              widthClass="!w-[14%] max-w-[15%] min-w-[115px]"
+            >
+              <option value="">Ubicación: Todas</option>
+              {opcionesEnumCatalogo(ubicCompItems).map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </FilterBar.Select>
+
+            <FilterBar.Select
+              value={filtroTipoEquipo}
+              onChange={val => setFiltroTipoEquipo(val)}
+              widthClass="!w-[13%] max-w-[14%] min-w-[110px]"
+            >
+              <option value="">Tipo: Todos</option>
+              {tiposEquipoItems.map(item => (
+                <option key={item.codigo} value={item.codigo}>{item.label}</option>
+              ))}
+            </FilterBar.Select>
+
+            <FilterBar.Select
+              value={filtroPreparacion}
+              onChange={val => setFiltroPreparacion(val)}
+              widthClass="!w-[14%] max-w-[15%] min-w-[115px]"
+            >
+              <option value="">Preparación: Todas</option>
+              <option value="SIN_ARMAR">Sin armar</option>
+              <option value="ARMADO">Combo armado</option>
+              <option value="NO_APLICA">No aplica</option>
+            </FilterBar.Select>
+
+            <FilterBar.Select
+              value={filtroConexion}
+              onChange={val => setFiltroConexion(val)}
+              widthClass="!w-[14%] max-w-[15%] min-w-[115px]"
+            >
+              <option value="">Actividad: Todas</option>
+              <option value="activo">{`Reciente (< ~${MINUTOS_LABEL_UMBRAL_ACTIVO}m)`}</option>
+              <option value="intermedio">Entre ~12m y 1h</option>
+              <option value="sin_actividad">Sin actividad (+1h)</option>
+            </FilterBar.Select>
+
+            <FilterBar.Select
+              value={orden}
+              onChange={val => setOrden(val)}
+              widthClass="!w-[14%] max-w-[15%] min-w-[120px]"
+            >
+              {ORDEN_OPTS.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </FilterBar.Select>
+          </FilterBar>
 
           {/* BARRA DE ACCIONES MASIVAS */}
           <WriteGate>
@@ -627,7 +617,7 @@ export default function ComputadoraList() {
                     id="inv-ubicacion-masiva"
                     value={ubicacionDestino}
                     onChange={e => setUbicacionDestino(e.target.value)}
-                    className="bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-medium text-slate-700"
+                    className="bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-medium text-slate-700 !w-auto"
                   >
                     <option value="">Cambiar ubicación masiva...</option>
                     {opcionesEnumCatalogo(ubicCompItems).map(o => (
@@ -726,6 +716,8 @@ export default function ComputadoraList() {
                       const tNormalizado = codigoTipoNormalizado(c.tipoEquipo);
                       const esNotebook = tNormalizado === 'notebook';
                       const esWorkstation = tNormalizado === 'workstation' || tNormalizado.includes('server');
+                      const esAreaAsignada = c.asignacionTipo === 'AREA' || (!c.responsableInventario && c.ubicacion && c.ubicacion !== 'DEPOSITO' && c.ubicacion !== 'STOCK');
+                      const labelArea = c.ubicacion ? (labelDeCatalogo(ubicCompItems, c.ubicacion) || c.ubicacion) : null;
                       const responsable = c.responsableInventario || c.usuarioActual;
                       const so = c.sistemaOperativo || '—';
                       const esLinux = so.toLowerCase().includes('ubuntu') || so.toLowerCase().includes('linux');
@@ -777,6 +769,11 @@ export default function ComputadoraList() {
                           <td className="px-3.5 py-3.5 text-sm">
                             {responsable ? (
                               <span className="text-slate-800 font-medium">{responsable}</span>
+                            ) : esAreaAsignada && labelArea ? (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-100">
+                                <Building2 className="w-3 h-3 text-purple-600 shrink-0" />
+                                Área {labelArea}
+                              </span>
                             ) : (
                               <span className="text-slate-400 italic font-normal">Sin responsable</span>
                             )}
@@ -818,7 +815,7 @@ export default function ComputadoraList() {
                             </div>
                           </td>
                           <td className="px-3.5 py-3.5 whitespace-nowrap">
-                            {renderEstadoPill(c.estadoActual)}
+                            {renderEstadoPill(estadoEfectivo(c))}
                           </td>
                           <td className="px-3.5 py-3.5 text-right" onClick={e => e.stopPropagation()}>
                             <div className="flex items-center justify-end gap-1.5">
@@ -862,14 +859,14 @@ export default function ComputadoraList() {
                 </span>
 
                 <div className="flex items-center gap-1.5">
-                  <span className="text-slate-500">Por página:</span>
+                  <span className="text-slate-500 whitespace-nowrap">Por página:</span>
                   <select
                     value={porPagina}
                     onChange={e => {
                       const v = e.target.value;
                       setPorPagina(v === 'todos' ? 'todos' : Number(v));
                     }}
-                    className="bg-white border border-slate-300 rounded px-2 py-0.5 text-xs font-semibold text-slate-700 cursor-pointer"
+                    className="bg-white border border-slate-300 rounded px-2 py-0.5 text-xs font-semibold text-slate-700 !w-auto cursor-pointer"
                   >
                     <option value="todos">Todos</option>
                     <option value={25}>25</option>

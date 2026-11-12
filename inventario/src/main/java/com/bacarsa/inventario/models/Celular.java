@@ -1,5 +1,8 @@
 package com.bacarsa.inventario.models;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import com.google.cloud.firestore.annotation.DocumentId;
 import com.google.cloud.firestore.annotation.PropertyName;
 
@@ -34,4 +37,7 @@ public class Celular {
     private String responsable;
     private String area;
     private String estado;
+
+    /** Historial inmutable append-only. */
+    private List<RenglonHistorial> historial = new ArrayList<>();
 }

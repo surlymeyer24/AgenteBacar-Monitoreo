@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 
 import com.bacarsa.inventario.dto.RouterDTO;
+import com.bacarsa.inventario.historial.HistorialLectura;
 import com.bacarsa.inventario.models.Router;
 
 public class RouterMapper {
@@ -47,6 +48,7 @@ public class RouterMapper {
         dto.setEstado(router.getEstadoActual() == null ? null : router.getEstadoActual().getNombre());
         dto.setFechaAlta(parseFechaAltaIso(router.getFechaAlta()));
         dto.setHistorialEstados(CambioEstadoMapper.toDTOList(router.getHistorialEstados()));
+        dto.setHistorial(HistorialLectura.aDtoOrdenado(router.getHistorial()));
         return dto;
     }
 }

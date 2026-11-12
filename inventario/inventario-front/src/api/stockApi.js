@@ -56,11 +56,11 @@ export async function bajaUnidadStock(codigo, motivo) {
   return res.json();
 }
 
-export async function asignarUnidadStock(codigo, { responsable, area, motivo }) {
+export async function asignarUnidadStock(codigo, { asignacionTipo, responsable, area, motivo, cantidad }) {
   const res = await apiFetch(`${API_ORIGIN}/api/stock/unidades/${encodeURIComponent(codigo)}/asignar`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ responsable, area, motivo }),
+    body: JSON.stringify({ asignacionTipo, responsable, area, motivo, cantidad }),
   });
   if (!res.ok) {
     const errorText = await res.text();
@@ -69,11 +69,11 @@ export async function asignarUnidadStock(codigo, { responsable, area, motivo }) 
   return res.json();
 }
 
-export async function devolverUnidadStock(codigo, { motivo } = {}) {
+export async function devolverUnidadStock(codigo, { motivo, cantidad } = {}) {
   const res = await apiFetch(`${API_ORIGIN}/api/stock/unidades/${encodeURIComponent(codigo)}/devolver`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ motivo }),
+    body: JSON.stringify({ motivo, cantidad }),
   });
   if (!res.ok) {
     const errorText = await res.text();
@@ -82,10 +82,29 @@ export async function devolverUnidadStock(codigo, { motivo } = {}) {
   return res.json();
 }
 
+export async function reactivarUnidadStock(codigo) {
+  const res = await apiFetch(`${API_ORIGIN}/api/stock/unidades/${encodeURIComponent(codigo)}/reactivar`, {
+    method: 'POST',
+  });
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(errorText || `Error ${res.status}: no se pudo reactivar la unidad ${codigo}`);
+  }
+  return res.json();
+}
+
 export async function fetchAsignacionesStock() {
   const res = await apiFetch(`${API_ORIGIN}/api/stock/asignaciones`);
   if (!res.ok) {
     throw new Error(`Error ${res.status}: no se pudieron cargar las asignaciones`);
+  }
+  return res.json();
+}
+
+export async function fetchHistorialMovimientos(codigo) {
+  const res = await apiFetch(`${API_ORIGIN}/api/stock/asignaciones/${encodeURIComponent(codigo)}/historial`);
+  if (!res.ok) {
+    throw new Error(`Error ${res.status}: no se pudo cargar el historial de la unidad ${codigo}`);
   }
   return res.json();
 }

@@ -33,6 +33,8 @@ function buildPayloadFromForm({
   formCondicion,
   formDescripcion,
   formUbicacionStock,
+  formNotas,
+  formComentarios,
 }) {
   const especificacionEsperada = specToPayload({
     cpuModelo: formCpu,
@@ -47,6 +49,8 @@ function buildPayloadFromForm({
     ubicacionStock: formUbicacionStock.trim() || '',
     descripcionStock: formDescripcion.trim() || '',
     especificacionEsperada,
+    notas: formNotas ?? '',
+    comentarios: formComentarios ?? '',
   };
 }
 
@@ -70,6 +74,8 @@ export function useEditPcStock({
   const [formCondicion, setFormCondicion] = useState('');
   const [formDescripcion, setFormDescripcion] = useState('');
   const [formUbicacionStock, setFormUbicacionStock] = useState(UBICACION_DEPOSITO_DEFAULT);
+  const [formNotas, setFormNotas] = useState('');
+  const [formComentarios, setFormComentarios] = useState('');
   const [guardandoPcEdit, setGuardandoPcEdit] = useState(false);
   const [eliminandoPcEdit, setEliminandoPcEdit] = useState(false);
   const [ingresandoPcStock, setIngresandoPcStock] = useState(false);
@@ -105,6 +111,8 @@ export function useEditPcStock({
     ));
     setFormDescripcion(descripcionFromComputadora(pc));
     setFormUbicacionStock(getUbicacionStock(pc) || UBICACION_DEPOSITO_DEFAULT);
+    setFormNotas(pc.notas || '');
+    setFormComentarios(pc.comentarios || '');
   };
 
   const notifyUpdated = (updated) => {
@@ -163,6 +171,8 @@ export function useEditPcStock({
         formCondicion,
         formDescripcion,
         formUbicacionStock,
+        formNotas,
+        formComentarios,
       });
       const updated = await updateDatosStock(editPc.uuid, body);
       if (!updated) {
@@ -203,6 +213,8 @@ export function useEditPcStock({
           formCondicion,
           formDescripcion,
           formUbicacionStock,
+          formNotas,
+          formComentarios,
         }),
         motivo,
       };
@@ -254,7 +266,7 @@ export function useEditPcStock({
     onSavedRef.current = null;
   };
 
-  const editPcYaEnDeposito = editPc?.enDeposito === true || esSinAsignar(editPc?.estadoActual);
+  const editPcYaEnDeposito = editPc?.enDeposito === true;
 
   return {
     editPcOpen,
@@ -274,6 +286,10 @@ export function useEditPcStock({
     setFormDescripcion,
     formUbicacionStock,
     setFormUbicacionStock,
+    formNotas,
+    setFormNotas,
+    formComentarios,
+    setFormComentarios,
     formSpecPreview,
     guardandoPcEdit,
     eliminandoPcEdit,

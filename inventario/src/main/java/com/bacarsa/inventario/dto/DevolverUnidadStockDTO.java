@@ -12,4 +12,7 @@ import lombok.NoArgsConstructor;
 public class DevolverUnidadStockDTO {
 
     private String motivo;
+
+    /** Unidades a devolver (null = todas las de la asignación). */
+    private Integer cantidad;
 }

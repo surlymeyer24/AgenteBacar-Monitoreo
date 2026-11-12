@@ -39,7 +39,7 @@ class StockProyeccionTest {
         assertEquals(8, lista.size());
         assertUnidad(lista.get(0), "PC-1", "desktop", "", "", "SN-PC", "usada", "En depósito", "", "SISTEMAS");
         assertUnidad(lista.get(1), "TEC-4", "teclado", "Logitech", "", "SER-TEC", "", "Sin Asignar", "2026-01-02", "sistemas");
-        assertUnidad(lista.get(2), "CEL-2", "celular", "Samsung", "A15", "359999", "", "en_stock", "", "");
+        assertUnidad(lista.get(2), "CEL-2", "celular", "Samsung", "A15", "359999", "usado", "en_stock", "", "sistemas");
         assertUnidad(lista.get(3), "CAM-1", "camara", "Hikvision", "DS-2CD", "", "", "Activa", "2026-03-04", "Ingreso");
         assertUnidad(lista.get(4), "TV-1", "televisor", "LG", "55UP", "SER-TV", "", "activo", "", "");
         assertUnidad(lista.get(5), "RTR-3", "router", "Mikrotik", "hAP", "SER-RTR", "", "Sin Asignar", "2026-04-01", "SISTEMAS");
@@ -358,9 +358,9 @@ class StockProyeccionTest {
         celular.setMarca("Samsung");
         celular.setModelo("A15");
         celular.setImei("359999");
-        celular.setCondicion("NO-COPIAR-CELULAR");
+        celular.setCondicion("usado");
         celular.setEstado("en_stock");
-        celular.setArea("NO-COPIAR-AREA");
+        celular.setArea("sistemas");
 
         Camara camara = new Camara();
         camara.setId("cam-1");

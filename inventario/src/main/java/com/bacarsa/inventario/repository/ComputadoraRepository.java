@@ -39,6 +39,7 @@ import com.bacarsa.inventario.historial.HistorialLectura;
 import com.bacarsa.inventario.util.AnydeskIdResolver;
 import com.bacarsa.inventario.util.FirestoreComputadoraParser;
 import com.bacarsa.inventario.util.FirestoreJsonHelper;
+import com.bacarsa.inventario.util.UsuarioSesionHelper;
 import com.google.api.core.ApiFuture;
 import com.google.cloud.Timestamp;
 import com.google.cloud.firestore.CollectionReference;
@@ -72,7 +73,7 @@ public class ComputadoraRepository {
         this.tareasCollection = tareasCollection;
     }
 
-    @Cacheable("computadoras-gordo")
+    @Cacheable(value = "computadoras-gordo", sync = true)
     public List<Computadora> findAll() throws ExecutionException, InterruptedException {
         ApiFuture<QuerySnapshot> future = firestore.collection(collectionName).get();
         List<QueryDocumentSnapshot> documents = future.get().getDocuments();
@@ -96,7 +97,7 @@ public class ComputadoraRepository {
         return result;
     }
 
-    @Cacheable("pc-listado")
+    @Cacheable(value = "pc-listado", sync = true)
     public List<ComputadoraListadoDTO> findAllListado() throws ExecutionException, InterruptedException {
         Query query = firestore.collection(collectionName)
                 .select(ComputadoraListadoFields.ALL.toArray(new String[0]));
@@ -160,16 +161,6 @@ public class ComputadoraRepository {
             out.add(row);
         }
         return out;
-    }
-
-    @Caching(evict = {
-            @CacheEvict(value = "pc-listado", allEntries = true),
-            @CacheEvict(value = "computadoras-gordo", allEntries = true)
-    })
-    public String create(Computadora computadora) throws ExecutionException, InterruptedException {
-        DocumentReference ref = firestore.collection(collectionName).document(computadora.getUuid());
-        ref.set(computadora).get();
-        return computadora.getUuid();
     }
 
     /**
@@ -439,6 +430,21 @@ public class ComputadoraRepository {
             Map<String, Object> usuarios = (Map<String, Object>) usuariosObj;
             c.setUsuarioActual((String) usuarios.get("usuario_actual"));
         }
+        // El agente reporta SYSTEM cuando no hay persona con sesión: se trata como sin usuario.
+        c.setUsuarioActual(UsuarioSesionHelper.limpiar(c.getUsuarioActual()));
+
+        // Campos que toObject no carga: se leen a mano del documento.
+        if (c.getUbicacionStock() == null) {
+            c.setUbicacionStock(doc.getString("ubicacion_stock"));
+        }
+        if (c.getAsignacionTipo() == null) {
+            String asigTipo = doc.getString("asignacion_tipo");
+            if (asigTipo == null) asigTipo = doc.getString("asignacionTipo");
+            c.setAsignacionTipo(asigTipo);
+        }
+        c.setTieneAgente(doc.getBoolean("tiene_agente"));
+        c.setSoftwareCritico(mapaOnull(data.get("software_critico")));
+        c.setWindowsUpdates(mapaOnull(data.get("windows_updates")));
 
         if (c.getAnydeskId() == null || c.getAnydeskId().isBlank()) {
             String anydesk = AnydeskIdResolver.resolver(data);
@@ -498,6 +504,11 @@ public class ComputadoraRepository {
         }
 
         return c;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> mapaOnull(Object raw) {
+        return raw instanceof Map<?, ?> ? (Map<String, Object>) raw : null;
     }
 
     /** Campos de listado que deben existir aunque {@code toObject} falle parcialmente. */
@@ -893,6 +904,75 @@ public class ComputadoraRepository {
             }
         }
         return ids;
+    }
+
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> limpiarUsuarioActualResidual() throws ExecutionException, InterruptedException {
+        List<QueryDocumentSnapshot> docs = firestore.collection(collectionName).get().get().getDocuments();
+        List<String> corregidos = new ArrayList<>();
+        List<String> errores = new ArrayList<>();
+        WriteBatch batch = firestore.batch();
+        int enBatch = 0;
+
+        for (QueryDocumentSnapshot doc : docs) {
+            String usuarioActual = doc.getString("usuarioActual");
+            if (usuarioActual == null || usuarioActual.isBlank()) {
+                continue;
+            }
+            String uUpper = usuarioActual.trim().toUpperCase(java.util.Locale.ROOT);
+            if ("SYSTEM".equals(uUpper) || "LOCAL SERVICE".equals(uUpper) || "NETWORK SERVICE".equals(uUpper)) {
+                continue;
+            }
+            boolean sinAsignar = false;
+            Object estadoRaw = doc.get("estadoActual");
+            if (estadoRaw instanceof Map<?, ?> mapa) {
+                Object nombre = ((Map<String, Object>) mapa).get("nombre");
+                if (nombre instanceof String n) {
+                    String upper = n.trim().toUpperCase(java.util.Locale.ROOT);
+                    sinAsignar = upper.contains("SIN ASIGNAR") || upper.contains("SIN_ASIGNAR");
+                }
+            } else if (estadoRaw == null) {
+                sinAsignar = true;
+            }
+            if (!sinAsignar) {
+                continue;
+            }
+            batch.update(doc.getReference(), "usuarioActual", FieldValue.delete());
+            corregidos.add(doc.getId());
+            enBatch++;
+            if (enBatch >= 400) {
+                try {
+                    batch.commit().get();
+                } catch (ExecutionException ex) {
+                    corregidos.subList(corregidos.size() - enBatch, corregidos.size()).forEach(id -> {
+                        errores.add(id);
+                    });
+                    corregidos.subList(corregidos.size() - enBatch, corregidos.size()).clear();
+                }
+                batch = firestore.batch();
+                enBatch = 0;
+            }
+        }
+        if (enBatch > 0) {
+            try {
+                batch.commit().get();
+            } catch (ExecutionException ex) {
+                corregidos.subList(corregidos.size() - enBatch, corregidos.size()).forEach(id -> {
+                    errores.add(id);
+                });
+                corregidos.subList(corregidos.size() - enBatch, corregidos.size()).clear();
+            }
+        }
+        log.info("Limpieza usuarioActual: {} corregidos, {} errores de {} total", corregidos.size(), errores.size(), docs.size());
+        Map<String, Object> resultado = new LinkedHashMap<>();
+        resultado.put("totalEscaneados", docs.size());
+        resultado.put("corregidos", corregidos.size());
+        resultado.put("errores", errores.size());
+        resultado.put("idsCorregidos", corregidos);
+        if (!errores.isEmpty()) {
+            resultado.put("idsConError", errores);
+        }
+        return resultado;
     }
 
     private static void validarEscritura(String uuid, EscrituraHistorial escritura) {

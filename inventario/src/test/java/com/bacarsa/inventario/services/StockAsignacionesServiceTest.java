@@ -2,6 +2,7 @@ package com.bacarsa.inventario.services;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyMap;
@@ -111,6 +112,60 @@ class StockAsignacionesServiceTest {
 
         // Verifica que se haya actualizado a Activa en el repo de movimientos
         verify(movimientoStockRepository).update(anyString(), eq(Map.of("estado", "Activa")));
+    }
+
+    @Test
+    void asignarAArea_sinArea_falla() {
+        AsignarUnidadStockDTO dto = AsignarUnidadStockDTO.builder()
+                .asignacionTipo("AREA")
+                .area("   ")
+                .build();
+
+        assertThrows(IllegalArgumentException.class, () -> service.asignar("PC-01", dto, "usr-1"));
+    }
+
+    @Test
+    void asignarAArea_computadora_exitoso() throws Exception {
+        Computadora pcMock = new Computadora();
+        pcMock.setUuid("uuid-pc-1");
+        pcMock.setCodigoInterno("PC-10");
+        pcMock.setHostname("PC-GUARDIA");
+
+        FichaLectura ficha = FichaLectura.de(
+                ColeccionesStock.COMPUTADORAS,
+                "uuid-pc-1",
+                "PC-10",
+                "PC",
+                null,
+                "desktop",
+                "Dell",
+                "OptiPlex",
+                "SN-0001",
+                "Usado",
+                "SIN_ASIGNAR",
+                "2026-09-01",
+                "DEPOSITO");
+        when(stockUnidadesService.leerFichas()).thenReturn(List.of(ficha));
+
+        AsignarUnidadStockDTO dto = AsignarUnidadStockDTO.builder()
+                .asignacionTipo("AREA")
+                .area("MONITOREO")
+                .motivo("Puesto de guardia de seguridad")
+                .build();
+
+        MovimientoStockDTO res = service.asignar("PC-10", dto, "usr-soporte");
+
+        assertNotNull(res);
+        assertEquals("Activa", res.getEstado());
+
+        ArgumentCaptor<Map<String, Object>> pcCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(computadoraRepository).mergeUpdates(eq("uuid-pc-1"), pcCaptor.capture());
+        Map<String, Object> pcMap = pcCaptor.getValue();
+        assertNull(pcMap.get("responsable_inventario"));
+        assertEquals("MONITOREO", pcMap.get("ubicacion"));
+        assertEquals(false, pcMap.get("en_deposito"));
+
+
     }
 
     @Test
@@ -237,6 +292,56 @@ class StockAsignacionesServiceTest {
         assertEquals(2, lista.size());
         assertEquals("TEC-05", lista.get(0).getCodigo()); // Ordenado por fecha desc
         assertEquals("NB-12", lista.get(1).getCodigo());
+    }
+
+    @Test
+    void listar_excluyeMovimientosDeBajaReactivacionYDevolucion() throws Exception {
+        MovimientoStock activa = new MovimientoStock();
+        activa.setId("mov-activa");
+        activa.setCodigo("PC-45");
+        activa.setTipo("Computadora");
+        activa.setResponsable("Cristian Siraveña");
+        activa.setArea("Sistemas");
+        activa.setAccion("Asignación");
+        activa.setEstado("Activa");
+        activa.setFecha("2026-10-21 10:00:00");
+
+        MovimientoStock auditReactivacion = new MovimientoStock();
+        auditReactivacion.setId("mov-react-audit");
+        auditReactivacion.setCodigo("PC-45");
+        auditReactivacion.setTipo("Desktop");
+        auditReactivacion.setAccion("REACTIVACION");
+        auditReactivacion.setTipoMovimiento("REACTIVACION");
+        auditReactivacion.setEstado("Registrado");
+        auditReactivacion.setFecha("2026-10-21 09:00:00");
+
+        MovimientoStock auditBaja = new MovimientoStock();
+        auditBaja.setId("mov-baja-audit");
+        auditBaja.setCodigo("PC-3");
+        auditBaja.setTipo("Desktop");
+        auditBaja.setAccion("BAJA");
+        auditBaja.setTipoMovimiento("BAJA");
+        auditBaja.setEstado("Registrado");
+        auditBaja.setFecha("2026-10-22 08:00:00");
+
+        MovimientoStock devolucion = new MovimientoStock();
+        devolucion.setId("mov-dev");
+        devolucion.setCodigo("NB-10");
+        devolucion.setTipo("Notebook");
+        devolucion.setAccion("Devolución");
+        devolucion.setTipoMovimiento("DEVOLUCION");
+        devolucion.setEstado("Finalizada");
+        devolucion.setFecha("2026-10-22 11:00:00");
+
+        when(movimientoStockRepository.findAll()).thenReturn(
+                List.of(activa, auditReactivacion, auditBaja, devolucion));
+
+        List<MovimientoStockDTO> lista = service.listar();
+
+        assertNotNull(lista);
+        assertEquals(1, lista.size());
+        assertEquals("PC-45", lista.get(0).getCodigo());
+        assertEquals("Cristian Siraveña", lista.get(0).getResponsable());
     }
 
     @Test
@@ -482,29 +587,16 @@ class StockAsignacionesServiceTest {
     }
 
     @Test
-    void listar_proyectaAccessPointsDeColeccionAccessPoints() throws Exception {
+    void listar_noProyectaAccessPointsDeColeccionAccessPoints() throws Exception {
         when(movimientoStockRepository.findAll()).thenReturn(List.of());
         when(perifericoManualRepository.findAll()).thenReturn(List.of());
         when(computadoraRepository.findAll()).thenReturn(List.of());
         when(celularRepository.findAll()).thenReturn(List.of());
 
-        AccessPoint ap = new AccessPoint();
-        ap.setId("ap-eap");
-        ap.setCodigoInterno("AP-2");
-        ap.setNombre("EAP Adm 1");
-        ap.setModelo("EAP653");
-        ap.setUbicacion(UbicacionRed.ADMINISTRACION);
-        ap.setEstado("OPERATIVO");
-
-        when(accessPointRepository.findAll()).thenReturn(List.of(ap));
-
         List<MovimientoStockDTO> lista = service.listar();
 
         assertNotNull(lista);
-        assertEquals(1, lista.size());
-        assertEquals("AP-2", lista.get(0).getCodigo());
-        assertEquals("ADMINISTRACION", lista.get(0).getResponsable());
-        assertEquals("Access Point", lista.get(0).getTipo());
-        assertEquals("Activa", lista.get(0).getEstado());
+        assertTrue(lista.isEmpty());
+        org.mockito.Mockito.verifyNoInteractions(accessPointRepository);
     }
 }

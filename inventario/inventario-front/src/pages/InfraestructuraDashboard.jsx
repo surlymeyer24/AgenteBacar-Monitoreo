@@ -236,6 +236,7 @@ function InfraestructuraDashboard() {
   const maxCamarasNvr = Math.max(1, ...camarasPorNvrEntries.map(([, n]) => Number(n) || 0));
 
   const routersPorUbicacion = s.porUbicacionRouters ? Object.entries(s.porUbicacionRouters) : [];
+  const maxRouters = Math.max(1, ...routersPorUbicacion.map(([, n]) => Number(n) || 0));
   const switchesPorUbicacion = s.porUbicacionSwitches ? Object.entries(s.porUbicacionSwitches) : [];
   const maxSwitches = Math.max(1, ...switchesPorUbicacion.map(([, n]) => Number(n) || 0));
 
@@ -479,7 +480,7 @@ function InfraestructuraDashboard() {
 
                     {/* Dispositivo */}
                     <td className="py-3 px-3 whitespace-nowrap text-slate-600 font-medium">
-                      {tel.marcaModelo || 'Grandstream GXP1625'}
+                      {tel.marcaModelo || '—'}
                     </td>
 
                     {/* Nº Interno */}
@@ -589,9 +590,9 @@ function InfraestructuraDashboard() {
             </div>
 
             <div className="border-t border-slate-100 pt-3 flex items-center justify-between text-xs text-slate-500">
-              <span>Capacidad de Almacenamiento: 48TB RAID-6</span>
-              <span className="font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded">
-                Retención: 45 Días OK
+              <span>NVRs registrados: {totalNvrs}</span>
+              <span className="font-semibold text-slate-700">
+                {totalCamaras} cámaras totales
               </span>
             </div>
           </div>
@@ -653,27 +654,24 @@ function InfraestructuraDashboard() {
               Desglose distributivo del equipamiento de enrutamiento y borde.
             </p>
 
-            <div className="space-y-3">
-              {routersPorUbicacion.map(([ubicacion, cantRaw]) => {
+            <div className="space-y-3.5">
+              {routersPorUbicacion.map(([ubicacion, cantRaw], idx) => {
                 const cant = Number(cantRaw) || 0;
+                const barPct = (cant / maxRouters) * 100;
+                const color = BAR_COLORS[idx % BAR_COLORS.length];
                 return (
-                  <div
-                    key={ubicacion}
-                    className="p-3 bg-slate-50/70 border border-slate-200 rounded-lg space-y-2"
-                  >
+                  <div key={ubicacion} className="space-y-1">
                     <div className="flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-1.5 font-bold text-slate-800 uppercase">
-                        <Layers className="w-3.5 h-3.5 text-blue-600" />
-                        <span>{ubicacion}</span>
-                      </div>
-                      <span className="font-mono font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
-                        {cant}
-                      </span>
+                      <span className="font-semibold text-slate-800">{ubicacion}</span>
+                      <span className="font-mono font-bold text-slate-900">{cant} unid.</span>
                     </div>
-                    <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-blue-600 rounded-full"
-                        style={{ width: `${Math.min(100, cant * 50)}%` }}
+                    <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${barPct}%` }}
+                        transition={{ duration: 0.6, ease: 'easeOut' }}
+                        className="h-full rounded-full"
+                        style={{ backgroundColor: color }}
                       />
                     </div>
                   </div>
@@ -684,6 +682,13 @@ function InfraestructuraDashboard() {
                   No hay routers registrados por ubicación.
                 </p>
               )}
+            </div>
+
+            <div className="border-t border-slate-100 pt-3 flex items-center justify-between text-xs text-slate-500">
+              <span>Routers registrados: {totalRouters}</span>
+              <span className="font-semibold text-slate-700">
+                {routersPorUbicacion.length} ubicaciones
+              </span>
             </div>
           </div>
 
@@ -735,8 +740,10 @@ function InfraestructuraDashboard() {
             </div>
 
             <div className="border-t border-slate-100 pt-3 flex items-center justify-between text-xs text-slate-500">
-              <span>Puertos PoE Utilizados: 184 / 240</span>
-              <span className="font-semibold text-slate-700">Carga Energética: 1.8 kW</span>
+              <span>Switches registrados: {totalSwitches}</span>
+              <span className="font-semibold text-slate-700">
+                {switchesPorUbicacion.length} ubicaciones
+              </span>
             </div>
           </div>
         </div>

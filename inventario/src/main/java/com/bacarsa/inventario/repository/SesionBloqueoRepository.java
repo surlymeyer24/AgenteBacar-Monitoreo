@@ -9,6 +9,8 @@ import java.util.concurrent.ExecutionException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
 
+import com.bacarsa.inventario.dto.ComputadoraSesionDTO;
+import com.bacarsa.inventario.mapper.ComputadoraSesionMapper;
 import com.bacarsa.inventario.models.SesionBloqueo;
 import com.google.api.core.ApiFuture;
 import com.google.cloud.Timestamp;
@@ -23,11 +25,14 @@ public class SesionBloqueoRepository {
 
     private final Firestore firestore;
     private final String collectionName;
+    private final String computadorasCollection;
 
     public SesionBloqueoRepository(Firestore firestore,
-            @Value("${firebase.collection.sesion_bloqueos}") String collectionName) {
+            @Value("${firebase.collection.sesion_bloqueos}") String collectionName,
+            @Value("${firebase.collection.computadoras:computadoras}") String computadorasCollection) {
         this.firestore = firestore;
         this.collectionName = collectionName;
+        this.computadorasCollection = computadorasCollection;
     }
 
     public void registrar(String computadoraId, String hostname, String ubicacion,
@@ -53,6 +58,20 @@ public class SesionBloqueoRepository {
         List<SesionBloqueo> result = new ArrayList<>();
         for (QueryDocumentSnapshot doc : future.get().getDocuments()) {
             result.add(snapshotToEntity(doc));
+        }
+        return result;
+    }
+
+    public List<ComputadoraSesionDTO> listarComputadorasSesion() throws ExecutionException, InterruptedException {
+        Query query = firestore.collection(computadorasCollection)
+                .select(ComputadoraSesionFields.ALL.toArray(new String[0]));
+        List<QueryDocumentSnapshot> docs = query.get().get().getDocuments();
+        List<ComputadoraSesionDTO> result = new ArrayList<>(docs.size());
+        for (QueryDocumentSnapshot doc : docs) {
+            ComputadoraSesionDTO dto = ComputadoraSesionMapper.fromSnapshot(doc);
+            if (dto != null) {
+                result.add(dto);
+            }
         }
         return result;
     }

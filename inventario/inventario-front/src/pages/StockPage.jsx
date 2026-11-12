@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Plus, Warehouse, ArrowLeftRight, Archive } from 'lucide-react';
 import { StudioLoading, StudioError } from '../components/studio/StudioUi';
@@ -14,9 +14,11 @@ import {
   ModalDevolver,
 } from '../components/stock/StockModals';
 import EditPcStockModal from '../components/EditPcStockModal';
+import { reactivarUnidadStock } from '../api/stockApi';
 import { useStockUnidades, useStockAsignaciones } from '../hooks/useQueries';
 import { useCatalogo } from '../hooks/useCatalogo';
 import { useEditPcStock } from '../hooks/useEditPcStock';
+import { useStockInvalidation } from '../hooks/useStockInvalidation';
 import { editPcStockModalProps } from '../utils/editPcStockModalProps';
 import { ModuleHeader, TabsCard } from '../components/layout';
 
@@ -63,6 +65,8 @@ export default function StockPage() {
     ubicCompItems,
   });
 
+  const { invalidarTodo } = useStockInvalidation();
+
   const [modalAltaOpen, setModalAltaOpen] = useState(false);
   const [modalEditarOpen, setModalEditarOpen] = useState(false);
   const [modalBajaOpen, setModalBajaOpen] = useState(false);
@@ -100,12 +104,57 @@ export default function StockPage() {
     setModalDevolverOpen(true);
   };
 
+  const handleReactivar = async (unidad) => {
+    if (!window.confirm(`¿Reactivar ${unidad.codigo || unidad.id} y devolverlo al depósito?`)) return;
+    try {
+      await reactivarUnidadStock(unidad.codigo || unidad.id);
+      await invalidarTodo();
+    } catch (err) {
+      alert(err.message || 'Error al reactivar la unidad');
+    }
+  };
+
+  const countDeposito = useMemo(() => {
+    return unidades.filter((u) => {
+      if ((u.cantidad ?? 1) <= 0) return false;
+      const e = (u.estadoDeposito || u.estado || '').toUpperCase();
+      return e === 'EN_DEPOSITO' || e === 'DISPONIBLE' || e === 'SIN_ASIGNAR' || e === 'EN_STOCK' || e === 'EN DEPOSITO';
+    }).length;
+  }, [unidades]);
+
+  const countAsignaciones = useMemo(() => {
+    return asignaciones.filter((m) => {
+      const estado = (m?.estado || '').trim().toLowerCase();
+      if (estado !== 'activa' && estado !== 'activo' && estado !== 'pendiente' && estado !== 'asignado') {
+        return false;
+      }
+      const accion = (m?.accion || '').trim().toLowerCase();
+      if (
+        accion.includes('baja') ||
+        accion.includes('reactiv') ||
+        accion.includes('devol') ||
+        accion === 'alta' ||
+        accion.includes('modific')
+      ) {
+        return false;
+      }
+      return true;
+    }).length;
+  }, [asignaciones]);
+
+  const countBajas = useMemo(() => {
+    return unidades.filter((u) => {
+      const e = (u.estadoDeposito || u.estado || '').toUpperCase();
+      return e.includes('BAJA') || e.includes('RETIR');
+    }).length;
+  }, [unidades]);
+
   return (
     <div className="flex flex-col space-y-4 pb-6 w-full">
       {/* Encabezado */}
       <ModuleHeader
         title="Depósito y Asignaciones"
-        badge={!loadingUnidades ? `${unidades.length} unidades` : null}
+        badge={!loadingUnidades ? `${countDeposito} en depósito` : null}
         description="Control de inventario, stock físico y bitácora de custodia."
         actions={
           currentTab === 'deposito' ? (
@@ -130,18 +179,19 @@ export default function StockPage() {
             key: 'deposito',
             label: 'Depósito',
             icon: <Warehouse className="w-4 h-4" />,
-            count: !loadingUnidades ? unidades.length : undefined,
+            count: !loadingUnidades ? countDeposito : undefined,
           },
           {
             key: 'asignaciones',
             label: 'Asignaciones',
             icon: <ArrowLeftRight className="w-4 h-4" />,
-            count: !loadingAsignaciones ? asignaciones.length : undefined,
+            count: !loadingAsignaciones ? countAsignaciones : undefined,
           },
           {
             key: 'bajas',
             label: 'Bajas',
             icon: <Archive className="w-4 h-4" />,
+            count: !loadingUnidades ? countBajas : undefined,
           },
         ]}
         activeTab={currentTab}
@@ -191,7 +241,7 @@ export default function StockPage() {
                 <StudioError message={errorUnidades?.message || 'Error al cargar unidades'} />
               )}
               {!loadingUnidades && (
-                <BajasTab unidades={unidades} asignaciones={asignaciones} />
+                <BajasTab unidades={unidades} asignaciones={asignaciones} onReactivar={handleReactivar} />
               )}
             </>
           )}

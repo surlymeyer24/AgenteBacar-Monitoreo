@@ -9,6 +9,7 @@ public final class ComputadoraListadoFields {
 
     public static final List<String> ALL = List.of(
             "hostname",
+            "codigo_interno",
             "tipo_equipo",
             "ubicacion",
             "sistema_operativo",
@@ -31,6 +32,10 @@ public final class ComputadoraListadoFields {
             "combo_esperado_id",
             "especificacion_esperada",
             "descripcion_stock",
-            "lote_origen_id"
+            "lote_origen_id",
+            "tiene_agente",
+            "primer_reporte_agente_at",
+            "asignacion_tipo",
+            "asignacionTipo"
     );
 }

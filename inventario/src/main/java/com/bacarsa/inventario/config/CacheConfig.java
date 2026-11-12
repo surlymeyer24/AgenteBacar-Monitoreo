@@ -20,6 +20,7 @@ public class CacheConfig {
     public CacheManager cacheManager() {
         SimpleCacheManager manager = new SimpleCacheManager();
         manager.setCaches(List.of(
+                buildCache("dashboard-stats", 120, 1),
                 buildCache("pc-listado", 60, 10),
                 buildCache("pc-detalle", 120, 500),
                 buildCache("pc-programas", 120, 500),
@@ -32,6 +33,7 @@ public class CacheConfig {
                 buildCache("maquinasTesoreria", 180, 500),
                 buildCache("internos", 180, 500),
                 buildCache("perifericosManuales", 180, 500),
+                buildCache("stockFichas", 180, 500),
                 buildCache("servidores", 180, 500),
                 buildCache("accessPoints", 180, 500),
                 buildCache("televisores", 180, 500),

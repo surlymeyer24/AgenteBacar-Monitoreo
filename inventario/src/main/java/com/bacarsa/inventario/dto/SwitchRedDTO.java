@@ -31,4 +31,5 @@ public class SwitchRedDTO {
     private String estado;
     private LocalDate fechaAlta;
     private List<CambioEstadoDTO> historialEstados;
+    private List<RenglonHistorialDTO> historial;
 }

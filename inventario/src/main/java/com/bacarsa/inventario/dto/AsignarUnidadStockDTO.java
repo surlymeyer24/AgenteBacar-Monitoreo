@@ -1,6 +1,5 @@
 package com.bacarsa.inventario.dto;
 
-import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -12,9 +11,16 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class AsignarUnidadStockDTO {
 
-    @NotBlank(message = "El nombre del responsable es obligatorio")
-    private String responsable;
+    /**
+     * Tipo de asignación: "PERSONA" o "AREA". Por defecto "PERSONA".
+     */
+    private String asignacionTipo;
 
+    private String responsable;
+    private String responsableId;
     private String area;
     private String motivo;
+
+    /** Unidades a asignar (null = 1). */
+    private Integer cantidad;
 }

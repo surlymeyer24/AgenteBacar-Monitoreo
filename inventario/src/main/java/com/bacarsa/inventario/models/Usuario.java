@@ -13,5 +13,8 @@ public class Usuario {
     private String email;
     private Rol rol;
     private boolean activo;
+    private String departamento;
+    private String cargo;
+    private String avatarColor;
 
 }

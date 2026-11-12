@@ -41,3 +41,9 @@ build/
 
 ### Contexto de sesión ###
 CLAUDE.local.md
+
+
+### Archivos de reconocimiento / sensibles ###
+computadoras.txt
+**/computadoras.txt
+.firebase/

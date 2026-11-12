@@ -18,6 +18,7 @@ import com.bacarsa.inventario.dto.RouterCreateDTO;
 import com.bacarsa.inventario.dto.RouterDTO;
 import com.bacarsa.inventario.services.RouterService;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
 @RestController
@@ -46,10 +47,12 @@ public class RouterController {
     }
 
     @PostMapping
-    public ResponseEntity<RouterDTO> crear(@RequestBody RouterCreateDTO body)
+    public ResponseEntity<RouterDTO> crear(
+            @RequestBody RouterCreateDTO body,
+            HttpServletRequest request)
             throws ExecutionException, InterruptedException {
         try {
-            RouterDTO creado = routerService.crear(body);
+            RouterDTO creado = routerService.crear(body, uid(request));
             return ResponseEntity.status(HttpStatus.CREATED).body(creado);
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().build();
@@ -59,9 +62,10 @@ public class RouterController {
     @PostMapping("/{id}/estado")
     public ResponseEntity<RouterDTO> cambiarEstado(
             @PathVariable String id,
-            @Valid @RequestBody CambiarEstadoDTO body) throws ExecutionException, InterruptedException {
+            @Valid @RequestBody CambiarEstadoDTO body,
+            HttpServletRequest request) throws ExecutionException, InterruptedException {
         try {
-            RouterDTO dto = routerService.cambiarEstado(id, body.getEstado(), body.getMotivo());
+            RouterDTO dto = routerService.cambiarEstado(id, body.getEstado(), body.getMotivo(), uid(request));
             if (dto == null) {
                 return ResponseEntity.notFound().build();
             }
@@ -74,10 +78,11 @@ public class RouterController {
     @org.springframework.web.bind.annotation.PutMapping("/{id}")
     public ResponseEntity<RouterDTO> actualizar(
             @PathVariable String id,
-            @Valid @RequestBody RouterCreateDTO dto)
+            @Valid @RequestBody RouterCreateDTO dto,
+            HttpServletRequest request)
             throws ExecutionException, InterruptedException {
         try {
-            RouterDTO actualizado = routerService.update(id, dto);
+            RouterDTO actualizado = routerService.update(id, dto, uid(request));
             return ResponseEntity.ok(actualizado);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
@@ -85,17 +90,29 @@ public class RouterController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> eliminar(@PathVariable String id)
+    public ResponseEntity<Void> eliminar(
+            @PathVariable String id,
+            HttpServletRequest request)
             throws ExecutionException, InterruptedException {
-        if (!routerService.eliminar(id)) {
+        if (!routerService.eliminar(id, uid(request))) {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id}/eliminar")
-    public ResponseEntity<Void> eliminarPost(@PathVariable String id)
+    public ResponseEntity<Void> eliminarPost(
+            @PathVariable String id,
+            HttpServletRequest request)
             throws ExecutionException, InterruptedException {
-        return eliminar(id);
+        return eliminar(id, request);
+    }
+
+    private static String uid(HttpServletRequest request) {
+        if (request == null) {
+            return null;
+        }
+        Object attr = request.getAttribute("firebaseUid");
+        return attr instanceof String s ? s : null;
     }
 }

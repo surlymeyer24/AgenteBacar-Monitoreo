@@ -2,6 +2,7 @@ package com.bacarsa.inventario.services;
 
 import java.time.Instant;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -9,6 +10,9 @@ import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.bacarsa.inventario.dto.CambiarEstadoDTO;
@@ -19,26 +23,43 @@ import com.bacarsa.inventario.dto.ComputadoraStockUpdateDTO;
 import com.bacarsa.inventario.dto.IngresarStockDTO;
 import com.bacarsa.inventario.mapper.ComputadoraMapper;
 import com.bacarsa.inventario.models.Computadora;
+import com.bacarsa.inventario.models.EstadoOperativo;
 import com.bacarsa.inventario.models.DispositivoAudioFirestore;
 import com.bacarsa.inventario.models.DispositivoUsbFirestore;
 import com.bacarsa.inventario.models.ImpresoraFirestore;
 import com.bacarsa.inventario.models.MonitorFirestore;
+import com.bacarsa.inventario.models.StockFicha;
 import com.bacarsa.inventario.models.Ubicacion;
 import com.bacarsa.inventario.repository.ComputadoraRepository;
+import com.bacarsa.inventario.repository.StockFichaRepository;
+import com.bacarsa.inventario.util.UsuarioSesionHelper;
+import com.google.cloud.Timestamp;
 
 @Service
 public class ComputadoraService {
 
+    private static final Logger log = LoggerFactory.getLogger(ComputadoraService.class);
+
     private final ComputadoraRepository computadoraRepository;
     private final ResponsableService responsableService;
     private final ComputadoraHistorialService historialService;
+    private final StockFichaRepository stockFichaRepository;
 
     public ComputadoraService(ComputadoraRepository computadoraRepository,
             ResponsableService responsableService,
             ComputadoraHistorialService historialService) {
+        this(computadoraRepository, responsableService, historialService, null);
+    }
+
+    @Autowired
+    public ComputadoraService(ComputadoraRepository computadoraRepository,
+            ResponsableService responsableService,
+            ComputadoraHistorialService historialService,
+            @Autowired(required = false) StockFichaRepository stockFichaRepository) {
         this.computadoraRepository = computadoraRepository;
         this.responsableService = responsableService;
         this.historialService = historialService;
+        this.stockFichaRepository = stockFichaRepository;
     }
 
     public List<ComputadoraListadoDTO> getAllComputadoras() throws ExecutionException, InterruptedException {
@@ -160,6 +181,12 @@ public class ComputadoraService {
         if (dto.getUbicacionStock() != null) {
             cuerpo.put("ubicacionStock", dto.getUbicacionStock());
         }
+        if (dto.getNotas() != null) {
+            cuerpo.put("notas", dto.getNotas());
+        }
+        if (dto.getComentarios() != null) {
+            cuerpo.put("comentarios", dto.getComentarios());
+        }
         historialService.editarFicha(uuid, cuerpo, uid);
         return getByUuid(uuid);
     }
@@ -245,7 +272,48 @@ public class ComputadoraService {
         String riAnterior = pc.getResponsableInventario();
         String hostname = pc.getHostname();
         String ubicacionPc = pc.getUbicacion() == null ? null : pc.getUbicacion().name();
-        historialService.editarFicha(uuid, cuerpo, uid);
+        sincronizarStockFicha(uuid, cuerpo);
+
+        String estadoActualNombre = pc.getEstadoActual() != null ? pc.getEstadoActual().getNombre() : null;
+        boolean estadoBloqueado = esBajaOMantenimiento(estadoActualNombre);
+
+        if (!estadoBloqueado) {
+            String nuevoResp = cuerpo != null && cuerpo.containsKey("responsableInventario")
+                    ? blankToNull(String.valueOf(cuerpo.get("responsableInventario")))
+                    : pc.getResponsableInventario();
+            String nuevaUbi = cuerpo != null && cuerpo.containsKey("ubicacion")
+                    ? blankToNull(String.valueOf(cuerpo.get("ubicacion")))
+                    : (pc.getUbicacion() != null ? pc.getUbicacion().name() : null);
+            String tipoAsig = cuerpo != null && cuerpo.containsKey("asignacionTipo")
+                    ? blankToNull(String.valueOf(cuerpo.get("asignacionTipo")))
+                    : pc.getAsignacionTipo();
+            String userActual = UsuarioSesionHelper.limpiar(pc.getUsuarioActual());
+            boolean enDep = Boolean.TRUE.equals(pc.getEnDeposito());
+
+            boolean tieneResp = nuevoResp != null && !nuevoResp.isBlank() && !UsuarioSesionHelper.esUsuarioSistema(nuevoResp);
+            boolean ubicacionValida = nuevaUbi != null && !nuevaUbi.isBlank()
+                    && !"DEPOSITO".equalsIgnoreCase(nuevaUbi.trim())
+                    && !"STOCK".equalsIgnoreCase(nuevaUbi.trim())
+                    && !enDep;
+            boolean tieneUserSesionValido = userActual != null && !userActual.isBlank() && !UsuarioSesionHelper.esUsuarioSistema(userActual);
+
+            boolean deberiaEstarAsignada = tieneResp
+                    || ("AREA".equalsIgnoreCase(tipoAsig) && ubicacionValida)
+                    || (ubicacionValida && (tieneResp || tieneUserSesionValido || tipoAsig == null || "AREA".equalsIgnoreCase(tipoAsig)));
+
+            boolean esActualmenteAsignada = EstadoOperativo.ASIGNADA.getNombre().equalsIgnoreCase(estadoActualNombre);
+
+            if (deberiaEstarAsignada && !esActualmenteAsignada) {
+                historialService.cambiarEstado(uuid, "ASIGNADA", "Asignación automática por actualización de ficha", cuerpo, uid);
+            } else if (!deberiaEstarAsignada && esActualmenteAsignada) {
+                historialService.cambiarEstado(uuid, "SIN_ASIGNAR", "Pase a stock por actualización de ficha", cuerpo, uid);
+            } else {
+                historialService.editarFicha(uuid, cuerpo, uid);
+            }
+        } else {
+            historialService.editarFicha(uuid, cuerpo, uid);
+        }
+
         ComputadoraDTO result = getByUuid(uuid);
         if (cuerpo != null && cuerpo.containsKey("responsableInventario")) {
             responsableService.sincronizarAsignacionPc(
@@ -334,14 +402,62 @@ public class ComputadoraService {
         return true;
     }
 
-    /**
-     * Envía un comando a múltiples PCs. No valida existencia individual — mismo comportamiento
-     * que el batch original del front. Retorna la cantidad de documentos escritos.
-     */
+    private void sincronizarStockFicha(String uuid, Map<String, Object> cuerpo) {
+        if (cuerpo == null || stockFichaRepository == null) return;
+        try {
+            StockFicha ficha = stockFichaRepository.findById(uuid);
+            if (ficha == null) {
+                // buscar por ref_origen
+                for (StockFicha f : stockFichaRepository.findAll()) {
+                    if (f != null && ("computadoras/" + uuid).equalsIgnoreCase(f.getRefOrigen())) {
+                        ficha = f;
+                        break;
+                    }
+                }
+            }
+
+            if (ficha != null) {
+                if (cuerpo.containsKey("condicion") && cuerpo.get("condicion") != null) {
+                    ficha.setCondicion(String.valueOf(cuerpo.get("condicion")).trim());
+                }
+                if (cuerpo.containsKey("ubicacion") && cuerpo.get("ubicacion") != null) {
+                    ficha.setUbicacion(String.valueOf(cuerpo.get("ubicacion")).trim());
+                }
+
+                String asignacionTipo = null;
+                if (cuerpo.containsKey("asignacionTipo") && cuerpo.get("asignacionTipo") != null) {
+                    asignacionTipo = String.valueOf(cuerpo.get("asignacionTipo")).trim().toUpperCase();
+                }
+
+                if ("AREA".equals(asignacionTipo)) {
+                    ficha.setEstado("ASIGNADA");
+                    ficha.setResponsableNombre(null);
+                    ficha.setResponsableId(null);
+                    if (cuerpo.get("ubicacion") != null) {
+                        ficha.setArea(String.valueOf(cuerpo.get("ubicacion")).trim());
+                    }
+                } else if ("PERSONA".equals(asignacionTipo)) {
+                    ficha.setEstado("ASIGNADA");
+                    Object ri = cuerpo.get("responsableInventario");
+                    ficha.setResponsableNombre(ri != null ? String.valueOf(ri).trim() : null);
+                }
+                ficha.setUpdatedAt(Timestamp.now());
+                stockFichaRepository.save(ficha);
+            }
+        } catch (Exception ex) {
+            log.warn("Stock Ficha: no se pudo sincronizar ficha para uuid={}: {}", uuid, ex.getMessage());
+        }
+    }
+
     public int enviarComandoMasivo(List<String> uuids, String comando) throws ExecutionException, InterruptedException {
         return computadoraRepository.enviarComandoMasivo(uuids, comando);
     }
+    private static boolean esBajaOMantenimiento(String estadoNombre) {
+        if (estadoNombre == null || estadoNombre.isBlank()) {
+            return false;
+        }
+        String u = estadoNombre.trim().toUpperCase(java.util.Locale.ROOT);
+        return u.contains("BAJA") || u.contains("MANTENIMIENTO");
+    }
+
 }
-
-
-

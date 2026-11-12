@@ -11,6 +11,7 @@ public class ComputadoraListadoDTO {
 
     private String uuid;
     private String hostname;
+    private String codigoInterno;
     private String tipoEquipo;
     private String usuarioActual;
     private String ubicacion;
@@ -22,6 +23,7 @@ public class ComputadoraListadoDTO {
     private String ultimaSincronizacion;
     private String procesadorNombre;
     private String responsableInventario;
+    private String asignacionTipo;
     private String anydeskId;
     private String ubicacionStock;
     private String condicion;
@@ -34,4 +36,5 @@ public class ComputadoraListadoDTO {
     private EspecificacionStockDTO especificacionEsperada;
     private String descripcionStock;
     private String loteOrigenId;
+    private Boolean tieneAgente;
 }

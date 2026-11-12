@@ -54,15 +54,22 @@ public class PerifericoManual {
 
     private Estado estadoActual;
     private List<CambioEstado> historialEstados;
+    /** Historial inmutable append-only. */
+    private List<RenglonHistorial> historial;
     private String condicion;
     private String responsable;
     private String comentarios;
 
     public PerifericoManual() {
         this.historialEstados = new ArrayList<>();
+        this.historial = new ArrayList<>();
     }
 
     public Estado getEstadoActual() {
+        if (estadoActual != null && estadoActual.getNombre() != null
+                && !estadoActual.getNombre().isBlank()) {
+            return estadoActual;
+        }
         if (historialEstados != null) {
             for (CambioEstado cambio : historialEstados) {
                 if (cambio.esEstadoActual()) {

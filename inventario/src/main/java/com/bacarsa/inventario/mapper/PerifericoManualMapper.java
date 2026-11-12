@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 
 import com.bacarsa.inventario.dto.PerifericoManualDTO;
+import com.bacarsa.inventario.historial.HistorialLectura;
 import com.bacarsa.inventario.models.PerifericoManual;
 
 public class PerifericoManualMapper {
@@ -14,6 +15,9 @@ public class PerifericoManualMapper {
         if (p == null) return null;
         PerifericoManualDTO dto = new PerifericoManualDTO();
         dto.setId(p.getId());
+        dto.setCodigoInterno(p.getCodigoInterno());
+        dto.setResponsable(p.getResponsable());
+        dto.setCondicion(p.getCondicion());
         dto.setTipo(p.getTipo());
         dto.setCantidad(p.getCantidad());
         dto.setNombre(p.getNombre());
@@ -31,6 +35,7 @@ public class PerifericoManualMapper {
         dto.setNumeroSerie(p.getNumeroSerie());
         dto.setLoteOrigenId(p.getLoteOrigenId());
         dto.setHistorialEstados(CambioEstadoMapper.toDTOList(p.getHistorialEstados()));
+        dto.setHistorial(HistorialLectura.aDtoOrdenado(p.getHistorial()));
         return dto;
     }
 

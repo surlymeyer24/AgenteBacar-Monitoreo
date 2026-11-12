@@ -3,6 +3,7 @@ package com.bacarsa.inventario.services;
 public final class ColeccionesStock {
 
     public static final String COMPUTADORAS = "computadoras";
+    public static final String STOCK_FICHAS = "stock_fichas";
     public static final String PERIFERICOS_MANUALES = "perifericos_manuales";
     public static final String CELULARES = "celulares";
     public static final String CAMARAS = "camaras";

@@ -1,22 +1,28 @@
 package com.bacarsa.inventario.repository;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.function.BiFunction;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Repository;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.ExecutionException;
+
+import com.bacarsa.inventario.historial.EscrituraHistorial;
+import com.bacarsa.inventario.historial.HistorialLectura;
 import com.bacarsa.inventario.models.Nvr;
 import com.google.api.core.ApiFuture;
+import com.google.cloud.Timestamp;
+import com.google.cloud.firestore.DocumentReference;
 import com.google.cloud.firestore.DocumentSnapshot;
+import com.google.cloud.firestore.FieldValue;
+import com.google.cloud.firestore.Firestore;
 import com.google.cloud.firestore.QueryDocumentSnapshot;
 import com.google.cloud.firestore.QuerySnapshot;
-import com.google.cloud.firestore.DocumentReference;
-
-import com.google.cloud.firestore.Firestore;
-
-
 
 @Repository
 public class NvrRepository {
@@ -50,24 +56,63 @@ public class NvrRepository {
         return snapshotToNvr(doc);
     }
 
-    private Nvr snapshotToNvr(DocumentSnapshot doc) {
-        Nvr nvr = doc.toObject(Nvr.class);
-        if (nvr != null) {
-            nvr.setId(doc.getId());
-        }
-        return nvr;
-    }
-
     @CacheEvict(value = "nvrs", allEntries = true)
     public void guardarConId(String id, Nvr nvr) throws ExecutionException, InterruptedException {
         DocumentReference docRef = firestore.collection(collectionName).document(id);
-        nvr.setId(id); // Aseguramos que el ID del objeto coincida con el ID del documento
-        docRef.set(nvr).get(); // Esperamos a que se complete la operación
+        nvr.setId(id);
+        docRef.set(nvr).get();
     }
 
     @CacheEvict(value = "nvrs", allEntries = true)
-    public void update(String id, java.util.Map<String, Object> campos) throws ExecutionException, InterruptedException {
+    public void aplicarHistorial(String id, BiFunction<Map<String, Object>, Timestamp, EscrituraHistorial> plan)
+            throws ExecutionException, InterruptedException {
+        DocumentReference ref = firestore.collection(collectionName).document(id);
+        try {
+            firestore.runTransaction(transaction -> {
+                DocumentSnapshot doc = transaction.get(ref).get();
+                Map<String, Object> data = doc.exists() ? doc.getData() : null;
+                EscrituraHistorial escritura = plan.apply(data, Timestamp.now());
+                if (escritura.modo() == EscrituraHistorial.Modo.NADA) {
+                    return null;
+                }
+                Map<String, Object> campos = conBorrados(escritura.campos());
+                if (!doc.exists()) {
+                    if (escritura.modo() != EscrituraHistorial.Modo.CREAR_CON_HISTORIAL) {
+                        throw new IllegalArgumentException("NVR no encontrada: " + id);
+                    }
+                    transaction.set(ref, campos);
+                } else {
+                    transaction.update(ref, campos);
+                }
+                return null;
+            }).get();
+        } catch (ExecutionException ex) {
+            Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
+            if (cause instanceof RuntimeException re) throw re;
+            throw ex;
+        }
+    }
+
+    private static Map<String, Object> conBorrados(Map<String, Object> campos) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> entry : campos.entrySet()) {
+            out.put(entry.getKey(), entry.getValue() == null ? FieldValue.delete() : entry.getValue());
+        }
+        return out;
+    }
+
+    @CacheEvict(value = "nvrs", allEntries = true)
+    public void update(String id, Map<String, Object> campos) throws ExecutionException, InterruptedException {
         DocumentReference docRef = firestore.collection(collectionName).document(id);
         docRef.update(campos).get();
+    }
+
+    private static Nvr snapshotToNvr(DocumentSnapshot doc) {
+        Nvr nvr = doc.toObject(Nvr.class);
+        if (nvr != null) {
+            nvr.setId(doc.getId());
+            nvr.setHistorial(HistorialLectura.desdeDocumento(doc.getData()));
+        }
+        return nvr;
     }
 }

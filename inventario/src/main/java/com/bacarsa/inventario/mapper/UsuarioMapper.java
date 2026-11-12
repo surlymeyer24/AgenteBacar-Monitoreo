@@ -19,6 +19,9 @@ public class UsuarioMapper {
         dto.setEmail(usuario.getEmail());
         dto.setRol(usuario.getRol() == null ? null : usuario.getRol().name());
         dto.setActivo(usuario.isActivo());
+        dto.setDepartamento(usuario.getDepartamento());
+        dto.setCargo(usuario.getCargo());
+        dto.setAvatarColor(usuario.getAvatarColor());
         dto.setTienePerfil(true);
         dto.setEnAuth(false);
         return dto;
@@ -34,6 +37,9 @@ public class UsuarioMapper {
         u.setEmail(dto.getEmail());
         u.setRol(dto.getRol() == null ? null : Rol.valueOf(dto.getRol()));
         u.setActivo(true);
+        u.setDepartamento(dto.getDepartamento());
+        u.setCargo(dto.getCargo());
+        u.setAvatarColor(dto.getAvatarColor());
         return u;
     }
 

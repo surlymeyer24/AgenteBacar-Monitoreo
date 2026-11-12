@@ -19,6 +19,8 @@ public class UnidadStockDTO {
     private String fechaIngreso;
     private String ubicacion;
     private Integer cantidad;
+    private String loteOrigen;
     private String comentarios;
     private String descripcionCompleta;
+    private String tipoEquipo;
 }

@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -23,5 +24,10 @@ public class StockAsignacionesController {
     @GetMapping
     public ResponseEntity<List<MovimientoStockDTO>> listar() {
         return ResponseEntity.ok(stockAsignacionesService.listar());
+    }
+
+    @GetMapping("/{codigo}/historial")
+    public ResponseEntity<List<MovimientoStockDTO>> historial(@PathVariable String codigo) {
+        return ResponseEntity.ok(stockAsignacionesService.listarMovimientosPorCodigo(codigo));
     }
 }

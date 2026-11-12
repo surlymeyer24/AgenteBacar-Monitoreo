@@ -4,7 +4,6 @@ import {
   BarChart2,
   QrCode,
   ArrowLeftRight,
-  ShieldAlert,
   Monitor,
   Printer,
   MonitorSpeaker,
@@ -30,16 +29,12 @@ import {
   UserCog,
   BookOpen,
   Terminal,
-  FlaskConical,
   Sliders,
 } from 'lucide-react';
-import AdminGate from './AdminGate';
-import { useEventosHardwarePendientesCount, useConciliacionesPendientesCount } from '../hooks/useQueries';
+import { useConciliacionesPendientesCount } from '../hooks/useQueries';
 
 export default function SidebarNav({ sidebarCollapsed, onMobileClose }) {
   const location = useLocation();
-  const { data: pendientesData } = useEventosHardwarePendientesCount();
-  const pendientesCount = pendientesData?.count ?? 7;
   const { data: conciliacionesData } = useConciliacionesPendientesCount();
   const conciliacionesCount = conciliacionesData?.count ?? 3;
 
@@ -87,16 +82,6 @@ export default function SidebarNav({ sidebarCollapsed, onMobileClose }) {
         {conciliacionesCount > 0 && (
           <span className="nav-badge w-4.5 h-4.5 rounded-full text-[10px] font-bold bg-blue-600 text-white flex items-center justify-center shrink-0">
             {conciliacionesCount}
-          </span>
-        )}
-      </NavLink>
-
-      <NavLink onClick={onMobileClose} to="/eventos-hardware" title="Auditoría HW" className={navItemClass}>
-        <ShieldAlert className="w-4 h-4 shrink-0" />
-        <span className="nav-link-text truncate flex-1">Auditoría HW</span>
-        {pendientesCount > 0 && (
-          <span className="nav-badge w-4.5 h-4.5 rounded-full text-[10px] font-bold bg-amber-600 text-white flex items-center justify-center shrink-0">
-            {pendientesCount}
           </span>
         )}
       </NavLink>
@@ -252,13 +237,6 @@ export default function SidebarNav({ sidebarCollapsed, onMobileClose }) {
         <Sliders className="w-4 h-4 shrink-0" />
         <span className="nav-link-text truncate">Configuración</span>
       </NavLink>
-
-      <AdminGate>
-        <NavLink onClick={onMobileClose} to="/investigacion" title="Investigación" className={navItemClass}>
-          <FlaskConical className="w-4 h-4 shrink-0" />
-          <span className="nav-link-text truncate">Investigación</span>
-        </NavLink>
-      </AdminGate>
     </nav>
   );
 }

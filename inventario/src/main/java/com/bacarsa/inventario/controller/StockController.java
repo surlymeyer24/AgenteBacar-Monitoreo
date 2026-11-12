@@ -104,6 +104,18 @@ public class StockController {
         }
     }
 
+    @PostMapping("/{codigo}/reactivar")
+    public ResponseEntity<UnidadStockDTO> reactivar(
+            @PathVariable String codigo,
+            HttpServletRequest request) throws Exception {
+        try {
+            UnidadStockDTO reactivado = stockAbmService.reactivar(codigo, uid(request));
+            return ResponseEntity.ok(reactivado);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
     @PostMapping("/{codigo}/devolver")
     public ResponseEntity<MovimientoStockDTO> devolver(
             @PathVariable String codigo,

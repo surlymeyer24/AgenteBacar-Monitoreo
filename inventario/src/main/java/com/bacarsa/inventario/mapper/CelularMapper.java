@@ -1,6 +1,7 @@
 package com.bacarsa.inventario.mapper;
 
 import com.bacarsa.inventario.dto.CelularDTO;
+import com.bacarsa.inventario.historial.HistorialLectura;
 import com.bacarsa.inventario.models.Celular;
 
 public class CelularMapper {
@@ -22,6 +23,7 @@ public class CelularMapper {
         dto.setResponsable(celular.getResponsable());
         dto.setArea(celular.getArea());
         dto.setEstado(celular.getEstado());
+        dto.setHistorial(HistorialLectura.aDtoOrdenado(celular.getHistorial()));
         return dto;
     }
 }

@@ -30,3 +30,25 @@ export function getUbicacionStock(pc) {
 export function puedeArmarPcStock(pc) {
   return pc.origenAlta === 'STOCK' && pc.estadoPreparacion === 'SIN_ARMAR';
 }
+
+export function formatearNombreEquipo(item) {
+  if (!item) return '—';
+  const desc = item.descripcionCompleta || item.descripcionStock;
+  const marca = (item.marca || '').trim();
+  const modelo = (item.modelo || '').trim();
+
+  let mm = [marca, modelo].filter(Boolean).join(' ');
+  if (marca && modelo && marca.toLowerCase() === modelo.toLowerCase()) {
+    mm = marca;
+  }
+
+  const esGenerico = !mm || /pc\s*clon/i.test(mm);
+
+  if (desc && esGenerico) {
+    return desc;
+  }
+  if (desc && mm) {
+    return `${mm} · ${desc}`;
+  }
+  return desc || mm || item.tipo || '—';
+}

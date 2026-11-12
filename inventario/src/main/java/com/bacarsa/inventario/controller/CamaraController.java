@@ -24,6 +24,8 @@ import com.bacarsa.inventario.dto.CambiarEstadoDTO;
 import com.bacarsa.inventario.dto.UbicacionUpdateDTO;
 import com.bacarsa.inventario.dto.NvrASignacionDTO;
 
+import jakarta.servlet.http.HttpServletRequest;
+
 @RestController
 @RequestMapping("/api/camaras")
 public class CamaraController {
@@ -64,10 +66,12 @@ public class CamaraController {
     }
 
     @PostMapping
-    public ResponseEntity<CamaraDTO> crear(@RequestBody CamaraCreateDTO body)
+    public ResponseEntity<CamaraDTO> crear(
+            @RequestBody CamaraCreateDTO body,
+            HttpServletRequest request)
             throws ExecutionException, InterruptedException {
         try {
-            CamaraDTO creada = camaraService.crear(body);
+            CamaraDTO creada = camaraService.crear(body, uid(request));
             return ResponseEntity.status(HttpStatus.CREATED).body(creada);
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().build();
@@ -77,10 +81,11 @@ public class CamaraController {
     @org.springframework.web.bind.annotation.PutMapping("/{id}")
     public ResponseEntity<CamaraDTO> actualizar(
             @PathVariable String id,
-            @Valid @RequestBody CamaraCreateDTO dto)
+            @Valid @RequestBody CamaraCreateDTO dto,
+            HttpServletRequest request)
             throws ExecutionException, InterruptedException {
         try {
-            CamaraDTO actualizado = camaraService.update(id, dto);
+            CamaraDTO actualizado = camaraService.update(id, dto, uid(request));
             return ResponseEntity.ok(actualizado);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
@@ -90,9 +95,10 @@ public class CamaraController {
     @PostMapping("/{id}/ubicacion")
     public ResponseEntity<CamaraDTO> actualizarUbicacion(
             @PathVariable String id,
-            @Valid @RequestBody UbicacionUpdateDTO body) throws ExecutionException, InterruptedException {
+            @Valid @RequestBody UbicacionUpdateDTO body,
+            HttpServletRequest request) throws ExecutionException, InterruptedException {
         try {
-            CamaraDTO dto = camaraService.actualizarUbicacion(id, body.getUbicacion());
+            CamaraDTO dto = camaraService.actualizarUbicacion(id, body.getUbicacion(), uid(request));
             if (dto == null) {
                 return ResponseEntity.notFound().build();
             }
@@ -105,9 +111,10 @@ public class CamaraController {
     @PostMapping("/{id}/estado")
     public ResponseEntity<CamaraDTO> cambiarEstado(
             @PathVariable String id,
-            @Valid @RequestBody CambiarEstadoDTO body) throws ExecutionException, InterruptedException {
+            @Valid @RequestBody CambiarEstadoDTO body,
+            HttpServletRequest request) throws ExecutionException, InterruptedException {
         try {
-            CamaraDTO dto = camaraService.cambiarEstado(id, body.getEstado(), body.getMotivo());
+            CamaraDTO dto = camaraService.cambiarEstado(id, body.getEstado(), body.getMotivo(), uid(request));
             if (dto == null) {
                 return ResponseEntity.notFound().build();
             }
@@ -120,8 +127,9 @@ public class CamaraController {
     @PostMapping("/{id}/nvr")
     public ResponseEntity<CamaraDTO> asignarNvr(
             @PathVariable String id,
-            @RequestBody NvrASignacionDTO body) throws ExecutionException, InterruptedException {
-        CamaraDTO dto = camaraService.asignarNvr(id, body != null ? body.getNvrId() : null);
+            @RequestBody NvrASignacionDTO body,
+            HttpServletRequest request) throws ExecutionException, InterruptedException {
+        CamaraDTO dto = camaraService.asignarNvr(id, body != null ? body.getNvrId() : null, uid(request));
         if (dto == null) {
             return ResponseEntity.notFound().build();
         }
@@ -129,9 +137,19 @@ public class CamaraController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> eliminar(@PathVariable String id)
+    public ResponseEntity<Void> eliminar(
+            @PathVariable String id,
+            HttpServletRequest request)
             throws ExecutionException, InterruptedException {
-        boolean ok = camaraService.eliminar(id);
+        boolean ok = camaraService.eliminar(id, uid(request));
         return ok ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();
+    }
+
+    private static String uid(HttpServletRequest request) {
+        if (request == null) {
+            return null;
+        }
+        Object attr = request.getAttribute("firebaseUid");
+        return attr instanceof String s ? s : null;
     }
 }

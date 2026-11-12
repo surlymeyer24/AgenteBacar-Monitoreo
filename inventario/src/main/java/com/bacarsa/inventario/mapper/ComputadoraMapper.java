@@ -12,6 +12,7 @@ import com.bacarsa.inventario.models.EstadoOperativo;
 import com.bacarsa.inventario.models.EstadoPreparacion;
 import com.bacarsa.inventario.models.EstadoReporteAgente;
 import com.bacarsa.inventario.util.FirestoreJsonHelper;
+import com.bacarsa.inventario.util.UsuarioSesionHelper;
 import com.google.cloud.Timestamp;
 
 
@@ -39,7 +40,8 @@ public class ComputadoraMapper {
         dto.setUuid(computadora.getUuid());
         dto.setHostname(computadora.getHostname());
         dto.setTipoEquipo(computadora.getTipoEquipo() != null ? computadora.getTipoEquipo().getTipo() : null);
-        dto.setUsuarioActual(computadora.getUsuarioActual());
+        String usuarioSesion = UsuarioSesionHelper.limpiar(computadora.getUsuarioActual());
+        dto.setUsuarioActual(usuarioSesion);
         dto.setUbicacion(computadora.getUbicacion() == null ? null : computadora.getUbicacion().name());
         dto.setSistemaOperativo(computadora.getSistemaOperativo());
         dto.setArquitectura(computadora.getArquitectura());
@@ -47,7 +49,7 @@ public class ComputadoraMapper {
             dto.setEstadoActual(computadora.getEstadoActual().getNombre());
         } else {
             dto.setEstadoActual(
-                EstadoOperativo.inferirAsignacionDesdeTexto(computadora.getUsuarioActual()).getNombre()
+                EstadoOperativo.inferirAsignacionDesdeTexto(usuarioSesion).getNombre()
             );
         }
         dto.setEstadoConexion(computadora.getEstadoConexion());
@@ -80,6 +82,16 @@ public class ComputadoraMapper {
                 Map<String, Object> saneado = (Map<String, Object>) FirestoreJsonHelper.toJsonFriendly(winVer);
                 dto.setWindowsVersionDetallada(saneado);
             }
+            if (computadora.getSoftwareCritico() != null && !computadora.getSoftwareCritico().isEmpty()) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> saneado = (Map<String, Object>) FirestoreJsonHelper.toJsonFriendly(computadora.getSoftwareCritico());
+                dto.setSoftwareCritico(saneado);
+            }
+            if (computadora.getWindowsUpdates() != null && !computadora.getWindowsUpdates().isEmpty()) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> saneado = (Map<String, Object>) FirestoreJsonHelper.toJsonFriendly(computadora.getWindowsUpdates());
+                dto.setWindowsUpdates(saneado);
+            }
         }
         dto.setHistorialEstados(CambioEstadoMapper.toDTOList(computadora.getHistorialEstados()));
         dto.setHistorial(HistorialLectura.aDtoOrdenado(computadora.getHistorial()));
@@ -102,8 +114,42 @@ public class ComputadoraMapper {
         dto.setLoteOrigenId(computadora.getLoteOrigenId());
         dto.setEspecificacionEsperada(EspecificacionStockMapper.toDTO(computadora.getEspecificacionEsperada()));
         dto.setDescripcionStock(computadora.getDescripcionStock());
-        dto.setUbicacionStock(extraerUbicacionStockVigente(computadora));
+        // Campo raíz primero (igual que el listado); el tramo abierto de historialEstados es respaldo.
+        dto.setUbicacionStock(computadora.getUbicacionStock() != null && !computadora.getUbicacionStock().isBlank()
+                ? computadora.getUbicacionStock()
+                : extraerUbicacionStockVigente(computadora));
+        dto.setTieneAgente(Boolean.TRUE.equals(computadora.getTieneAgente())
+                || computadora.getPrimerReporteAgenteAt() != null
+                || computadora.getUltimaSincronizacion() != null);
+
+        String respInv = computadora.getResponsableInventario();
+        String ubi = dto.getUbicacion();
+        boolean enDep = Boolean.TRUE.equals(computadora.getEnDeposito());
+        if (respInv != null && !respInv.isBlank() && !UsuarioSesionHelper.esUsuarioSistema(respInv)) {
+            dto.setAsignacionTipo("PERSONA");
+        } else if (ubi != null && !ubi.isBlank() && !"DEPOSITO".equalsIgnoreCase(ubi.trim()) && !"STOCK".equalsIgnoreCase(ubi.trim()) && !enDep) {
+            dto.setAsignacionTipo("AREA");
+        } else {
+            dto.setAsignacionTipo("SIN_ASIGNAR");
+        }
+
+        if (!esBajaOMantenimiento(dto.getEstadoActual())) {
+            if ("PERSONA".equals(dto.getAsignacionTipo()) || "AREA".equals(dto.getAsignacionTipo())) {
+                dto.setEstadoActual(EstadoOperativo.ASIGNADA.getNombre());
+            } else if ("SIN_ASIGNAR".equals(dto.getAsignacionTipo())) {
+                dto.setEstadoActual(EstadoOperativo.SIN_ASIGNAR.getNombre());
+            }
+        }
+
         return dto;
+    }
+
+    private static boolean esBajaOMantenimiento(String estado) {
+        if (estado == null || estado.isBlank()) {
+            return false;
+        }
+        String u = estado.trim().toUpperCase(java.util.Locale.ROOT);
+        return u.contains("BAJA") || u.contains("MANTENIMIENTO");
     }
 
     private static String extraerUbicacionStockVigente(Computadora computadora) {

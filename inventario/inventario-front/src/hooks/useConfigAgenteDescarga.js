@@ -68,8 +68,12 @@ const defaultState = {
 
 /**
  * Lee en tiempo real el documento Firestore {@code config/agente_hw}.
- * Campos reconocidos: {@code url_descarga} (o {@code url}, {@code download_url}),
- * {@code version} (o {@code version_publicada}), opcional {@code nombre_archivo}.
+ *
+ * Campos canónicos: {@code url_descarga}, {@code version}, {@code nombre_archivo}.
+ * Legacy aliases ({@code url}, {@code download_url}, {@code version_publicada},
+ * {@code version_agente_publicada}) se mantienen como fallback de lectura para
+ * docs que aún no fueron migrados; solo {@code url_descarga} y {@code version}
+ * deben usarse en escrituras nuevas.
  */
 export function useConfigAgenteDescarga() {
   const [state, setState] = useState(defaultState);
@@ -89,9 +93,10 @@ export function useConfigAgenteDescarga() {
       ref,
       snap => {
         const data = snap.exists() ? snap.data() : {};
-        const urlRaw = primerCampo(data, ['url_descarga', 'url', 'download_url']);
+        // Canonical → legacy fallback (para docs aún no migrados)
+        const urlRaw = trimStr(data.url_descarga) || primerCampo(data, ['url', 'download_url']);
         const urlDescarga = urlRaw || FALLBACK_URL;
-        const verRaw = primerCampo(data, ['version', 'version_publicada', 'version_agente_publicada']);
+        const verRaw = trimStr(data.version) || primerCampo(data, ['version_publicada', 'version_agente_publicada']);
         let versionEtiqueta = verRaw ? etiquetaVersion(verRaw) : inferirVersionDeUrl(urlDescarga);
         if (!versionEtiqueta) versionEtiqueta = etiquetaVersion(FALLBACK_VERSION);
         const nombreArchivo =

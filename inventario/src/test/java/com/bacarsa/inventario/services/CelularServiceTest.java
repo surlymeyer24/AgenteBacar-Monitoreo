@@ -9,7 +9,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
-import java.util.Map;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,6 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.bacarsa.inventario.dto.CelularCreateDTO;
 import com.bacarsa.inventario.models.Celular;
 import com.bacarsa.inventario.repository.CelularRepository;
+import com.bacarsa.inventario.repository.UsuarioRepository;
 
 @ExtendWith(MockitoExtension.class)
 class CelularServiceTest {
@@ -28,11 +28,14 @@ class CelularServiceTest {
     @Mock
     private CelularRepository celularRepository;
 
+    @Mock
+    private UsuarioRepository usuarioRepository;
+
     private CelularService service;
 
     @BeforeEach
     void setUp() {
-        service = new CelularService(celularRepository);
+        service = new CelularService(celularRepository, usuarioRepository);
     }
 
     @Test
@@ -72,19 +75,14 @@ class CelularServiceTest {
     }
 
     @Test
-    void updatePermiteElMismoImeiYGuardaCamposNuevos() throws Exception {
+    void updatePermiteElMismoImeiYAplicaHistorial() throws Exception {
         Celular existente = celular("cel-1", "123456");
         when(celularRepository.findById("cel-1")).thenReturn(existente);
         when(celularRepository.findAll()).thenReturn(List.of(existente));
 
         service.update("cel-1", request("123456", false, "usado", "Depósito", "en_stock"));
 
-        @SuppressWarnings("unchecked")
-        ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
-        verify(celularRepository).update(eq("cel-1"), captor.capture());
-        assertEquals(false, captor.getValue().get("con_cargador"));
-        assertEquals("usado", captor.getValue().get("condicion"));
-        assertEquals("123456", captor.getValue().get("imei"));
+        verify(celularRepository).aplicarHistorial(eq("cel-1"), any());
     }
 
     @Test
@@ -100,7 +98,7 @@ class CelularServiceTest {
                         "cel-1",
                         request("222222", true, "nuevo", "Depósito", "en_stock")));
 
-        verify(celularRepository, never()).update(eq("cel-1"), any());
+        verify(celularRepository, never()).aplicarHistorial(eq("cel-1"), any());
     }
 
     private static CelularCreateDTO request(

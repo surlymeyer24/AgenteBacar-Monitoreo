@@ -14,5 +14,8 @@ public class UsuarioUpdateDTO {
     /** ADMINISTRADOR, USUARIO o VISUALIZADOR. */
     private String rol;
     private Boolean activo;
+    private String departamento;
+    private String cargo;
+    private String avatarColor;
 
 }

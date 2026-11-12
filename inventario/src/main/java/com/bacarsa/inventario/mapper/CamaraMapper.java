@@ -45,6 +45,7 @@ public class CamaraMapper {
         dto.setNvrId(camara.getNvrId());
         dto.setUsuario(camara.getUsuario());
         dto.setPassword(camara.getPassword());
+        dto.setHistorial(com.bacarsa.inventario.historial.HistorialLectura.aDtoOrdenado(camara.getHistorial()));
         return dto;
     }
 

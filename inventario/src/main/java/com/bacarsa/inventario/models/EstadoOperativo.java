@@ -26,9 +26,13 @@ public enum EstadoOperativo {
      * se usa {@link #ASIGNADA}; si no, {@link #SIN_ASIGNAR}.
      */
     public static EstadoOperativo inferirAsignacionDesdeTexto(String textoAsignacion) {
-        if (textoAsignacion != null && !textoAsignacion.isBlank()) {
-            return ASIGNADA;
+        if (textoAsignacion == null || textoAsignacion.isBlank()) {
+            return SIN_ASIGNAR;
         }
-        return SIN_ASIGNAR;
+        String upper = textoAsignacion.trim().toUpperCase(java.util.Locale.ROOT);
+        if ("SYSTEM".equals(upper) || "LOCAL SERVICE".equals(upper) || "NETWORK SERVICE".equals(upper)) {
+            return SIN_ASIGNAR;
+        }
+        return ASIGNADA;
     }
 }

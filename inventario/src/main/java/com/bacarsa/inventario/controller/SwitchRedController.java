@@ -18,6 +18,7 @@ import com.bacarsa.inventario.dto.SwitchRedCreateDTO;
 import com.bacarsa.inventario.dto.SwitchRedDTO;
 import com.bacarsa.inventario.services.SwitchRedService;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
 @RestController
@@ -46,10 +47,12 @@ public class SwitchRedController {
     }
 
     @PostMapping
-    public ResponseEntity<SwitchRedDTO> crear(@RequestBody SwitchRedCreateDTO body)
+    public ResponseEntity<SwitchRedDTO> crear(
+            @RequestBody SwitchRedCreateDTO body,
+            HttpServletRequest request)
             throws ExecutionException, InterruptedException {
         try {
-            SwitchRedDTO creado = switchRedService.crear(body);
+            SwitchRedDTO creado = switchRedService.crear(body, uid(request));
             return ResponseEntity.status(HttpStatus.CREATED).body(creado);
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().build();
@@ -59,9 +62,10 @@ public class SwitchRedController {
     @PostMapping("/{id}/estado")
     public ResponseEntity<SwitchRedDTO> cambiarEstado(
             @PathVariable String id,
-            @Valid @RequestBody CambiarEstadoDTO body) throws ExecutionException, InterruptedException {
+            @Valid @RequestBody CambiarEstadoDTO body,
+            HttpServletRequest request) throws ExecutionException, InterruptedException {
         try {
-            SwitchRedDTO dto = switchRedService.cambiarEstado(id, body.getEstado(), body.getMotivo());
+            SwitchRedDTO dto = switchRedService.cambiarEstado(id, body.getEstado(), body.getMotivo(), uid(request));
             if (dto == null) {
                 return ResponseEntity.notFound().build();
             }
@@ -74,10 +78,11 @@ public class SwitchRedController {
     @org.springframework.web.bind.annotation.PutMapping("/{id}")
     public ResponseEntity<SwitchRedDTO> actualizar(
             @PathVariable String id,
-            @Valid @RequestBody SwitchRedCreateDTO dto)
+            @Valid @RequestBody SwitchRedCreateDTO dto,
+            HttpServletRequest request)
             throws ExecutionException, InterruptedException {
         try {
-            SwitchRedDTO actualizado = switchRedService.update(id, dto);
+            SwitchRedDTO actualizado = switchRedService.update(id, dto, uid(request));
             return ResponseEntity.ok(actualizado);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
@@ -85,18 +90,29 @@ public class SwitchRedController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> eliminar(@PathVariable String id)
+    public ResponseEntity<Void> eliminar(
+            @PathVariable String id,
+            HttpServletRequest request)
             throws ExecutionException, InterruptedException {
-        if (!switchRedService.eliminar(id)) {
+        if (!switchRedService.eliminar(id, uid(request))) {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.noContent().build();
     }
 
-    /** Alternativa POST para entornos que bloquean DELETE. */
     @PostMapping("/{id}/eliminar")
-    public ResponseEntity<Void> eliminarPost(@PathVariable String id)
+    public ResponseEntity<Void> eliminarPost(
+            @PathVariable String id,
+            HttpServletRequest request)
             throws ExecutionException, InterruptedException {
-        return eliminar(id);
+        return eliminar(id, request);
+    }
+
+    private static String uid(HttpServletRequest request) {
+        if (request == null) {
+            return null;
+        }
+        Object attr = request.getAttribute("firebaseUid");
+        return attr instanceof String s ? s : null;
     }
 }

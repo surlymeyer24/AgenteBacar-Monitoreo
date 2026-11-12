@@ -21,6 +21,7 @@ import com.bacarsa.inventario.dto.CelularCreateDTO;
 import com.bacarsa.inventario.dto.CelularDTO;
 import com.bacarsa.inventario.services.CelularService;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
 @RestController
@@ -51,10 +52,10 @@ public class CelularController {
     }
 
     @PostMapping
-    public ResponseEntity<?> crear(@Valid @RequestBody CelularCreateDTO body)
+    public ResponseEntity<?> crear(@Valid @RequestBody CelularCreateDTO body, HttpServletRequest request)
             throws ExecutionException, InterruptedException {
         try {
-            CelularDTO creado = celularService.crear(body);
+            CelularDTO creado = celularService.crear(body, uid(request));
             return ResponseEntity.status(HttpStatus.CREATED).body(creado);
         } catch (IllegalArgumentException ex) {
             return respuestaError(ex);
@@ -64,10 +65,11 @@ public class CelularController {
     @PutMapping("/{id}")
     public ResponseEntity<?> actualizar(
             @PathVariable String id,
-            @Valid @RequestBody CelularCreateDTO dto)
+            @Valid @RequestBody CelularCreateDTO dto,
+            HttpServletRequest request)
             throws ExecutionException, InterruptedException {
         try {
-            CelularDTO actualizado = celularService.update(id, dto);
+            CelularDTO actualizado = celularService.update(id, dto, uid(request));
             return ResponseEntity.ok(actualizado);
         } catch (IllegalArgumentException ex) {
             return respuestaError(ex);
@@ -95,5 +97,11 @@ public class CelularController {
     public ResponseEntity<Void> eliminarPost(@PathVariable String id)
             throws ExecutionException, InterruptedException {
         return eliminar(id);
+    }
+
+    private static String uid(HttpServletRequest request) {
+        if (request == null) return null;
+        Object uid = request.getAttribute("uid");
+        return uid == null ? null : String.valueOf(uid);
     }
 }

@@ -1,6 +1,7 @@
 package com.bacarsa.inventario.mapper;
 
 import com.bacarsa.inventario.dto.AccessPointDTO;
+import com.bacarsa.inventario.historial.HistorialLectura;
 import com.bacarsa.inventario.models.AccessPoint;
 
 public class AccessPointMapper {
@@ -21,6 +22,7 @@ public class AccessPointMapper {
         dto.setSwitchUplink(ap.getSwitchUplink());
         dto.setUbicacion(ap.getUbicacion() == null ? null : ap.getUbicacion().name());
         dto.setEstado(ap.getEstado());
+        dto.setHistorial(HistorialLectura.aDtoOrdenado(ap.getHistorial()));
         return dto;
     }
 }

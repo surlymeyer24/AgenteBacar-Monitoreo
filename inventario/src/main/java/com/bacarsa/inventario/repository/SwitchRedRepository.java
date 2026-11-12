@@ -4,7 +4,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.LinkedHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.function.BiFunction;
+import com.bacarsa.inventario.historial.EscrituraHistorial;
+import com.bacarsa.inventario.historial.HistorialLectura;
+import com.google.cloud.firestore.FieldValue;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
@@ -121,7 +126,46 @@ public class SwitchRedRepository {
             sw = new SwitchRed();
         }
         sw.setId(doc.getId());
+        sw.setHistorial(HistorialLectura.desdeDocumento(doc.getData()));
         return sw;
+    }
+
+    @CacheEvict(value = "switches", allEntries = true)
+    public void aplicarHistorial(String id, BiFunction<Map<String, Object>, Timestamp, EscrituraHistorial> plan)
+            throws ExecutionException, InterruptedException {
+        DocumentReference ref = firestore.collection(collectionName).document(id);
+        try {
+            firestore.runTransaction(transaction -> {
+                DocumentSnapshot doc = transaction.get(ref).get();
+                Map<String, Object> data = doc.exists() ? doc.getData() : null;
+                EscrituraHistorial escritura = plan.apply(data, Timestamp.now());
+                if (escritura.modo() == EscrituraHistorial.Modo.NADA) {
+                    return null;
+                }
+                Map<String, Object> campos = conBorrados(escritura.campos());
+                if (!doc.exists()) {
+                    if (escritura.modo() != EscrituraHistorial.Modo.CREAR_CON_HISTORIAL) {
+                        throw new IllegalArgumentException("Switch no encontrado: " + id);
+                    }
+                    transaction.set(ref, campos);
+                } else {
+                    transaction.update(ref, campos);
+                }
+                return null;
+            }).get();
+        } catch (ExecutionException ex) {
+            Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
+            if (cause instanceof RuntimeException re) throw re;
+            throw ex;
+        }
+    }
+
+    private static Map<String, Object> conBorrados(Map<String, Object> campos) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> entry : campos.entrySet()) {
+            out.put(entry.getKey(), entry.getValue() == null ? FieldValue.delete() : entry.getValue());
+        }
+        return out;
     }
 
     @CacheEvict(value = "switches", allEntries = true)

@@ -626,59 +626,52 @@ export default function EtiquetasQrList() {
         </div>
       )}
 
-      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs">
-        <div className="relative flex-1">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+      <div className="flex items-center gap-2.5 overflow-x-auto bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs scrollbar-none">
+        <div className="relative w-[42%] min-w-[200px] flex-1">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="search"
             value={buscar}
             onChange={e => setBuscar(e.target.value)}
             placeholder="Buscar por hostname, asignado a, ubicación o UUID..."
-            className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-red-500 focus:ring-1 focus:ring-red-500/20 text-slate-900 rounded-lg pl-10 pr-4 py-2.5 text-sm font-mono placeholder:text-slate-400 outline-none transition-all"
+            className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-500 text-slate-800 rounded-lg pl-9 pr-3 py-2 text-xs sm:text-sm placeholder:text-slate-400 outline-none transition-colors"
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative min-w-[200px]">
-            <select
-              value={filtroLogistica}
-              onChange={e => setFiltroLogistica(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-red-500 cursor-pointer appearance-none pr-8 font-medium focus:bg-white"
-            >
-              <option value="">Todos los estados logísticos</option>
-              <option value="pend_etiqueta">Pendiente de etiquetar</option>
-              <option value="etiquetado">Etiquetado completo</option>
-              <option value="embalado">Embalado en cajas</option>
-              <option value="en_destino">Listo en destino</option>
-            </select>
-          </div>
+        <select
+          value={filtroLogistica}
+          onChange={e => setFiltroLogistica(e.target.value)}
+          className="bg-slate-50 border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-xs font-medium outline-none focus:border-blue-500 cursor-pointer focus:bg-white !w-[24%] max-w-[26%] min-w-[160px] truncate"
+        >
+          <option value="">Todos los estados logísticos</option>
+          <option value="pend_etiqueta">Pendiente de etiquetar</option>
+          <option value="etiquetado">Etiquetado completo</option>
+          <option value="embalado">Embalado en cajas</option>
+          <option value="en_destino">Listo en destino</option>
+        </select>
 
-          <div className="relative min-w-[220px]">
-            <select
-              value={filtroUbicacion}
-              onChange={e => setFiltroUbicacion(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-red-500 cursor-pointer appearance-none pr-8 font-medium focus:bg-white"
-            >
-              <option value="">Todas las ubicaciones ({lista.length})</option>
-              {opcionesEnumCatalogo(ubicCompItems).map(o => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-            <MapPin className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-          </div>
+        <select
+          value={filtroUbicacion}
+          onChange={e => setFiltroUbicacion(e.target.value)}
+          className="bg-slate-50 border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-xs font-medium outline-none focus:border-blue-500 cursor-pointer focus:bg-white !w-[24%] max-w-[26%] min-w-[160px] truncate"
+        >
+          <option value="">Todas las ubicaciones ({lista.length})</option>
+          {opcionesEnumCatalogo(ubicCompItems).map(o => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
 
-          <button
-            type="button"
-            onClick={cargarDatos}
-            disabled={recargando}
-            className="p-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg text-slate-600 hover:text-slate-900 transition-all cursor-pointer"
-            title="Recargar lista de equipos"
-          >
-            <RefreshCw className={`w-4 h-4 ${recargando ? 'animate-spin text-red-600' : ''}`} />
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={cargarDatos}
+          disabled={recargando}
+          className="p-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg text-slate-600 hover:text-slate-900 transition-all shrink-0 cursor-pointer"
+          title="Recargar lista de equipos"
+        >
+          <RefreshCw className={`w-4 h-4 ${recargando ? 'animate-spin text-red-600' : ''}`} />
+        </button>
       </div>
 
       <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">

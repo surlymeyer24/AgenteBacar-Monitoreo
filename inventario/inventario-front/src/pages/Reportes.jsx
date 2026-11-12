@@ -208,6 +208,7 @@ export default function Reportes() {
     let monitores = 0;
     let mouse = 0;
     let teclados = 0;
+    let webcams = 0;
     let otros = 0;
     for (const [k, v] of Object.entries(map)) {
       const lower = k.toLowerCase();
@@ -215,9 +216,10 @@ export default function Reportes() {
       if (lower.includes('monitor') || lower.includes('pantalla')) monitores += val;
       else if (lower.includes('mouse') || lower.includes('raton')) mouse += val;
       else if (lower.includes('teclado') || lower.includes('keyboard')) teclados += val;
+      else if (lower.includes('webcam') || lower.includes('camara') || lower.includes('camera')) webcams += val;
       else otros += val;
     }
-    return { monitores, mouse, teclados, otros };
+    return { monitores, mouse, teclados, webcams, otros };
   }, [r]);
 
   // Desglose de tesorería por tipos reales del catálogo
@@ -917,13 +919,16 @@ export default function Reportes() {
               </div>
               <div className="bg-slate-50 border border-slate-100 rounded-lg p-2">
                 <span className="text-[10px] text-slate-400 font-semibold block">Webcams</span>
-                <span className="text-sm font-bold text-slate-800">{fmt(perifericosCounts.otros)}</span>
+                <span className="text-sm font-bold text-slate-800">{fmt(perifericosCounts.webcams)}</span>
               </div>
             </div>
           </div>
 
           <div className="flex items-center justify-between text-xs pt-3 border-t border-slate-100 text-slate-500 mt-2">
-            <span>Periféricos c/ PC</span>
+            <span>
+              Periféricos c/ PC
+              {perifericosCounts.otros > 0 ? ` (+${perifericosCounts.otros} otros)` : ''}
+            </span>
             <span className="font-semibold text-slate-800">
               ~{ratioPerifPorEstacion} promedio por puesto
             </span>
@@ -1272,11 +1277,11 @@ export default function Reportes() {
 
           <div className="flex items-center gap-4 self-end sm:self-auto">
             <div className="flex items-center gap-1.5">
-              <span>Filas por página:</span>
+              <span className="whitespace-nowrap">Filas por página:</span>
               <select
                 value={filasPorPagina}
                 onChange={handleCambioFilas}
-                className="bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs text-slate-700 font-semibold focus:outline-none"
+                className="bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs text-slate-700 font-semibold focus:outline-none !w-auto cursor-pointer"
               >
                 <option value={5}>5</option>
                 <option value={10}>10</option>

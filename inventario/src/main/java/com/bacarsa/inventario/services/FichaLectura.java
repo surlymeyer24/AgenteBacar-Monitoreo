@@ -23,6 +23,7 @@ public final class FichaLectura {
     private final Integer cantidad;
     private final String comentarios;
     private String descripcionCompleta = "";
+    private String tipoEquipo = "";
 
     private FichaLectura(
             String coleccion,
@@ -178,11 +179,16 @@ public final class FichaLectura {
         dto.setCantidad(cantidad != null ? cantidad : 1);
         dto.setComentarios(comentarios);
         dto.setDescripcionCompleta(descripcionCompleta);
+        dto.setTipoEquipo(tipoEquipo);
         return dto;
     }
 
     void setDescripcionCompleta(String descripcionCompleta) {
         this.descripcionCompleta = descripcionCompleta != null ? descripcionCompleta : "";
+    }
+
+    void setTipoEquipo(String tipoEquipo) {
+        this.tipoEquipo = tipoEquipo != null ? tipoEquipo.trim() : "";
     }
 
     public String referencia() {

@@ -14,6 +14,17 @@ public class MovimientoStock {
     private String id;
 
     private String codigo;
+
+    @Getter(onMethod_ = @PropertyName("ficha_codigo"))
+    @Setter(onMethod_ = @PropertyName("ficha_codigo"))
+    private String fichaCodigo;
+
+    /** Unidades involucradas en el movimiento (null = 1). */
+    private Integer cantidad;
+
+    @Getter(onMethod_ = @PropertyName("lote_origen"))
+    @Setter(onMethod_ = @PropertyName("lote_origen"))
+    private String loteOrigen;
     private String tipo;
     private String marca;
     private String modelo;
@@ -65,4 +76,8 @@ public class MovimientoStock {
     @Getter(onMethod_ = @PropertyName("estado_nuevo"))
     @Setter(onMethod_ = @PropertyName("estado_nuevo"))
     private String estadoNuevo;
+
+    @Getter(onMethod_ = @PropertyName("descripcion_completa"))
+    @Setter(onMethod_ = @PropertyName("descripcion_completa"))
+    private String descripcionCompleta;
 }

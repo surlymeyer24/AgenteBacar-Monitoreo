@@ -369,64 +369,60 @@ export default function TelefonoIpList() {
       {/* ── 2. CARD PRINCIPAL CON FILTROS Y GRILLA DE CARDS (IGUAL A SERVIDORES) ── */}
       <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-4">
         {/* Barra de herramientas */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-slate-100">
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Estado */}
-            <select
-              value={filtroEstado}
-              onChange={(e) => setFiltroEstado(e.target.value)}
-              className="pl-3 pr-7 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-600"
-            >
-              <option value="">ESTADO: Todos</option>
-              <option value="ACTIVO">Activo</option>
-              <option value="INACTIVO">Inactivo</option>
-              <option value="EN_MANTENIMIENTO">En mantenimiento</option>
-            </select>
-
-            {/* Orden */}
-            <select
-              value={orden}
-              onChange={(e) => setOrden(e.target.value)}
-              className="pl-3 pr-7 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-600"
-            >
-              <option value="">ORDEN: Sin ordenar</option>
-              <option value="num_asc">Interno (menor a mayor)</option>
-              <option value="num_desc">Interno (mayor a menor)</option>
-              <option value="nombre_asc">Asignado a (A → Z)</option>
-            </select>
+        <div className="flex items-center gap-2.5 overflow-x-auto pb-3 border-b border-slate-100 scrollbar-none">
+          {/* Buscador */}
+          <div className="relative w-[40%] min-w-[200px] flex-1">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Buscar por asignación, IP o interno..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-blue-500 transition-colors"
+            />
           </div>
 
-          <div className="flex items-center gap-3">
-            {/* Buscador */}
-            <div className="relative flex-1 sm:w-64">
-              <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Buscar por asignación, IP o interno..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-600"
-              />
-            </div>
+          {/* Estado */}
+          <select
+            value={filtroEstado}
+            onChange={(e) => setFiltroEstado(e.target.value)}
+            className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 focus:bg-white focus:outline-none focus:border-blue-500 !w-[18%] max-w-[20%] min-w-[140px] truncate cursor-pointer"
+          >
+            <option value="">ESTADO: Todos</option>
+            <option value="ACTIVO">Activo</option>
+            <option value="INACTIVO">Inactivo</option>
+            <option value="EN_MANTENIMIENTO">En mantenimiento</option>
+          </select>
 
-            {/* Seleccionar Todo */}
-            <button
-              type="button"
-              onClick={toggleSelectAll}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 transition-colors"
-            >
-              {allVisibleSelected ? (
-                <CheckSquare className="w-3.5 h-3.5 text-blue-600" />
-              ) : (
-                <Square className="w-3.5 h-3.5 text-slate-400" />
-              )}
-              <span>Sel. Todo</span>
-            </button>
+          {/* Orden */}
+          <select
+            value={orden}
+            onChange={(e) => setOrden(e.target.value)}
+            className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 focus:bg-white focus:outline-none focus:border-blue-500 !w-[18%] max-w-[20%] min-w-[140px] truncate cursor-pointer"
+          >
+            <option value="">ORDEN: Sin ordenar</option>
+            <option value="num_asc">Interno (menor a mayor)</option>
+            <option value="num_desc">Interno (mayor a menor)</option>
+            <option value="nombre_asc">Asignado a (A → Z)</option>
+          </select>
 
-            <span className="text-xs font-bold text-slate-600 whitespace-nowrap">
-              Total: <span className="text-slate-900 font-black">{itemsFiltrados.length}</span>
-            </span>
-          </div>
+          {/* Seleccionar Todo */}
+          <button
+            type="button"
+            onClick={toggleSelectAll}
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+          >
+            {allVisibleSelected ? (
+              <CheckSquare className="w-3.5 h-3.5 text-blue-600" />
+            ) : (
+              <Square className="w-3.5 h-3.5 text-slate-400" />
+            )}
+            <span>Sel. Todo</span>
+          </button>
+
+          <span className="text-xs font-bold text-slate-600 whitespace-nowrap shrink-0">
+            Total: <span className="text-slate-900 font-black">{itemsFiltrados.length}</span>
+          </span>
         </div>
 
         {/* Grilla de Tarjetas (4 columnas) */}

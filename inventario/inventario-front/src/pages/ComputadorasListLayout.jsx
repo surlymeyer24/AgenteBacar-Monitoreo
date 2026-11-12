@@ -16,6 +16,7 @@ const LISTADO_FIELDS = [
   'responsableInventario', 'anydeskId', 'ubicacionStock',
   'condicion', 'origenAlta', 'estadoConciliacion', 'estadoPreparacion', 'estadoReporteAgente', 'comboEsperadoId',
   'especificacionEsperada', 'descripcionStock', 'loteOrigenId',
+  'tieneAgente', 'enDeposito', 'codigoInterno', 'asignacionTipo',
 ];
 
 function pickListadoFields(dto) {

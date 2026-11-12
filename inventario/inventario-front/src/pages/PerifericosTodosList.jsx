@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -111,7 +111,7 @@ export default function PerifericosTodosList() {
   const { data: televisores = [], isLoading: loadingTvs } = useTelevisores();
   const { data: celularesList = [], isLoading: loadingCels } = useCelulares();
 
-  const { data: perifericosAgente, isLoading: loadingAgente, error: errorAgente } = useQuery({
+  const { data: perifericosAgente, isLoading: loadingAgente } = useQuery({
     queryKey: ['perifericosAgenteListados'],
     queryFn: fetchPerifericosAgenteListados,
   });
@@ -332,18 +332,20 @@ export default function PerifericosTodosList() {
 
     // 7. Televisores
     (televisores ?? []).forEach((t, idx) => {
+      const serial = t.numeroSerie || t.nroSerie || t.id || `TV-${idx}`;
+      const area = t.area || t.ubicacion || 'Edificio Central';
       list.push({
         id: `tv-${t.id || idx}`,
         tipoKey: 'televisores',
         tipoLabel: 'Televisor',
         nombre: [t.marca, t.modelo].filter(Boolean).join(' ') || 'Smart TV',
-        subtitulo: t.pulgadas ? `Pantalla ${t.pulgadas}"` : 'Pantalla Corporativa',
-        serial: t.nroSerie || t.id || `TV-${idx}`,
+        subtitulo: t.pulgadas ? `Pantalla ${t.pulgadas}"` : (t.modelo || 'Pantalla Corporativa'),
+        serial,
         conexion: 'HDMI / Red',
         pcUuid: null,
         pcHostname: null,
         responsable: 'Recepción / Sala',
-        area: t.ubicacion || 'Edificio Central',
+        area,
         origen: 'Carga manual',
         estado: t.estado === 'BAJA' ? 'Baja' : t.estado === 'EN_REPARACION' ? 'En reparación' : 'Asignado',
         ultimaSinc: null,
@@ -352,25 +354,33 @@ export default function PerifericosTodosList() {
 
     // 8. Celulares
     (celularesList ?? []).forEach((c, idx) => {
+      const linea = c.lineaNumero || c.linea;
+      const serial = c.imei || c.numeroSerie || c.nroSerie || c.id || `CEL-${idx}`;
+      const area = c.area || c.ubicacion || 'Flota Comercial';
+      const estRaw = (c.estado || '').toUpperCase();
+      const est =
+        estRaw === 'ACTIVO' || estRaw === 'ASIGNADA' || estRaw === 'ASIGNADO'
+          ? 'Asignado'
+          : estRaw === 'EN_STOCK' || estRaw === 'SIN_ASIGNAR'
+          ? 'En stock'
+          : estRaw === 'BAJA'
+          ? 'Baja'
+          : 'Asignado';
+
       list.push({
         id: `cel-${c.id || idx}`,
         tipoKey: 'celulares',
         tipoLabel: 'Celular',
         nombre: [c.marca, c.modelo].filter(Boolean).join(' ') || 'Celular Corporativo',
-        subtitulo: c.linea ? `Línea: ${c.linea}` : 'Flota Corporativa',
-        serial: c.imei || c.nroSerie || c.id || `CEL-${idx}`,
+        subtitulo: linea ? `Línea: ${linea}` : 'Flota Corporativa',
+        serial,
         conexion: 'USB-C / 4G',
         pcUuid: null,
         pcHostname: null,
-        responsable: c.responsable || '—',
-        area: c.ubicacion || 'Flota Comercial',
+        responsable: c.responsable || c.asignadoA || '—',
+        area,
         origen: 'Carga manual',
-        estado:
-          c.estado === 'ASIGNADA' || c.estado === 'ASIGNADO'
-            ? 'Asignado'
-            : c.estado === 'SIN_ASIGNAR'
-            ? 'En stock'
-            : c.estado || 'Asignado',
+        estado: est,
         ultimaSinc: null,
       });
     });
@@ -420,18 +430,25 @@ export default function PerifericosTodosList() {
           ? 'Baja'
           : 'En stock';
 
+      const nombreDisplay = [p.fabricante || p.marca, p.nombre || p.modelo].filter(Boolean).join(' ') || p.tipo || 'Dispositivo en stock';
+      const serialDisplay = p.numeroSerie || p.nroSerie || p.codigoInterno || p.codigo || `STK-${p.id || idx}`;
+      const responsableDisplay = p.computadoraHostname
+        ? (p.responsable ? `${p.responsable} (${p.computadoraHostname})` : p.computadoraHostname)
+        : (p.responsable || 'Depósito Logística');
+      const areaDisplay = p.ubicacion ? labelUbicacionEnum(p.ubicacion) : 'Almacén Central';
+
       list.push({
         id: `stk-${p.id || idx}`,
         tipoKey: catKey,
         tipoLabel: catLabel,
-        nombre: [p.marca, p.modelo].filter(Boolean).join(' ') || p.tipo || 'Dispositivo en stock',
+        nombre: nombreDisplay,
         subtitulo: p.notas || p.descripcion || 'Existencia en depósito',
-        serial: p.nroSerie || p.codigo || `STK-${p.id || idx}`,
+        serial: serialDisplay,
         conexion: p.conexion || (catKey === 'monitores' ? 'HDMI / DP' : 'USB-A'),
-        pcUuid: null,
-        pcHostname: null,
-        responsable: p.responsable || 'Depósito Logística',
-        area: p.ubicacion || 'Almacén Central',
+        pcUuid: p.computadoraUuid || null,
+        pcHostname: p.computadoraHostname || null,
+        responsable: responsableDisplay,
+        area: areaDisplay,
         origen: 'Carga manual',
         estado: est,
         ultimaSinc: p.fechaAlta || p.updatedAt || null,
@@ -603,13 +620,6 @@ export default function PerifericosTodosList() {
     setFiltroArea('');
     setPaginaActual(1);
   };
-
-  const hayFiltros =
-    Boolean(buscar.trim()) ||
-    Boolean(filtroConexion) ||
-    Boolean(filtroEstado) ||
-    Boolean(filtroOrigen) ||
-    Boolean(filtroArea);
 
   // Exportar a CSV
   const exportarCsv = () => {

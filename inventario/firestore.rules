@@ -18,7 +18,7 @@ service cloud.firestore {
     // `rol` y `activo` quedan deliberadamente afuera: son la base de autorización.
     function camposPerfil() {
       return ['nombre', 'departamento', 'cargo', 'avatarColor',
-              'telefono', 'email', 'updatedAt'];
+              'email', 'updatedAt'];
     }
 
     // Tipos y topes de tamaño para evitar basura y documentos inflados a propósito.
@@ -27,7 +27,6 @@ service cloud.firestore {
           && (!('departamento' in data) || (data.departamento is string && data.departamento.size() <= 120))
           && (!('cargo'        in data) || (data.cargo        is string && data.cargo.size()        <= 120))
           && (!('avatarColor'  in data) || (data.avatarColor  is string && data.avatarColor.size()  <= 120))
-          && (!('telefono'     in data) || (data.telefono     is string && data.telefono.size()     <= 40))
           && (!('updatedAt'    in data) || (data.updatedAt    is string && data.updatedAt.size()    <= 40))
           && (!('email'        in data) || (data.email        is string && data.email.size()        <= 200));
     }
@@ -184,6 +183,19 @@ service cloud.firestore {
                         || request.resource.data.email == request.auth.token.email);
 
       allow delete: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // stock_fichas/ y movimientos_stock/
+    // -------------------------------------------------------------------------
+    match /stock_fichas/{codigo} {
+      allow read:  if esUsuarioInventarioActivo();
+      allow write: if puedeEscribirInventario();
+    }
+
+    match /movimientos_stock/{movimientoId} {
+      allow read:  if esUsuarioInventarioActivo();
+      allow write: if puedeEscribirInventario();
     }
   }
 }

@@ -11,7 +11,7 @@ import {
   studioTdClass,
   studioRowClass,
 } from '../components/studio/StudioUi';
-import { ModuleHeader } from '../components/layout';
+import { ModuleHeader, FilterBar } from '../components/layout';
 import { ShieldAlert, Monitor, HardDrive, Cpu, MemoryStick } from 'lucide-react';
 
 const ESTADOS_SEGUIMIENTO = [
@@ -123,7 +123,7 @@ function EventosHardwareList() {
       />
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden flex flex-col p-4 space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3 overflow-x-auto scrollbar-none">
           <TableFilters>
             <TableFilters.Search value={buscar} onChange={setBuscar} placeholder="Buscar PC, UUID..." />
           </TableFilters>
@@ -132,7 +132,7 @@ function EventosHardwareList() {
             <select
               value={filtroEstado}
               onChange={e => setFiltroEstado(e.target.value)}
-              className="bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-1 focus:ring-red-500 cursor-pointer"
+              className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 focus:outline-none focus:border-blue-500 !w-auto min-w-[140px] cursor-pointer"
             >
               {ESTADOS_SEGUIMIENTO.map(e => (
                 <option key={e.value} value={e.value}>{e.label}</option>
@@ -142,7 +142,7 @@ function EventosHardwareList() {
             <select
               value={filtroComponente}
               onChange={e => setFiltroComponente(e.target.value)}
-              className="bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-1 focus:ring-red-500 cursor-pointer"
+              className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 focus:outline-none focus:border-blue-500 !w-auto min-w-[140px] cursor-pointer"
             >
               {TIPOS_COMPONENTE.map(t => (
                 <option key={t.value} value={t.value}>{t.label}</option>

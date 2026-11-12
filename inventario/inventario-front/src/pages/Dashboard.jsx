@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useDashboardStats, useComputadoras } from '../hooks/useQueries';
+import { useDashboardStats } from '../hooks/useQueries';
 import {
   Monitor,
   Camera,
@@ -19,9 +19,6 @@ import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import ComputadorasEstadoModal from '../components/ComputadorasEstadoModal';
 import { labelUbicacion } from '../constants/ubicaciones';
 import { useCatalogo } from '../hooks/useCatalogo';
-import { chartDataDesdeMapa, esNotebook } from '../utils/reporteInventario';
-import { filtrarPcsInventarioOperativo } from '../utils/pipelinePcHelpers';
-import { nivelActividadSync } from '../utils/syncActividad';
 import { ModuleHeader } from '../components/layout';
 
 const ACCENT = '#BA1814';
@@ -37,13 +34,6 @@ const WIN_COLORS = {
   Otros: '#94a3b8',
 };
 
-function clasificarWindows(so) {
-  const s = (so ?? '').toLowerCase();
-  if (s.includes('11')) return 'Windows 11';
-  if (s.includes('10')) return 'Windows 10';
-  return 'Otros';
-}
-
 function Dashboard() {
   const navigate = useNavigate();
   const { items: ubicCompItems } = useCatalogo('ubicaciones_computadora');
@@ -57,64 +47,29 @@ function Dashboard() {
     isFetching: fetchingStats,
   } = useDashboardStats();
 
-  const {
-    data: computadoras = [],
-    refetch: refetchComputadoras,
-    isFetching: fetchingPcs,
-  } = useComputadoras();
-
   const handleRefresh = () => {
     refetchStats();
-    refetchComputadoras();
   };
 
-  const isRefreshing = fetchingStats || fetchingPcs;
-
-  const pcsOperativas = useMemo(
-    () => filtrarPcsInventarioOperativo(computadoras),
-    [computadoras],
-  );
-
-  const metricasOperativas = useMemo(() => {
-    if (!pcsOperativas.length) return null;
-    let activas = 0;
-    let intermedio = 0;
-    let inactivas = 0;
-    for (const c of pcsOperativas) {
-      const n = nivelActividadSync(c);
-      if (n === 'activo') activas += 1;
-      else if (n === 'intermedio') intermedio += 1;
-      else inactivas += 1;
-    }
-    const notebooks = pcsOperativas.filter(esNotebook).length;
-    return {
-      total: pcsOperativas.length,
-      activas,
-      intermedio,
-      inactivas,
-      notebooks,
-      desktops: pcsOperativas.length - notebooks,
-    };
-  }, [pcsOperativas]);
+  const isRefreshing = fetchingStats;
 
   const error = statsError
     ? 'No se pudo cargar el dashboard. Verificá que el servidor esté en ejecución.'
     : null;
 
   const s = stats ?? {};
-  const totalPcAgente = metricasOperativas?.total ?? Number(s.totalComputadoras ?? 0);
+  const totalPc = Number(s.totalComputadoras ?? 0);
   const totalCamaras = Number(s.totalCamaras ?? 0);
   const totalNvrs = Number(s.totalNvrs ?? 0);
   const totalMonitores = Number(s.totalMonitores ?? 0);
   const totalTelefonos = Number(s.totalTelefonos ?? 0);
-  const activas = metricasOperativas?.activas ?? Number(s.computadorasSyncMenos10Min ?? 0);
-  const intermedio = metricasOperativas?.intermedio ?? Number(s.computadorasSyncEntre10MinY1h ?? 0);
-  const inactivasRaw = metricasOperativas?.inactivas ?? Number(s.computadorasSinActividadMas1h ?? 0);
-  const inactivas = Math.max(0, inactivasRaw || (totalPcAgente - activas - intermedio));
+  const activas = Number(s.computadorasSyncMenos10Min ?? 0);
+  const intermedio = Number(s.computadorasSyncEntre10MinY1h ?? 0);
+  const inactivasRaw = Number(s.computadorasSinActividadMas1h ?? 0);
+  const inactivas = Math.max(0, inactivasRaw || (totalPc - activas - intermedio));
 
-  const notebooks = metricasOperativas?.notebooks ?? Number(s.totalNotebooks ?? 0);
-  const desktops = metricasOperativas?.desktops ?? Number(s.totalDesktops ?? totalPcAgente);
-  const totalPc = totalPcAgente;
+  const notebooks = Number(s.totalNotebooks ?? 0);
+  const desktops = Number(s.totalDesktops ?? totalPc);
   const saludRed = totalPc ? Math.round((activas / totalPc) * 100) : 0;
 
   const pieData = useMemo(() => {
@@ -139,15 +94,7 @@ function Dashboard() {
   }, [activas, intermedio, inactivas, totalPc]);
 
   const porAreaData = useMemo(() => {
-    const map = {};
-    if (pcsOperativas.length) {
-      for (const pc of pcsOperativas) {
-        if (!pc.ubicacion) continue;
-        map[pc.ubicacion] = (map[pc.ubicacion] ?? 0) + 1;
-      }
-    } else {
-      Object.assign(map, s.porUbicacionComputadoras ?? {});
-    }
+    const map = s.porUbicacionComputadoras ?? {};
     return Object.entries(map)
       .filter(([, n]) => Number(n) > 0)
       .map(([key, value]) => ({
@@ -155,33 +102,25 @@ function Dashboard() {
         cantidad: Number(value) || 0,
       }))
       .sort((a, b) => b.cantidad - a.cantidad);
-  }, [pcsOperativas, s.porUbicacionComputadoras, ubicCompItems]);
+  }, [s.porUbicacionComputadoras, ubicCompItems]);
 
   const windowsData = useMemo(() => {
-    const counts = { 'Windows 11': 0, 'Windows 10': 0, Otros: 0 };
-    for (const pc of pcsOperativas) {
-      counts[clasificarWindows(pc.sistemaOperativo)] += 1;
-    }
+    const porWin = s.porVersionWindows ?? {};
     return ['Windows 11', 'Windows 10', 'Otros'].map((name) => ({
       name,
-      cantidad: counts[name],
+      cantidad: porWin[name] ?? 0,
       fill: WIN_COLORS[name],
     }));
-  }, [pcsOperativas]);
+  }, [s.porVersionWindows]);
 
   const procesadorData = useMemo(() => {
-    const map = {};
-    for (const pc of pcsOperativas) {
-      const raw = pc.procesadorNombre;
-      const key = raw != null && String(raw).trim() ? String(raw).trim() : 'Sin dato';
-      map[key] = (map[key] ?? 0) + 1;
-    }
-    return chartDataDesdeMapa(map, 6).map((row) => ({
-      procesador: row.name.length > 38 ? `${row.name.slice(0, 36)}…` : row.name,
-      procesadorFull: row.name,
-      cantidad: row.value,
+    const porCpu = s.porProcesador ?? {};
+    return Object.entries(porCpu).map(([name, cantidad]) => ({
+      procesador: name.length > 38 ? `${name.slice(0, 36)}…` : name,
+      procesadorFull: name,
+      cantidad,
     }));
-  }, [pcsOperativas]);
+  }, [s.porProcesador]);
 
   const fechaActualizada = useMemo(() => {
     const d = new Date();

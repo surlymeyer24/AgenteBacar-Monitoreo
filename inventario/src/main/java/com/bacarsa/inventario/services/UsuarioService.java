@@ -157,6 +157,15 @@ public class UsuarioService {
         if (dto.getActivo() != null) {
             existente.setActivo(dto.getActivo());
         }
+        if (dto.getDepartamento() != null) {
+            existente.setDepartamento(dto.getDepartamento().trim());
+        }
+        if (dto.getCargo() != null) {
+            existente.setCargo(dto.getCargo().trim());
+        }
+        if (dto.getAvatarColor() != null) {
+            existente.setAvatarColor(dto.getAvatarColor().trim());
+        }
 
         usuarioRepository.save(existente);
         UsuarioDTO actualizado = UsuarioMapper.toDTO(existente);

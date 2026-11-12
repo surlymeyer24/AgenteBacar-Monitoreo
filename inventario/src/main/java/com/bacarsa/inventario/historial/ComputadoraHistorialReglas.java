@@ -27,11 +27,13 @@ public final class ComputadoraHistorialReglas {
             "serie",
             "anydesk",
             "notas",
+            "comentarios",
             "tipo_equipo",
             "condicion",
             "sistema_operativo",
             "arquitectura",
-            "ubicacion_stock");
+            "ubicacion_stock",
+            "asignacion_tipo");
 
     /** Claves de API que una persona puede mandar en un guardado de ficha. */
     private static final Map<String, String> API_A_CAMPO = Map.ofEntries(
@@ -41,11 +43,13 @@ public final class ComputadoraHistorialReglas {
             Map.entry("serialEquipo", "serie"),
             Map.entry("anydeskId", "anydesk"),
             Map.entry("notas", "notas"),
+            Map.entry("comentarios", "comentarios"),
             Map.entry("tipoEquipo", "tipo_equipo"),
             Map.entry("condicion", "condicion"),
             Map.entry("sistemaOperativo", "sistema_operativo"),
             Map.entry("arquitectura", "arquitectura"),
-            Map.entry("ubicacionStock", "ubicacion_stock"));
+            Map.entry("ubicacionStock", "ubicacion_stock"),
+            Map.entry("asignacionTipo", "asignacion_tipo"));
 
     private static final Set<String> CAMPOS_AGENTE = Set.of(
             "ultima_sincronizacion",
@@ -141,6 +145,7 @@ public final class ComputadoraHistorialReglas {
                 doc.put("ultima_sincronizacion", ahora);
             }
             doc.put("primer_reporte_agente_at", ahora);
+            doc.put("tiene_agente", true);
             doc.put(HISTORIAL_MIGRADO, true);
             doc.put(HISTORIAL, List.of(renglonAltaAutomatica(ahora)));
             return EscrituraHistorial.crearConHistorial(doc);
@@ -170,6 +175,9 @@ public final class ComputadoraHistorialReglas {
         quitarIguales(docExistente, agenteUpdates);
         if (Boolean.TRUE.equals(docExistente.get("en_deposito"))) {
             agenteUpdates.put("en_deposito", false);
+        }
+        if (!Boolean.TRUE.equals(docExistente.get("tiene_agente"))) {
+            agenteUpdates.put("tiene_agente", true);
         }
         updates.putAll(agenteUpdates);
 
@@ -226,6 +234,10 @@ public final class ComputadoraHistorialReglas {
         Map<String, Object> updates = new LinkedHashMap<>();
         if (cambiaEstado) {
             cerrarTramoVigente(historial, ahora);
+            List<Map<String, Object>> legacyCerrado = cerrarTramosLegacyAbiertos(doc.get("historialEstados"), ahora);
+            if (legacyCerrado != null) {
+                updates.put("historialEstados", legacyCerrado);
+            }
             Map<String, Object> tramo = baseActor(actor, null);
             tramo.put("tipo", "ESTADO");
             tramo.put("acto_id", acto);
@@ -240,6 +252,9 @@ public final class ComputadoraHistorialReglas {
             historial.add(tramo);
             EstadoOperativo op = EstadoOperativo.valueOf(nuevo);
             updates.put("estadoActual", mapaEstado(op));
+            if (op == EstadoOperativo.SIN_ASIGNAR) {
+                updates.put("usuarioActual", null);
+            }
             if (op != EstadoOperativo.SIN_ASIGNAR && !ficha.containsKey("ubicacion_stock")) {
                 updates.put("ubicacion_stock", null);
                 String stockActual = leerCampo(doc, "ubicacion_stock");
@@ -341,10 +356,12 @@ public final class ComputadoraHistorialReglas {
                 case "serie" -> updates.put("serial_equipo", nuevo);
                 case "anydesk" -> updates.put("anydesk_id", nuevo);
                 case "notas" -> updates.put("notas", nuevo);
+                case "comentarios" -> updates.put("comentarios", nuevo);
                 case "condicion" -> updates.put("condicion", nuevo);
                 case "sistema_operativo" -> updates.put("sistema_operativo", nuevo);
                 case "arquitectura" -> updates.put("arquitectura", nuevo);
                 case "ubicacion_stock" -> updates.put("ubicacion_stock", nuevo);
+                case "asignacion_tipo" -> updates.put("asignacion_tipo", nuevo);
                 case "tipo_equipo" -> {
                     if (nuevo == null) {
                         updates.put("tipo_equipo", null);
@@ -408,6 +425,32 @@ public final class ComputadoraHistorialReglas {
         c.put("valor_anterior", antes);
         c.put("valor_nuevo", despues);
         return c;
+    }
+
+    /**
+     * Cierra los tramos abiertos (fechaHoraFin == null) del historialEstados legacy, para que
+     * ningún lector tome un estado viejo como vigente. Devuelve la lista nueva, o null si no
+     * había nada que cerrar o la lista no tiene el formato esperado (en ese caso no se toca).
+     */
+    @SuppressWarnings("unchecked")
+    public static List<Map<String, Object>> cerrarTramosLegacyAbiertos(Object raw, Timestamp ahora) {
+        if (!(raw instanceof List<?> lista) || lista.isEmpty()) {
+            return null;
+        }
+        List<Map<String, Object>> copia = new ArrayList<>();
+        boolean huboCambio = false;
+        for (Object item : lista) {
+            if (!(item instanceof Map<?, ?> mapa)) {
+                return null;
+            }
+            Map<String, Object> tramo = new LinkedHashMap<>((Map<String, Object>) mapa);
+            if (tramo.get("fechaHoraFin") == null) {
+                tramo.put("fechaHoraFin", ahora);
+                huboCambio = true;
+            }
+            copia.add(tramo);
+        }
+        return huboCambio ? copia : null;
     }
 
     private static void cerrarTramoVigente(List<Map<String, Object>> historial, Timestamp ahora) {
@@ -558,6 +601,7 @@ public final class ComputadoraHistorialReglas {
             case "serie" -> texto(doc.get("serial_equipo"));
             case "anydesk" -> texto(doc.get("anydesk_id"));
             case "notas" -> texto(doc.get("notas"));
+            case "comentarios" -> texto(doc.get("comentarios"));
             case "condicion" -> texto(doc.get("condicion"));
             case "sistema_operativo" -> texto(doc.get("sistema_operativo"));
             case "arquitectura" -> texto(doc.get("arquitectura"));
