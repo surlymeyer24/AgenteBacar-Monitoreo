@@ -57,18 +57,24 @@ class StockAbmServiceTest {
     @Test
     void prefijosValidosYSiguienteCodigo() {
         assertEquals("PC", StockAbmService.prefijoParaTipo("desktop"));
+        assertEquals("PC", StockAbmService.prefijoParaTipo("computadora"));
         assertEquals("NB", StockAbmService.prefijoParaTipo("notebook"));
         assertEquals("MON", StockAbmService.prefijoParaTipo("monitor"));
         assertEquals("TEC", StockAbmService.prefijoParaTipo("teclado"));
         assertEquals("CEL", StockAbmService.prefijoParaTipo("celular"));
         assertEquals("CAM", StockAbmService.prefijoParaTipo("camara"));
+        assertEquals("CAM", StockAbmService.prefijoParaTipo("camara_ip"));
         assertEquals("TV", StockAbmService.prefijoParaTipo("televisor"));
         assertEquals("RTR", StockAbmService.prefijoParaTipo("router"));
         assertEquals("SW", StockAbmService.prefijoParaTipo("switch"));
         assertEquals("AP", StockAbmService.prefijoParaTipo("access_point"));
+        assertEquals("TEL", StockAbmService.prefijoParaTipo("telefono_ip"));
+        assertEquals("OTR", StockAbmService.prefijoParaTipo("otro"));
+        assertEquals("OTR", StockAbmService.prefijoParaTipo("tablet"));
+        assertEquals("OTR", StockAbmService.prefijoParaTipo("desconocido"));
 
-        assertThrows(IllegalArgumentException.class, () -> StockAbmService.prefijoParaTipo("desconocido"));
         assertThrows(IllegalArgumentException.class, () -> StockAbmService.prefijoParaTipo(""));
+        assertThrows(IllegalArgumentException.class, () -> StockAbmService.prefijoParaTipo("   "));
     }
 
     @Test

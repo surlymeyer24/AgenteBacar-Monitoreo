@@ -73,8 +73,8 @@ Este módulo es usado por: nadie todavía. Stock 2 y Stock 4 quedan fuera.
 
 ## Notas
 
-- Prefijos: desktop `PC`, notebook `NB`, monitor `MON`, teclado `TEC`, mouse `MOU`, impresora `IMP`, webcam `WEB`, parlante `PAR`, microfono `MIC`, celular `CEL`, camara `CAM`, televisor `TV`, router `RTR`, switch `SW`, access point `AP`. Formato `PC-1`.
+- Prefijos: desktop/computadora `PC`, notebook `NB`, monitor `MON`, teclado `TEC`, mouse `MOU`, impresora `IMP`, webcam `WEB`, parlante `PAR`, microfono `MIC`, celular `CEL`, camara/camara_ip `CAM`, televisor `TV`, router `RTR`, switch `SW`, access point `AP`, telefono_ip `TEL`, otro y tipos de catálogo sin mapa `OTR`. Formato `PC-1`.
 - El siguiente número es el máximo ya guardado de ese prefijo, más uno. Una ficha con código no se toca.
-- Entra solo `cantidad == 1` en periféricos manuales. Cantidad distinta, tipo vacío o tipo fuera de la tabla: no entra y el log nombra colección e id.
+- Alta ABM: tipo vacío sigue rechazado; tipo desconocido del catálogo cae en `OTR` (no lanza). Entra solo `cantidad == 1` en periféricos manuales. Cantidad distinta o tipo vacío en proyección: no entra y el log nombra colección e id.
 - `area` y `sitio` no se copian a ubicación. La MAC no es serie. La condición anidada en `especificacion_stock` no se copia.
 - El backfill no es un endpoint. El GET no escribe.

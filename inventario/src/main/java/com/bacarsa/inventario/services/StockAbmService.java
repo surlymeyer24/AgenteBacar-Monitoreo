@@ -251,8 +251,8 @@ public class StockAbmService {
         }
         String tipo = tipoRaw.trim().toLowerCase(Locale.ROOT);
         return switch (tipo) {
-            case "desktop" -> "PC";
-            case "notebook" -> "NB";
+            case "desktop", "computadora", "pc" -> "PC";
+            case "notebook", "laptop" -> "NB";
             case "monitor" -> "MON";
             case "teclado" -> "TEC";
             case "mouse" -> "MOU";
@@ -261,12 +261,15 @@ public class StockAbmService {
             case "parlante" -> "PAR";
             case "microfono", "micrófono" -> "MIC";
             case "celular" -> "CEL";
-            case "camara", "cámara" -> "CAM";
+            case "camara", "cámara", "camara_ip", "cámara_ip" -> "CAM";
             case "televisor" -> "TV";
             case "router" -> "RTR";
             case "switch" -> "SW";
             case "access_point", "accesspoint", "ap" -> "AP";
-            default -> throw new IllegalArgumentException("Tipo desconocido para stock: " + tipoRaw);
+            case "telefono_ip", "telefono" -> "TEL";
+            case "otro" -> "OTR";
+            // Tipos del catálogo aún no mapeados (p.ej. tablet): no bloquear el alta.
+            default -> "OTR";
         };
     }
 
