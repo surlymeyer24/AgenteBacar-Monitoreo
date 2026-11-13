@@ -6,10 +6,6 @@ import {
 } from '../components/studio/StudioUi';
 import PerifericosTable from '../components/PerifericosTable';
 
-function claveFila(f, index) {
-  return `${f.pcUuid ?? ''}-${f.nombre ?? ''}-${index}`;
-}
-
 function PerifericosParlantesList() {
   const { listados, loading, error } = usePerifericosAgenteListados();
   const filas = (listados?.parlantes ?? [])

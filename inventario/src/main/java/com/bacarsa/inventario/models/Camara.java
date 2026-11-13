@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.google.cloud.firestore.annotation.DocumentId;
+import com.google.cloud.firestore.annotation.PropertyName;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -14,6 +15,10 @@ public class Camara {
 
     @DocumentId
     private String id;
+
+    @Getter(onMethod_ = @PropertyName("codigo_interno"))
+    @Setter(onMethod_ = @PropertyName("codigo_interno"))
+    private String codigoInterno;
 
     private String nombre;
     private String marca;
@@ -35,6 +40,8 @@ public class Camara {
     /** Credencial ONVIF / admin (UI enmascarada). */
     private String usuario;
     private String password;
+    /** Historial inmutable append-only. */
+    private List<RenglonHistorial> historial = new ArrayList<>();
 
     public Camara() {
         this.historialEstados = new ArrayList<>();

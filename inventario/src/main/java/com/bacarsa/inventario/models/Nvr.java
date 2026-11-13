@@ -1,5 +1,8 @@
 package com.bacarsa.inventario.models;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import com.google.cloud.firestore.annotation.DocumentId;
 
 import lombok.Getter;
@@ -16,5 +19,6 @@ public class Nvr {
     private String descripcion;    // opcional; texto libre
     private String usuario;        // credencial de acceso (UI enmascarada)
     private String password;       // credencial de acceso (UI enmascarada)
-
+    private String estado;
+    private List<RenglonHistorial> historial = new ArrayList<>();
 }

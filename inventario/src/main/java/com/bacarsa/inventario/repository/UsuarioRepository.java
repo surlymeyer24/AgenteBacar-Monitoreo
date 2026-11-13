@@ -19,6 +19,7 @@ import com.google.cloud.firestore.DocumentSnapshot;
 import com.google.cloud.firestore.Firestore;
 import com.google.cloud.firestore.QueryDocumentSnapshot;
 import com.google.cloud.firestore.QuerySnapshot;
+import com.google.cloud.firestore.SetOptions;
 
 @Repository
 public class UsuarioRepository {
@@ -39,7 +40,10 @@ public class UsuarioRepository {
         data.put("email", u.getEmail());
         data.put("rol", u.getRol() == null ? null : u.getRol().name());
         data.put("activo", u.isActivo());
-        firestore.collection(collectionName).document(u.getId()).set(data).get();
+        if (u.getDepartamento() != null) data.put("departamento", u.getDepartamento());
+        if (u.getCargo() != null) data.put("cargo", u.getCargo());
+        if (u.getAvatarColor() != null) data.put("avatarColor", u.getAvatarColor());
+        firestore.collection(collectionName).document(u.getId()).set(data, SetOptions.merge()).get();
     }
 
     /**
@@ -98,6 +102,9 @@ public class UsuarioRepository {
         }
         Boolean activo = doc.getBoolean("activo");
         u.setActivo(Boolean.TRUE.equals(activo));
+        u.setDepartamento(doc.getString("departamento"));
+        u.setCargo(doc.getString("cargo"));
+        u.setAvatarColor(doc.getString("avatarColor"));
         return u;
     }
 }

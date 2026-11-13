@@ -5,6 +5,7 @@ import java.util.concurrent.ExecutionException;
 
 import org.springframework.stereotype.Service;
 
+import com.bacarsa.inventario.dto.ComputadoraSesionDTO;
 import com.bacarsa.inventario.dto.SesionBloqueoDTO;
 import com.bacarsa.inventario.mapper.SesionBloqueoMapper;
 import com.bacarsa.inventario.models.SesionBloqueo;
@@ -35,6 +36,10 @@ public class SesionBloqueoService {
         return repository.listarRecientes(n).stream()
                 .map(SesionBloqueoMapper::toDTO)
                 .toList();
+    }
+
+    public List<ComputadoraSesionDTO> listarComputadorasSesion() throws ExecutionException, InterruptedException {
+        return repository.listarComputadorasSesion();
     }
 
     /**

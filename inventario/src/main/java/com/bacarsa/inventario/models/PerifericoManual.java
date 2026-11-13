@@ -16,6 +16,10 @@ public class PerifericoManual {
     @DocumentId
     private String id;
 
+    @Getter(onMethod_ = @PropertyName("codigo_interno"))
+    @Setter(onMethod_ = @PropertyName("codigo_interno"))
+    private String codigoInterno;
+
     private String tipo;
     private int cantidad = 1;
     private String nombre;
@@ -50,12 +54,22 @@ public class PerifericoManual {
 
     private Estado estadoActual;
     private List<CambioEstado> historialEstados;
+    /** Historial inmutable append-only. */
+    private List<RenglonHistorial> historial;
+    private String condicion;
+    private String responsable;
+    private String comentarios;
 
     public PerifericoManual() {
         this.historialEstados = new ArrayList<>();
+        this.historial = new ArrayList<>();
     }
 
     public Estado getEstadoActual() {
+        if (estadoActual != null && estadoActual.getNombre() != null
+                && !estadoActual.getNombre().isBlank()) {
+            return estadoActual;
+        }
         if (historialEstados != null) {
             for (CambioEstado cambio : historialEstados) {
                 if (cambio.esEstadoActual()) {

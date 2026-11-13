@@ -3,13 +3,16 @@ package com.bacarsa.inventario.services;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -19,11 +22,14 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.bacarsa.inventario.dto.CambiarEstadoDTO;
-import com.bacarsa.inventario.dto.ComputadoraDTO;
 import com.bacarsa.inventario.models.Computadora;
 import com.bacarsa.inventario.models.Estado;
 import com.bacarsa.inventario.repository.ComputadoraRepository;
 
+/**
+ * Regla de baja (PR #3): solo desde reparación y con motivo. El estado se escribe
+ * vía {@link ComputadoraHistorialService} (ficha + renglón en la misma transacción).
+ */
 @ExtendWith(MockitoExtension.class)
 class ComputadoraServiceTest {
 
@@ -33,27 +39,24 @@ class ComputadoraServiceTest {
     @Mock
     private ResponsableService responsableService;
 
+    @Mock
+    private ComputadoraHistorialService historialService;
+
     private ComputadoraService service;
 
     @BeforeEach
-    void setUp() {
-        service = new ComputadoraService(computadoraRepository, responsableService);
+    void setUp() throws Exception {
+        service = new ComputadoraService(computadoraRepository, responsableService, historialService);
+        lenient().when(computadoraRepository.listProgramas("pc-1")).thenReturn(List.of());
     }
 
     @Test
-    void bajaDesdeReparacionPersisteEstadoYMotivoSinBorrar() throws Exception {
-        when(computadoraRepository.findByUuid("pc-1"))
-                .thenReturn(pc("En mantenimiento"), pc("Baja"));
-        when(computadoraRepository.listProgramas("pc-1")).thenReturn(List.of());
+    void bajaDesdeReparacionGuardaEstadoYMotivoSinBorrar() throws Exception {
+        when(computadoraRepository.findByUuid("pc-1")).thenReturn(pc("En mantenimiento"), pc("Baja"));
 
-        ComputadoraDTO result = service.cambiarEstado("pc-1", dto("BAJA", "  placa rota  "));
+        service.cambiarEstado("pc-1", dto("BAJA", "  placa rota  "), "uid");
 
-        ArgumentCaptor<Estado> estado = ArgumentCaptor.forClass(Estado.class);
-        verify(computadoraRepository).cambiarEstado(
-                eq("pc-1"), estado.capture(), eq("placa rota"), isNull(), isNull());
-        assertEquals("Baja", estado.getValue().getNombre());
-        assertEquals("Equipo dado de baja", estado.getValue().getDescripcion());
-        assertEquals("Baja", result.getEstadoActual());
+        verify(historialService).cambiarEstado(eq("pc-1"), eq("BAJA"), eq("placa rota"), anyMap(), eq("uid"));
         verify(computadoraRepository, never()).deleteByUuid(any());
     }
 
@@ -63,12 +66,10 @@ class ComputadoraServiceTest {
 
         IllegalArgumentException error = assertThrows(
                 IllegalArgumentException.class,
-                () -> service.cambiarEstado("pc-1", dto("BAJA", "ya no sirve")));
+                () -> service.cambiarEstado("pc-1", dto("BAJA", "ya no sirve"), "uid"));
 
-        assertEquals(
-                "Solo se puede dar de baja un equipo que está en mantenimiento",
-                error.getMessage());
-        verify(computadoraRepository, never()).cambiarEstado(any(), any(), any(), any(), any());
+        assertEquals("Solo se puede dar de baja un equipo que está en mantenimiento", error.getMessage());
+        verify(historialService, never()).cambiarEstado(anyString(), anyString(), any(), any(), any());
         verify(computadoraRepository, never()).deleteByUuid(any());
     }
 
@@ -76,11 +77,10 @@ class ComputadoraServiceTest {
     void bajaDesdeSinAsignarEsRechazadaYNoEscribe() throws Exception {
         when(computadoraRepository.findByUuid("pc-1")).thenReturn(pc("Sin Asignar"));
 
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> service.cambiarEstado("pc-1", dto("BAJA", "no corresponde")));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.cambiarEstado("pc-1", dto("BAJA", "no corresponde"), "uid"));
 
-        verify(computadoraRepository, never()).cambiarEstado(any(), any(), any(), any(), any());
+        verify(historialService, never()).cambiarEstado(anyString(), anyString(), any(), any(), any());
     }
 
     @Test
@@ -89,28 +89,26 @@ class ComputadoraServiceTest {
 
         IllegalArgumentException error = assertThrows(
                 IllegalArgumentException.class,
-                () -> service.cambiarEstado("pc-1", dto("BAJA", "   ")));
+                () -> service.cambiarEstado("pc-1", dto("BAJA", "   "), "uid"));
 
         assertEquals("El motivo es obligatorio para dar de baja", error.getMessage());
-        verify(computadoraRepository, never()).cambiarEstado(any(), any(), any(), any(), any());
+        verify(historialService, never()).cambiarEstado(anyString(), anyString(), any(), any(), any());
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     void sinAsignarSigueGuardandoUbicacionDeStock() throws Exception {
-        when(computadoraRepository.findByUuid("pc-1"))
-                .thenReturn(pc("Asignada"), pc("Sin Asignar"));
-        when(computadoraRepository.listProgramas("pc-1")).thenReturn(List.of());
+        when(computadoraRepository.findByUuid("pc-1")).thenReturn(pc("Asignada"), pc("Sin Asignar"));
 
         CambiarEstadoDTO body = dto("SIN_ASIGNAR", "vuelve a depósito");
         body.setUbicacionStock("Depósito IT");
 
-        ComputadoraDTO result = service.cambiarEstado("pc-1", body);
+        service.cambiarEstado("pc-1", body, "uid");
 
-        ArgumentCaptor<Estado> estado = ArgumentCaptor.forClass(Estado.class);
-        verify(computadoraRepository).cambiarEstado(
-                eq("pc-1"), estado.capture(), eq("vuelve a depósito"), eq("Depósito IT"), eq(""));
-        assertEquals("Sin Asignar", estado.getValue().getNombre());
-        assertEquals("Sin Asignar", result.getEstadoActual());
+        ArgumentCaptor<Map<String, Object>> ficha = ArgumentCaptor.forClass(Map.class);
+        verify(historialService).cambiarEstado(
+                eq("pc-1"), eq("SIN_ASIGNAR"), eq("vuelve a depósito"), ficha.capture(), eq("uid"));
+        assertEquals("Depósito IT", ficha.getValue().get("ubicacionStock"));
         verify(computadoraRepository, never()).deleteByUuid(any());
     }
 
@@ -124,6 +122,10 @@ class ComputadoraServiceTest {
     private static Computadora pc(String nombreEstado) {
         Estado estado = new Estado();
         estado.setNombre(nombreEstado);
-        return new Computadora("pc-1", "HOST-1", null, null, null, estado);
+        Computadora pc = new Computadora();
+        pc.setUuid("pc-1");
+        pc.setHostname("HOST-1");
+        pc.setEstadoActual(estado);
+        return pc;
     }
 }

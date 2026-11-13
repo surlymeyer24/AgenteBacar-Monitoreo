@@ -72,7 +72,17 @@ export default defineConfig(({ mode }) => {
         workbox: {
           navigateFallback: '/index.html',
           globPatterns: ['**/*.{js,css,html,svg,png,ico,webmanifest}'],
-          globIgnores: ['**/xlsx-*.js', '**/pdf-*.js', '**/charts-*.js'],
+          // No precachear libs diferidas (nombres naturales de Rolldown + legacy).
+          globIgnores: [
+            '**/xlsx-*.js',
+            '**/pdf-*.js',
+            '**/charts-*.js',
+            '**/jspdf*.js',
+            '**/PieChart-*.js',
+            '**/proxy-*.js',
+            '**/motion-*.js',
+            '**/qrcode-*.js',
+          ],
           maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
           runtimeCaching: [
             {
@@ -87,17 +97,32 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: '../public',
       emptyOutDir: true,
+      // No precargar libs pesadas usadas solo por rutas/acciones diferidas.
+      modulePreload: {
+        resolveDependencies(_filename, deps) {
+          const heavy = /(?:^|\/)(?:pdf|charts|motion|xlsx|qrcode)-[^/]+\.js$/;
+          return deps.filter((dep) => !heavy.test(dep));
+        },
+      },
       rollupOptions: {
         output: {
+          // Solo shell en manualChunks. charts/pdf/motion/xlsx/qrcode quedan en
+          // chunks async naturales: si se nombran acá, Rolldown los importa desde el entry.
           manualChunks(id) {
             if (!id.includes('node_modules')) return;
-            if (id.includes('recharts') || id.includes('d3-')) return 'charts';
-            if (id.includes('jspdf')) return 'pdf';
-            if (id.includes('xlsx')) return 'xlsx';
             if (id.includes('firebase')) return 'firebase';
-            if (id.includes('motion')) return 'motion';
             if (id.includes('lucide-react')) return 'icons';
-            if (id.includes('qrcode')) return 'qrcode';
+            if (
+              id.includes('recharts')
+              || id.includes('/d3-')
+              || id.includes('\\d3-')
+              || id.includes('jspdf')
+              || id.includes('xlsx')
+              || id.includes('motion')
+              || id.includes('qrcode')
+            ) {
+              return;
+            }
             return 'vendor';
           },
         },

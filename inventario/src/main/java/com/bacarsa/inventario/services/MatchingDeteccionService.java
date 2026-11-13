@@ -22,9 +22,12 @@ public class MatchingDeteccionService {
     private static final Logger log = LoggerFactory.getLogger(MatchingDeteccionService.class);
 
     private final ComputadoraRepository computadoraRepository;
+    private final ComputadoraHistorialService computadoraHistorialService;
 
-    public MatchingDeteccionService(ComputadoraRepository computadoraRepository) {
+    public MatchingDeteccionService(ComputadoraRepository computadoraRepository,
+            ComputadoraHistorialService computadoraHistorialService) {
         this.computadoraRepository = computadoraRepository;
+        this.computadoraHistorialService = computadoraHistorialService;
     }
 
     public int detectarPrimerosReportes() throws ExecutionException, InterruptedException {
@@ -48,8 +51,15 @@ public class MatchingDeteccionService {
             if (pc.getPrimerReporteAgenteAt() != null) {
                 continue;
             }
+            try {
+                computadoraHistorialService.registrarLlegadaDeReporte(pc.getUuid());
+            } catch (RuntimeException ex) {
+                log.error("No se pudo guardar el historial de la ficha {}", pc.getUuid(), ex);
+                continue;
+            }
             Map<String, Object> updates = new HashMap<>();
             updates.put("primer_reporte_agente_at", pc.getUltimaSincronizacion());
+            updates.put("tiene_agente", true);
             updates.put("matching_job_estado", MatchingJobEstado.MATCHING_PENDIENTE.name());
             updates.put("matching_intentos", 0);
             computadoraRepository.updateMatchingFields(pc.getUuid(), updates);

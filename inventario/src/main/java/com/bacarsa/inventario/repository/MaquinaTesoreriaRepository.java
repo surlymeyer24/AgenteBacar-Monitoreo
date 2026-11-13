@@ -88,6 +88,11 @@ public class MaquinaTesoreriaRepository {
     }
 
     @CacheEvict(value = "maquinasTesoreria", allEntries = true)
+    public void delete(String id) throws ExecutionException, InterruptedException {
+        firestore.collection(collectionName).document(id).delete().get();
+    }
+
+    @CacheEvict(value = "maquinasTesoreria", allEntries = true)
     public void cambiarEstado(String id, Estado nuevoEstado, String motivo)
             throws ExecutionException, InterruptedException {
         DocumentReference docRef = firestore.collection(collectionName).document(id);

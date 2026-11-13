@@ -27,6 +27,7 @@ import { coincideUbicacionFiltro } from '../constants/ubicaciones';
 import { useCatalogo, opcionesEnumCatalogo, labelDeCatalogo } from '../hooks/useCatalogo';
 import { FASES } from '../utils/logisticaProgreso';
 import WriteGate from '../components/WriteGate';
+import { ModuleHeader } from '../components/layout';
 
 const FILAS_POR_PAGINA = 50;
 const cargarHerramientasQr = () => import('../lib/etiquetaQr');
@@ -381,32 +382,20 @@ export default function EtiquetasQrList() {
 
   return (
     <div className="space-y-6 w-full pb-12">
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-80 h-80 bg-red-500/5 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 relative z-10">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-red-50 border border-red-200 rounded-full text-red-700 text-xs font-mono font-bold tracking-wide uppercase">
-              <QrCode className="w-4 h-4" />
-              Módulo de identificación física IT
-            </div>
-            <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight flex items-center gap-3">
-              Etiquetas QR
-            </h1>
-            <p className="text-sm sm:text-base text-slate-500 font-medium">
-              Mudanza · impresora Xprinter 410B · sticker térmico 100 × 50 mm
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2.5">
+      <ModuleHeader
+        title="Etiquetas QR"
+        badge="Identificación Física IT"
+        description="Mudanza · impresora Xprinter 410B · sticker térmico 100 × 50 mm"
+        actions={
+          <>
             <button
               type="button"
               disabled={ocupado || seleccionadas.length === 0}
               onClick={handleImprimirSeleccionadas}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed text-slate-800 text-sm font-bold rounded-xl border border-slate-300 shadow-2xs transition-all cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#f1f5f9] hover:bg-slate-200 disabled:opacity-50 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 transition-colors shadow-xs cursor-pointer"
               title="Imprime las etiquetas para el gabinete de las PCs seleccionadas"
             >
-              <Printer className="w-4 h-4 text-red-600" />
+              <Printer className="w-3.5 h-3.5 text-slate-500" />
               <span>Imprimir seleccionadas ({seleccionadas.length})</span>
             </button>
 
@@ -414,14 +403,14 @@ export default function EtiquetasQrList() {
               type="button"
               disabled={ocupado || seleccionadas.length === 0 || totalMonitoresSeleccionados === 0}
               onClick={handleImprimirMonitoresSeleccionadas}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-50 hover:bg-indigo-100 disabled:opacity-40 disabled:cursor-not-allowed text-indigo-700 text-sm font-bold rounded-xl border border-indigo-200 shadow-2xs transition-all cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#f1f5f9] hover:bg-slate-200 disabled:opacity-50 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 transition-colors shadow-xs cursor-pointer"
               title={
                 totalMonitoresSeleccionados === 0
                   ? 'No hay monitores en las PCs seleccionadas'
                   : 'Imprime una etiqueta por cada monitor de las estaciones seleccionadas'
               }
             >
-              <Monitor className="w-4 h-4 text-indigo-600" />
+              <Monitor className="w-3.5 h-3.5 text-slate-500" />
               <span>Imprimir monitores ({totalMonitoresSeleccionados})</span>
             </button>
 
@@ -429,15 +418,15 @@ export default function EtiquetasQrList() {
               type="button"
               disabled={ocupado || filtradas.length === 0}
               onClick={handleImprimirFiltradas}
-              className="inline-flex items-center gap-2 px-4.5 py-2.5 bg-linear-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-bold rounded-xl shadow-xs transition-all cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#c53030] hover:bg-[#9b2c2c] disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-colors shadow-xs cursor-pointer"
               title="Imprime todas las computadoras que coinciden con los filtros actuales"
             >
               <Printer className="w-4 h-4" />
               <span>Imprimir filtradas ({filtradas.length})</span>
             </button>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {filtradas.length > 0 && (
         <WriteGate>
@@ -637,59 +626,52 @@ export default function EtiquetasQrList() {
         </div>
       )}
 
-      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs">
-        <div className="relative flex-1">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+      <div className="flex items-center gap-2.5 overflow-x-auto bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs scrollbar-none">
+        <div className="relative w-[42%] min-w-[200px] flex-1">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="search"
             value={buscar}
             onChange={e => setBuscar(e.target.value)}
             placeholder="Buscar por hostname, asignado a, ubicación o UUID..."
-            className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-red-500 focus:ring-1 focus:ring-red-500/20 text-slate-900 rounded-lg pl-10 pr-4 py-2.5 text-sm font-mono placeholder:text-slate-400 outline-none transition-all"
+            className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-500 text-slate-800 rounded-lg pl-9 pr-3 py-2 text-xs sm:text-sm placeholder:text-slate-400 outline-none transition-colors"
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative min-w-[200px]">
-            <select
-              value={filtroLogistica}
-              onChange={e => setFiltroLogistica(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-red-500 cursor-pointer appearance-none pr-8 font-medium focus:bg-white"
-            >
-              <option value="">Todos los estados logísticos</option>
-              <option value="pend_etiqueta">Pendiente de etiquetar</option>
-              <option value="etiquetado">Etiquetado completo</option>
-              <option value="embalado">Embalado en cajas</option>
-              <option value="en_destino">Listo en destino</option>
-            </select>
-          </div>
+        <select
+          value={filtroLogistica}
+          onChange={e => setFiltroLogistica(e.target.value)}
+          className="bg-slate-50 border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-xs font-medium outline-none focus:border-blue-500 cursor-pointer focus:bg-white !w-[24%] max-w-[26%] min-w-[160px] truncate"
+        >
+          <option value="">Todos los estados logísticos</option>
+          <option value="pend_etiqueta">Pendiente de etiquetar</option>
+          <option value="etiquetado">Etiquetado completo</option>
+          <option value="embalado">Embalado en cajas</option>
+          <option value="en_destino">Listo en destino</option>
+        </select>
 
-          <div className="relative min-w-[220px]">
-            <select
-              value={filtroUbicacion}
-              onChange={e => setFiltroUbicacion(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-red-500 cursor-pointer appearance-none pr-8 font-medium focus:bg-white"
-            >
-              <option value="">Todas las ubicaciones ({lista.length})</option>
-              {opcionesEnumCatalogo(ubicCompItems).map(o => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-            <MapPin className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-          </div>
+        <select
+          value={filtroUbicacion}
+          onChange={e => setFiltroUbicacion(e.target.value)}
+          className="bg-slate-50 border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-xs font-medium outline-none focus:border-blue-500 cursor-pointer focus:bg-white !w-[24%] max-w-[26%] min-w-[160px] truncate"
+        >
+          <option value="">Todas las ubicaciones ({lista.length})</option>
+          {opcionesEnumCatalogo(ubicCompItems).map(o => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
 
-          <button
-            type="button"
-            onClick={cargarDatos}
-            disabled={recargando}
-            className="p-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg text-slate-600 hover:text-slate-900 transition-all cursor-pointer"
-            title="Recargar lista de equipos"
-          >
-            <RefreshCw className={`w-4 h-4 ${recargando ? 'animate-spin text-red-600' : ''}`} />
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={cargarDatos}
+          disabled={recargando}
+          className="p-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg text-slate-600 hover:text-slate-900 transition-all shrink-0 cursor-pointer"
+          title="Recargar lista de equipos"
+        >
+          <RefreshCw className={`w-4 h-4 ${recargando ? 'animate-spin text-red-600' : ''}`} />
+        </button>
       </div>
 
       <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">

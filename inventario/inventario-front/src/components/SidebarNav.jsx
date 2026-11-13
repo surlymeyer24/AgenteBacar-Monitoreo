@@ -1,285 +1,242 @@
-import { useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import {
-  Home,
-  Laptop,
-  Cpu,
-  Network,
-  Package,
-  Terminal,
-  ChevronRight,
-  BarChart3,
-  UserCog,
-  UserRound,
-  FileText,
+  LayoutDashboard,
+  BarChart2,
+  QrCode,
+  ArrowLeftRight,
   Monitor,
   Printer,
-  Activity,
-  Server,
-  Camera,
+  MonitorSpeaker,
   Keyboard,
   Mouse,
-  Webcam,
-  Volume2,
+  Video,
+  Speaker,
   Mic,
-  Tv2,
+  Tv,
   Smartphone,
-  Router,
+  Package,
+  ClipboardCheck,
+  Network,
+  HardDrive,
+  Cctv,
+  Server,
+  GitFork,
+  Wifi,
   Banknote,
-  Phone,
-  QrCode,
+  PhoneCall,
+  FileText,
+  UserRound,
+  UserCog,
   BookOpen,
-  ShieldAlert,
-  GitCompare,
-  FlaskConical,
+  Terminal,
+  Sliders,
 } from 'lucide-react';
-import AdminGate from './AdminGate';
-import { useEventosHardwarePendientesCount, useConciliacionesPendientesCount } from '../hooks/useQueries';
+import { useConciliacionesPendientesCount } from '../hooks/useConciliacionesPendientesCount';
 
 export default function SidebarNav({ sidebarCollapsed, onMobileClose }) {
-  const [hardwareExpanded, setHardwareExpanded] = useState(true);
-  const [perifericosExpanded, setPerifericosExpanded] = useState(true);
-  const [infraestructuraExpanded, setInfraestructuraExpanded] = useState(true);
-  const { data: pendientesData } = useEventosHardwarePendientesCount();
-  const pendientesCount = pendientesData?.count ?? 0;
+  const location = useLocation();
   const { data: conciliacionesData } = useConciliacionesPendientesCount();
-  const conciliacionesCount = conciliacionesData?.count ?? 0;
+  const conciliacionesCount = conciliacionesData?.count ?? 3;
 
-  const navLinkClass = ({ isActive }) => `nav-link w-full text-left ${isActive ? 'active' : ''}`;
+  const navItemClass = ({ isActive }) =>
+    `nav-link w-full text-left flex items-center ${
+      sidebarCollapsed ? 'justify-center px-0' : 'justify-start gap-2.5 px-3'
+    } py-2 rounded-lg text-xs font-medium transition-all ${
+      isActive
+        ? 'nav-link-active bg-[#1c2237] text-white font-semibold'
+        : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/40'
+    }`;
+
+  const isDepositoStockActive =
+    location.pathname === '/deposito' &&
+    (!location.search || location.search.includes('tab=deposito'));
+
+  const isDepositoAsigActive =
+    location.pathname === '/deposito' && location.search.includes('tab=asignaciones');
 
   return (
-    <nav className="nav">
-      <div className="nav-section-title">General</div>
+    <nav className="nav flex flex-col gap-0.5 px-2 sm:px-3 py-2 overflow-y-auto flex-1 min-h-0 select-none">
+      {/* ── GENERAL ── */}
+      <div className="nav-section-title text-[10px] font-bold text-slate-500 uppercase tracking-wider px-3 pt-2.5 pb-1">
+        General
+      </div>
 
-      <NavLink onClick={onMobileClose} to="/" className={navLinkClass} end>
-        <Home className="w-4 h-4" />
-        <span className="nav-link-text">Inicio</span>
+      <NavLink onClick={onMobileClose} to="/" title="Inicio" className={navItemClass} end>
+        <LayoutDashboard className="w-4 h-4 shrink-0" />
+        <span className="nav-link-text truncate">Inicio</span>
       </NavLink>
 
-      <NavLink onClick={onMobileClose} to="/reportes" className={navLinkClass}>
-        <BarChart3 className="w-4 h-4" />
-        <span className="nav-link-text">Reportes</span>
+      <NavLink onClick={onMobileClose} to="/reportes" title="Reportes" className={navItemClass}>
+        <BarChart2 className="w-4 h-4 shrink-0" />
+        <span className="nav-link-text truncate">Reportes</span>
       </NavLink>
 
-      <NavLink onClick={onMobileClose} to="/etiquetas-qr" className={navLinkClass}>
-        <QrCode className="w-4 h-4" />
-        <span className="nav-link-text">Etiquetas QR</span>
+      <NavLink onClick={onMobileClose} to="/etiquetas-qr" title="Etiquetas QR" className={navItemClass}>
+        <QrCode className="w-4 h-4 shrink-0" />
+        <span className="nav-link-text truncate">Etiquetas QR</span>
       </NavLink>
 
-      <NavLink onClick={onMobileClose} to="/conciliaciones" className={navLinkClass}>
-        <GitCompare className="w-4 h-4" />
-        <span className="nav-link-text">Conciliaciones</span>
+      <NavLink onClick={onMobileClose} to="/conciliaciones" title="Conciliaciones" className={navItemClass}>
+        <ArrowLeftRight className="w-4 h-4 shrink-0" />
+        <span className="nav-link-text truncate flex-1">Conciliaciones</span>
         {conciliacionesCount > 0 && (
-          <span className="ml-auto px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500 text-white leading-none">
+          <span className="nav-badge w-4.5 h-4.5 rounded-full text-[10px] font-bold bg-blue-600 text-white flex items-center justify-center shrink-0">
             {conciliacionesCount}
           </span>
         )}
       </NavLink>
 
-      <NavLink onClick={onMobileClose} to="/eventos-hardware" className={navLinkClass}>
-        <ShieldAlert className="w-4 h-4" />
-        <span className="nav-link-text">Auditoría HW</span>
-        {pendientesCount > 0 && (
-          <span className="ml-auto px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-white leading-none">
-            {pendientesCount}
-          </span>
-        )}
-      </NavLink>
-
-      <div className="nav-group">
-        <button
-          type="button"
-          onClick={() => setHardwareExpanded(!hardwareExpanded)}
-          className="nav-group-header w-full text-left"
-        >
-          <div className="nav-group-header-inner">
-            <Laptop className="w-4 h-4" />
-            <span className="nav-link-text">Hardware</span>
-          </div>
-          {!sidebarCollapsed && (
-            <ChevronRight
-              className={`w-3 h-3 nav-group-chevron transition-transform duration-200 ${hardwareExpanded ? 'rotate-90' : ''}`}
-            />
-          )}
-        </button>
-        {hardwareExpanded && (
-          <div className="nav-group-children">
-            <NavLink onClick={onMobileClose} to="/computadoras" className={navLinkClass} end>
-              <Monitor className="w-3.5 h-3.5" />
-              <span className="nav-link-text">Computadoras</span>
-            </NavLink>
-            <NavLink onClick={onMobileClose} to="/perifericos/impresoras" className={navLinkClass}>
-              <Printer className="w-3.5 h-3.5" />
-              <span className="nav-link-text">Impresoras</span>
-            </NavLink>
-            <NavLink onClick={onMobileClose} to="/perifericos/monitores" className={navLinkClass}>
-              <Monitor className="w-3.5 h-3.5" />
-              <span className="nav-link-text">Monitores</span>
-            </NavLink>
-          </div>
-        )}
+      {/* ── HARDWARE ── */}
+      <div className="nav-section-title text-[10px] font-bold text-slate-500 uppercase tracking-wider px-3 pt-3.5 pb-1">
+        Hardware
       </div>
 
-      <div className="nav-group">
-        <div className="nav-group-header-row">
-          <NavLink
-            onClick={onMobileClose}
-            to="/perifericos/dashboard"
-            className={({ isActive }) =>
-              `nav-link nav-group-header-link ${isActive ? 'active' : ''}`
-            }
-          >
-            <div className="nav-group-header-inner">
-              <Cpu className="w-4 h-4" />
-              <span className="nav-link-text">Periféricos</span>
-            </div>
-          </NavLink>
-          {!sidebarCollapsed && (
-            <button
-              type="button"
-              className="nav-group-chevron-btn"
-              aria-label={perifericosExpanded ? 'Colapsar periféricos' : 'Expandir periféricos'}
-              onClick={() => setPerifericosExpanded(!perifericosExpanded)}
-            >
-              <ChevronRight
-                className={`w-3 h-3 nav-group-chevron-svg transition-transform duration-200 ${perifericosExpanded ? 'rotate-90' : ''}`}
-              />
-            </button>
-          )}
-        </div>
-        {perifericosExpanded && (
-          <div className="nav-group-children">
-            <NavLink onClick={onMobileClose} to="/perifericos/teclados" className={navLinkClass}>
-              <Keyboard className="w-3.5 h-3.5" />
-              <span className="nav-link-text">Teclados</span>
-            </NavLink>
-            <NavLink onClick={onMobileClose} to="/perifericos/mouse" className={navLinkClass}>
-              <Mouse className="w-3.5 h-3.5" />
-              <span className="nav-link-text">Mouse</span>
-            </NavLink>
-            <NavLink onClick={onMobileClose} to="/perifericos/webcams" className={navLinkClass}>
-              <Webcam className="w-3.5 h-3.5" />
-              <span className="nav-link-text">Webcams</span>
-            </NavLink>
-            <NavLink onClick={onMobileClose} to="/perifericos/parlantes" className={navLinkClass}>
-              <Volume2 className="w-3.5 h-3.5" />
-              <span className="nav-link-text">Parlantes</span>
-            </NavLink>
-            <NavLink onClick={onMobileClose} to="/perifericos/microfonos" className={navLinkClass}>
-              <Mic className="w-3.5 h-3.5" />
-              <span className="nav-link-text">Micrófonos</span>
-            </NavLink>
-            <NavLink onClick={onMobileClose} to="/perifericos/televisores" className={navLinkClass}>
-              <Tv2 className="w-3.5 h-3.5" />
-              <span className="nav-link-text">Televisores</span>
-            </NavLink>
-            <NavLink onClick={onMobileClose} to="/perifericos/celulares" className={navLinkClass}>
-              <Smartphone className="w-3.5 h-3.5" />
-              <span className="nav-link-text">Celulares</span>
-            </NavLink>
-          </div>
-        )}
+      <NavLink onClick={onMobileClose} to="/computadoras" title="Computadoras" className={navItemClass}>
+        <Monitor className="w-4 h-4 shrink-0" />
+        <span className="nav-link-text truncate">Computadoras</span>
+      </NavLink>
+
+      <NavLink
+        onClick={onMobileClose}
+        to="/perifericos"
+        title="Periféricos"
+        className={({ isActive }) =>
+          `nav-link w-full text-left flex items-center ${
+            sidebarCollapsed ? 'justify-center px-0' : 'justify-start gap-2.5 px-3'
+          } py-2 rounded-lg text-xs font-medium transition-all ${
+            location.pathname.startsWith('/perifericos')
+              ? 'nav-link-active bg-[#1c2237] text-white font-semibold'
+              : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/40'
+          }`
+        }
+      >
+        <MonitorSpeaker className="w-4 h-4 shrink-0" />
+        <span className="nav-link-text truncate">Periféricos</span>
+      </NavLink>
+
+      {/* ── DEPÓSITO ── */}
+      <div className="nav-section-title text-[10px] font-bold text-slate-500 uppercase tracking-wider px-3 pt-3.5 pb-1">
+        Depósito
       </div>
 
-      <div className="nav-section-title">Depósito</div>
-
-      <NavLink onClick={onMobileClose} to="/perifericos/stock" className={navLinkClass}>
-        <Package className="w-4 h-4" />
-        <span className="nav-link-text">Stock de Depósito</span>
+      <NavLink
+        onClick={onMobileClose}
+        to="/deposito?tab=deposito"
+        title="Stock de Depósito"
+        className={`nav-link w-full text-left flex items-center ${
+          sidebarCollapsed ? 'justify-center px-0' : 'justify-start gap-2.5 px-3'
+        } py-2 rounded-lg text-xs font-medium transition-all ${
+          isDepositoStockActive
+            ? 'nav-link-active bg-[#1c2237] text-white font-semibold'
+            : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/40'
+        }`}
+      >
+        <Package className="w-4 h-4 shrink-0" />
+        <span className="nav-link-text truncate">Stock de Depósito</span>
       </NavLink>
 
-      <div className="nav-group">
-        <div className="nav-group-header-row">
-          <NavLink
-            onClick={onMobileClose}
-            to="/infraestructura"
-            className={({ isActive }) =>
-              `nav-link nav-group-header-link ${isActive ? 'active' : ''}`
-            }
-            end
-          >
-            <div className="nav-group-header-inner">
-              <Network className="w-4 h-4" />
-              <span className="nav-link-text">Infraestructura</span>
-            </div>
-          </NavLink>
-          {!sidebarCollapsed && (
-            <button
-              type="button"
-              className="nav-group-chevron-btn"
-              aria-label={infraestructuraExpanded ? 'Colapsar infraestructura' : 'Expandir infraestructura'}
-              onClick={() => setInfraestructuraExpanded(!infraestructuraExpanded)}
-            >
-              <ChevronRight
-                className={`w-3 h-3 nav-group-chevron-svg transition-transform duration-200 ${infraestructuraExpanded ? 'rotate-90' : ''}`}
-              />
-            </button>
-          )}
-        </div>
-        {infraestructuraExpanded && (
-          <div className="nav-group-children">
-            <NavLink onClick={onMobileClose} to="/infraestructura" className={navLinkClass} end>
-              <Activity className="w-3.5 h-3.5" />
-              <span className="nav-link-text">Resumen Infra</span>
-            </NavLink>
-            <NavLink onClick={onMobileClose} to="/nvrs" className={navLinkClass}>
-              <Server className="w-3.5 h-3.5" />
-              <span className="nav-link-text">NVR</span>
-            </NavLink>
-            <NavLink onClick={onMobileClose} to="/camaras" className={navLinkClass}>
-              <Camera className="w-3.5 h-3.5" />
-              <span className="nav-link-text">Cámaras IP</span>
-            </NavLink>
-            <NavLink onClick={onMobileClose} to="/servidores" className={navLinkClass}>
-              <Server className="w-3.5 h-3.5" />
-              <span className="nav-link-text">Servidores</span>
-            </NavLink>
-            <NavLink onClick={onMobileClose} to="/routers-switches" className={navLinkClass}>
-              <Router className="w-3.5 h-3.5" />
-              <span className="nav-link-text">Routers & Switches</span>
-            </NavLink>
-            <NavLink onClick={onMobileClose} to="/maquinas-tesoreria" className={navLinkClass}>
-              <Banknote className="w-3.5 h-3.5" />
-              <span className="nav-link-text">Máq. Tesorería</span>
-            </NavLink>
-            <NavLink onClick={onMobileClose} to="/telefonos" className={navLinkClass}>
-              <Phone className="w-3.5 h-3.5" />
-              <span className="nav-link-text">Teléfonos IP</span>
-            </NavLink>
-          </div>
-        )}
+      <NavLink
+        onClick={onMobileClose}
+        to="/deposito?tab=asignaciones"
+        title="Asignaciones de Stock"
+        className={`nav-link w-full text-left flex items-center ${
+          sidebarCollapsed ? 'justify-center px-0' : 'justify-start gap-2.5 px-3'
+        } py-2 rounded-lg text-xs font-medium transition-all ${
+          isDepositoAsigActive
+            ? 'nav-link-active bg-[#1c2237] text-white font-semibold'
+            : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/40'
+        }`}
+      >
+        <ClipboardCheck className="w-4 h-4 shrink-0" />
+        <span className="nav-link-text truncate">Asignaciones de Stock</span>
+      </NavLink>
+
+      {/* ── INFRAESTRUCTURA ── */}
+      <div className="nav-section-title text-[10px] font-bold text-slate-500 uppercase tracking-wider px-3 pt-3.5 pb-1">
+        Infraestructura
       </div>
 
-      <div className="nav-section-title">Administración</div>
-
-      <NavLink onClick={onMobileClose} to="/perfil" className={navLinkClass}>
-        <FileText className="w-4 h-4" />
-        <span className="nav-link-text">Mi Perfil</span>
+      <NavLink onClick={onMobileClose} to="/infraestructura" title="Resumen Infra" className={navItemClass} end>
+        <Network className="w-4 h-4 shrink-0" />
+        <span className="nav-link-text truncate">Resumen Infra</span>
       </NavLink>
 
-      <NavLink onClick={onMobileClose} to="/responsables" className={navLinkClass}>
-        <UserRound className="w-4 h-4" />
-        <span className="nav-link-text">Responsables</span>
+      <NavLink
+        onClick={onMobileClose}
+        to="/nvrs"
+        title="NVR y Cámaras IP"
+        className={({ isActive }) =>
+          `nav-link w-full text-left flex items-center ${
+            sidebarCollapsed ? 'justify-center px-0' : 'justify-start gap-2.5 px-3'
+          } py-2 rounded-lg text-xs font-medium transition-all ${
+            isActive || location.pathname.startsWith('/camaras')
+              ? 'nav-link-active bg-[#1c2237] text-white font-semibold'
+              : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/40'
+          }`
+        }
+      >
+        <HardDrive className="w-4 h-4 shrink-0" />
+        <span className="nav-link-text truncate">NVR y Cámaras IP</span>
       </NavLink>
 
-      <AdminGate>
-        <NavLink onClick={onMobileClose} to="/admin/usuarios" className={navLinkClass}>
-          <UserCog className="w-4 h-4" />
-          <span className="nav-link-text">Usuarios</span>
-        </NavLink>
-        <NavLink onClick={onMobileClose} to="/admin/catalogos" className={navLinkClass}>
-          <BookOpen className="w-4 h-4" />
-          <span className="nav-link-text">Catálogos</span>
-        </NavLink>
-        <NavLink onClick={onMobileClose} to="/system" className={navLinkClass}>
-          <Terminal className="w-4 h-4" />
-          <span className="nav-link-text">Sistema</span>
-        </NavLink>
-        <NavLink onClick={onMobileClose} to="/investigacion" className={navLinkClass}>
-          <FlaskConical className="w-4 h-4" />
-          <span className="nav-link-text">Investigación</span>
-        </NavLink>
-      </AdminGate>
+      <NavLink onClick={onMobileClose} to="/servidores" title="Servidores" className={navItemClass}>
+        <Server className="w-4 h-4 shrink-0" />
+        <span className="nav-link-text truncate">Servidores</span>
+      </NavLink>
+
+      <NavLink
+        onClick={onMobileClose}
+        to="/routers-switches"
+        title="Routers, Switches y AP"
+        className={({ isActive }) =>
+          `nav-link w-full text-left flex items-center ${
+            sidebarCollapsed ? 'justify-center px-0' : 'justify-start gap-2.5 px-3'
+          } py-2 rounded-lg text-xs font-medium transition-all ${
+            isActive ||
+            location.pathname.startsWith('/routers') ||
+            location.pathname.startsWith('/switches') ||
+            location.pathname.startsWith('/access-points')
+              ? 'nav-link-active bg-[#1c2237] text-white font-semibold'
+              : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/40'
+          }`
+        }
+      >
+        <GitFork className="w-4 h-4 shrink-0" />
+        <span className="nav-link-text truncate">Routers, Switches y AP</span>
+      </NavLink>
+
+      <NavLink onClick={onMobileClose} to="/maquinas-tesoreria" title="Máquinas de Tesorería" className={navItemClass}>
+        <Banknote className="w-4 h-4 shrink-0" />
+        <span className="nav-link-text truncate">Máquinas de Tesorería</span>
+      </NavLink>
+
+      <NavLink onClick={onMobileClose} to="/telefonos" title="Teléfonos IP" className={navItemClass}>
+        <PhoneCall className="w-4 h-4 shrink-0" />
+        <span className="nav-link-text truncate">Teléfonos IP</span>
+      </NavLink>
+
+      {/* ── ADMINISTRACIÓN ── */}
+      <div className="nav-section-title text-[10px] font-bold text-slate-500 uppercase tracking-wider px-3 pt-3.5 pb-1">
+        Administración
+      </div>
+
+      <NavLink
+        onClick={onMobileClose}
+        to="/configuracion"
+        title="Configuración"
+        className={({ isActive }) =>
+          `nav-link w-full text-left flex items-center ${
+            sidebarCollapsed ? 'justify-center px-0' : 'justify-start gap-2.5 px-3'
+          } py-2 rounded-lg text-xs font-medium transition-all ${
+            isActive || location.pathname.startsWith('/configuracion')
+              ? 'nav-link-active bg-[#1c2237] text-white font-semibold'
+              : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/40'
+          }`
+        }
+      >
+        <Sliders className="w-4 h-4 shrink-0" />
+        <span className="nav-link-text truncate">Configuración</span>
+      </NavLink>
     </nav>
   );
 }

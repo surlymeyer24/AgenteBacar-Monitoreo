@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.google.cloud.Timestamp;
+import com.google.cloud.firestore.annotation.Exclude;
 import com.google.cloud.firestore.annotation.PropertyName;
 
 import lombok.Getter;
@@ -15,6 +16,9 @@ import lombok.Setter;
 public class Computadora {
 
     private String uuid;
+    @Getter(onMethod_ = @PropertyName("codigo_interno"))
+    @Setter(onMethod_ = @PropertyName("codigo_interno"))
+    private String codigoInterno;
     private String hostname;
     private String usuarioActual;
     private Ubicacion ubicacion;
@@ -24,6 +28,15 @@ public class Computadora {
     private String arquitectura;
     private Estado estadoActual;
     private List<CambioEstado> historialEstados;
+
+    /** Historial nuevo, append-only. No reemplaza a {@code historialEstados}. */
+    private List<RenglonHistorial> historial;
+
+    @Getter(onMethod_ = @PropertyName("historial_migrado"))
+    @Setter(onMethod_ = @PropertyName("historial_migrado"))
+    private Boolean historialMigrado;
+
+    private String notas;
     private List<Disco> discos;
     @Getter(onMethod_ = @PropertyName("modulos_ram"))
     @Setter(onMethod_ = @PropertyName("modulos_ram"))
@@ -77,6 +90,10 @@ public class Computadora {
     @Setter(onMethod_ = @PropertyName("responsable_inventario"))
     private String responsableInventario;
 
+    @Getter(onMethod_ = @PropertyName("asignacion_tipo"))
+    @Setter(onMethod_ = @PropertyName("asignacion_tipo"))
+    private String asignacionTipo;
+
     @Getter(onMethod_ = @PropertyName("anydesk_id"))
     @Setter(onMethod_ = @PropertyName("anydesk_id"))
     private String anydeskId;
@@ -86,6 +103,10 @@ public class Computadora {
     @Getter(onMethod_ = @PropertyName("origen_alta"))
     @Setter(onMethod_ = @PropertyName("origen_alta"))
     private OrigenAlta origenAlta;
+
+    @Getter(onMethod_ = @PropertyName("en_deposito"))
+    @Setter(onMethod_ = @PropertyName("en_deposito"))
+    private Boolean enDeposito;
 
     @Deprecated
     @Getter(onMethod_ = @PropertyName("estado_conciliacion"))
@@ -168,8 +189,30 @@ public class Computadora {
     @Setter(onMethod_ = @PropertyName("asset_tag"))
     private String assetTag;
 
+    // Los cuatro campos siguientes no se serializan con toObject/set: se cargan a mano desde el documento.
+    /** Campo raíz {@code ubicacion_stock}. */
+    @Getter(onMethod_ = @Exclude)
+    @Setter(onMethod_ = @Exclude)
+    private String ubicacionStock;
+
+    /** Campo raíz {@code tiene_agente}: se persiste la primera vez que el agente reporta. */
+    @Getter(onMethod_ = @Exclude)
+    @Setter(onMethod_ = @Exclude)
+    private Boolean tieneAgente;
+
+    /** Mapa {@code software_critico} que escribe el agente. */
+    @Getter(onMethod_ = @Exclude)
+    @Setter(onMethod_ = @Exclude)
+    private Map<String, Object> softwareCritico;
+
+    /** Mapa {@code windows_updates} que escribe el agente. */
+    @Getter(onMethod_ = @Exclude)
+    @Setter(onMethod_ = @Exclude)
+    private Map<String, Object> windowsUpdates;
+
     public Computadora() {
         this.historialEstados = new ArrayList<>();
+        this.historial = new ArrayList<>();
         this.discos = new ArrayList<>();
         this.modulos = new ArrayList<>();
     }
@@ -186,6 +229,12 @@ public class Computadora {
     }
 
     public Estado getEstadoActual() {
+        // El campo raíz es la fuente de verdad (igual que el listado). El tramo abierto de
+        // historialEstados solo se usa si el documento no tiene estadoActual.
+        if (estadoActual != null && estadoActual.getNombre() != null
+                && !estadoActual.getNombre().isBlank()) {
+            return estadoActual;
+        }
         if (historialEstados != null) {
             for (CambioEstado cambio : historialEstados) {
                 if (cambio.esEstadoActual()) {

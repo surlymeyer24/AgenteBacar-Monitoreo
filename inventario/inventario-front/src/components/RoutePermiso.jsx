@@ -5,9 +5,11 @@ function PermisosLoading() {
   return <p className="estado-msg layout-boot-msg">Cargando permisos…</p>;
 }
 
+/**
+ * No bloquea el shell: el layout pinta con skeleton mientras llegan los permisos.
+ * RequireWrite / RequireAdmin siguen esperando el rol.
+ */
 export function PermisosBoot({ children }) {
-  const { loading } = usePermisos();
-  if (loading) return <PermisosLoading />;
   return children;
 }
 

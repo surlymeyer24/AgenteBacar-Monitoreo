@@ -9,6 +9,9 @@ import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 
 import com.bacarsa.inventario.dto.ActualizarPerifericoDTO;
@@ -19,6 +22,8 @@ import com.bacarsa.inventario.dto.PerifericoManualCreateDTO;
 import com.bacarsa.inventario.dto.PerifericoManualDTO;
 import com.bacarsa.inventario.dto.SacarUnidadStockDTO;
 import com.bacarsa.inventario.dto.SacarUnidadStockResultDTO;
+import com.bacarsa.inventario.historial.ActorHistorial;
+import com.bacarsa.inventario.historial.PerifericoManualHistorialReglas;
 import com.bacarsa.inventario.mapper.EspecificacionStockMapper;
 import com.bacarsa.inventario.mapper.PerifericoManualMapper;
 import com.bacarsa.inventario.models.Computadora;
@@ -30,17 +35,17 @@ import com.bacarsa.inventario.models.EstadoPreparacion;
 import com.bacarsa.inventario.models.EstadoReporteAgente;
 import com.bacarsa.inventario.models.OrigenAlta;
 import com.bacarsa.inventario.models.PerifericoManual;
+import com.bacarsa.inventario.models.RenglonHistorial;
+import com.bacarsa.inventario.models.TipoMovimiento;
+import com.bacarsa.inventario.models.Usuario;
 import com.bacarsa.inventario.repository.ComputadoraRepository;
 import com.bacarsa.inventario.repository.PerifericoManualRepository;
+import com.bacarsa.inventario.repository.UsuarioRepository;
 import com.google.cloud.Timestamp;
 import com.google.cloud.firestore.DocumentReference;
 import com.google.cloud.firestore.DocumentSnapshot;
 import com.google.cloud.firestore.FieldValue;
 import com.google.cloud.firestore.Firestore;
-
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Caching;
 
 @Service
 public class PerifericoManualService {
@@ -50,6 +55,8 @@ public class PerifericoManualService {
     private final PerifericoManualRepository repository;
     private final ComputadoraService computadoraService;
     private final ComputadoraRepository computadoraRepository;
+    private final AuditStockService auditService;
+    private final UsuarioRepository usuarioRepository;
     private final Firestore firestore;
     private final String computadorasCollection;
     private final String perifericosCollection;
@@ -57,12 +64,16 @@ public class PerifericoManualService {
     public PerifericoManualService(PerifericoManualRepository repository,
             ComputadoraService computadoraService,
             ComputadoraRepository computadoraRepository,
+            AuditStockService auditService,
+            UsuarioRepository usuarioRepository,
             Firestore firestore,
             @Value("${firebase.collection.computadoras}") String computadorasCollection,
             @Value("${firebase.collection.perifericos_manuales}") String perifericosCollection) {
         this.repository = repository;
         this.computadoraService = computadoraService;
         this.computadoraRepository = computadoraRepository;
+        this.auditService = auditService;
+        this.usuarioRepository = usuarioRepository;
         this.firestore = firestore;
         this.computadorasCollection = computadorasCollection;
         this.perifericosCollection = perifericosCollection;
@@ -103,6 +114,16 @@ public class PerifericoManualService {
         LocalDate fa = dto.getFechaAlta() != null ? dto.getFechaAlta() : LocalDate.now();
         p.setFechaAlta(fa.toString());
 
+        ActorHistorial actor = actorDe(null);
+        RenglonHistorial altaRenglon = new RenglonHistorial();
+        altaRenglon.setTipo("ALTA_MANUAL");
+        altaRenglon.setActoId(UUID.randomUUID().toString());
+        altaRenglon.setCuando(Timestamp.now());
+        altaRenglon.setOrigen("MANUAL");
+        altaRenglon.setQuienUid(actor.uid());
+        altaRenglon.setQuienNombre(actor.nombre());
+        p.setHistorial(new ArrayList<>(List.of(altaRenglon)));
+
         String id = repository.create(p);
 
         String motivoAlta = (dto.getMotivo() != null && !dto.getMotivo().isBlank())
@@ -110,10 +131,27 @@ public class PerifericoManualService {
                 : "Alta de periférico";
         cambiarEstado(id, "DERIVAR_ASIGNACION", motivoAlta);
 
+        PerifericoManual creado = repository.findById(id);
+        auditService.registrar(AuditStockService.RegistroAudit.builder(TipoMovimiento.ALTA, id)
+                .codigoInterno(creado != null ? creado.getCodigoInterno() : null)
+                .tipoEquipo(p.getTipo())
+                .marca(p.getFabricante())
+                .modelo(p.getNombre())
+                .serieOImei(p.getNumeroSerie())
+                .motivo(motivoAlta)
+                .ubicacionDestino(p.getUbicacion())
+                .estadoNuevo("Sin Asignar")
+                .build());
+
         return obtenerPorId(id);
     }
 
     public PerifericoManualDTO actualizar(String id, ActualizarPerifericoDTO dto)
+            throws ExecutionException, InterruptedException {
+        return actualizar(id, dto, null);
+    }
+
+    public PerifericoManualDTO actualizar(String id, ActualizarPerifericoDTO dto, String uid)
             throws ExecutionException, InterruptedException {
         if (repository.findById(id) == null) return null;
         Map<String, Object> campos = new HashMap<>();
@@ -139,14 +177,21 @@ public class PerifericoManualService {
             EspecificacionStock spec = EspecificacionStockMapper.fromDTO(dto.getEspecificacionStock());
             if (spec == null) {
                 campos.put("especificacion_stock", FieldValue.delete());
+                campos.put("descripcion_completa", FieldValue.delete());
             } else {
                 validarEspecificacionPcSiAplica(
                         dto.getTipo() != null ? dto.getTipo() : repository.findById(id).getTipo(),
                         spec);
                 campos.put("especificacion_stock", EspecificacionStockMapper.toFirestoreMap(spec));
+                campos.put("descripcion_completa", ProyeccionStock.descripcionDesdeSpec(spec));
             }
         }
-        repository.actualizar(id, campos);
+
+        ActorHistorial actor = actorDe(uid);
+        repository.aplicarHistorial(id, (doc, ahora) ->
+            PerifericoManualHistorialReglas.editarFicha(doc, campos, actor, ahora)
+        );
+
         return obtenerPorId(id);
     }
 
@@ -179,7 +224,6 @@ public class PerifericoManualService {
         String pcUuid = UUID.randomUUID().toString();
 
         firestore.runTransaction(transaction -> {
-            // --- READ lote ---
             DocumentReference loteRef = firestore.collection(perifericosCollection).document(loteId);
             DocumentSnapshot loteDoc = transaction.get(loteRef).get();
             if (!loteDoc.exists()) {
@@ -214,7 +258,6 @@ public class PerifericoManualService {
                 throw new IllegalArgumentException("El lote no tiene especificación de hardware; editá el ítem y cargá CPU/RAM");
             }
 
-            // --- Resolver hostname ---
             String hostname;
             if (dto.getHostname() != null && !dto.getHostname().isBlank()) {
                 hostname = dto.getHostname().trim();
@@ -234,7 +277,6 @@ public class PerifericoManualService {
                 hostname = slug + "-" + sufijo;
             }
 
-            // --- Ubicación stock ---
             String loteUbicacion = loteDoc.getString("ubicacion");
             String ubicacionStock = (loteUbicacion != null && !loteUbicacion.isBlank())
                     ? loteUbicacion.trim()
@@ -244,7 +286,6 @@ public class PerifericoManualService {
                     ? dto.getMotivo().trim()
                     : "Ingreso a stock desde lote " + loteId;
 
-            // --- BUILD PC document ---
             Timestamp ahora = Timestamp.now();
 
             Map<String, Object> estadoMap = new HashMap<>();
@@ -280,27 +321,28 @@ public class PerifericoManualService {
                 pcData.put("condicion", spec.getCondicion());
             }
 
-            // --- WRITE PC ---
             DocumentReference pcRef = firestore.collection(computadorasCollection).document(pcUuid);
             transaction.set(pcRef, pcData);
 
-            // --- DECREMENT lote ---
             transaction.update(loteRef, "cantidad", FieldValue.increment(-1));
 
             return null;
         }).get();
 
-        // Post-transacción: leer datos frescos para el DTO de respuesta
         SacarUnidadStockResultDTO result = new SacarUnidadStockResultDTO();
         result.setComputadora(computadoraService.getByUuid(pcUuid));
         result.setLote(obtenerPorId(loteId));
+
+        auditService.registrar(AuditStockService.RegistroAudit.builder(TipoMovimiento.SACAR_UNIDAD, loteId)
+                .computadoraUuid(pcUuid)
+                .motivo("Unidad extraída de lote a computadoras")
+                .estadoAnterior("Sin Asignar")
+                .estadoNuevo("Sin Asignar")
+                .build());
+
         return result;
     }
 
-    /**
-     * Devuelve una unidad al lote de Stock de PCs y borra el documento de computadora.
-     * Así no queda en /computadoras ni en el pipeline.
-     */
     @Caching(evict = {
             @CacheEvict(value = "pc-listado", allEntries = true),
             @CacheEvict(value = "pc-detalle", allEntries = true),
@@ -338,6 +380,11 @@ public class PerifericoManualService {
             transaction.delete(pcRef);
             return destinoLoteId;
         }).get();
+
+        auditService.registrar(AuditStockService.RegistroAudit.builder(TipoMovimiento.DEVOLVER_UNIDAD_LOTE, loteId)
+                .computadoraUuid(uuid)
+                .motivo("Unidad devuelta de computadoras a lote de stock")
+                .build());
 
         return obtenerPorId(loteId);
     }
@@ -377,6 +424,7 @@ public class PerifericoManualService {
         loteData.put("ubicacion", ubicacionStock);
         loteData.put("fechaAlta", LocalDate.now().toString());
         loteData.put("especificacion_stock", EspecificacionStockMapper.toFirestoreMap(spec));
+        loteData.put("descripcion_completa", ProyeccionStock.descripcionDesdeSpec(spec));
         loteData.put("estadoActual", estadoMap);
         loteData.put("historialEstados", List.of(historialEntry));
         loteData.put("notas", "Devuelta desde unidad " + pcDoc.getId());
@@ -412,6 +460,7 @@ public class PerifericoManualService {
                 ? motivo.trim()
                 : "Asignado a " + ubicacion;
 
+        String idResultado;
         if (original.getCantidad() > 1) {
             repository.decrementarCantidad(id);
 
@@ -430,13 +479,27 @@ public class PerifericoManualService {
             asignado.setNumeroSerie(original.getNumeroSerie());
             asignado.setLoteOrigenId(original.getLoteOrigenId() != null ? original.getLoteOrigenId() : id);
 
-            String nuevoId = repository.create(asignado);
-            cambiarEstado(nuevoId, "ASIGNADA", motivoFinal);
-            return obtenerPorId(nuevoId);
+            idResultado = repository.create(asignado);
+            cambiarEstado(idResultado, "ASIGNADA", motivoFinal);
+        } else {
+            idResultado = id;
+            repository.updateUbicacion(id, ubicacion);
+            cambiarEstado(id, "ASIGNADA", motivoFinal);
         }
 
-        repository.updateUbicacion(id, ubicacion);
-        return cambiarEstado(id, "ASIGNADA", motivoFinal);
+        auditService.registrar(AuditStockService.RegistroAudit.builder(TipoMovimiento.CAMBIO_UBICACION, idResultado)
+                .codigoInterno(original.getCodigoInterno())
+                .tipoEquipo(original.getTipo())
+                .marca(original.getFabricante())
+                .modelo(original.getNombre())
+                .motivo(motivoFinal)
+                .ubicacionOrigen(original.getUbicacion())
+                .ubicacionDestino(ubicacion)
+                .estadoAnterior(original.getEstadoActual() != null ? original.getEstadoActual().getNombre() : null)
+                .estadoNuevo("Asignada")
+                .build());
+
+        return obtenerPorId(idResultado);
     }
 
     public PerifericoManualDTO devolverStock(String id, String motivo)
@@ -448,8 +511,28 @@ public class PerifericoManualService {
                 ? motivo.trim()
                 : "Devolución a stock";
 
+        String ubicacionAnterior = original.getUbicacion();
+        String estadoAnterior = original.getEstadoActual() != null ? original.getEstadoActual().getNombre() : null;
+
         repository.limpiarAsignacion(id, UBICACION_STOCK_DEFAULT);
-        return cambiarEstado(id, "SIN_ASIGNAR", motivoFinal);
+        PerifericoManualDTO resultado = cambiarEstado(id, "SIN_ASIGNAR", motivoFinal);
+
+        auditService.registrar(AuditStockService.RegistroAudit.builder(TipoMovimiento.DEVOLUCION, id)
+                .codigoInterno(original.getCodigoInterno())
+                .tipoEquipo(original.getTipo())
+                .marca(original.getFabricante())
+                .modelo(original.getNombre())
+                .serieOImei(original.getNumeroSerie())
+                .responsable(original.getComputadoraHostname())
+                .computadoraUuid(original.getComputadoraUuid())
+                .motivo(motivoFinal)
+                .estadoAnterior(estadoAnterior)
+                .estadoNuevo("Sin Asignar")
+                .ubicacionOrigen(ubicacionAnterior)
+                .ubicacionDestino(UBICACION_STOCK_DEFAULT)
+                .build());
+
+        return resultado;
     }
 
     public PerifericoManualDTO asignar(String id, String computadoraUuid, String motivo)
@@ -473,6 +556,7 @@ public class PerifericoManualService {
 
         String motivoFinal = (motivo != null && !motivo.isBlank()) ? motivo.trim() : "Asignado desde stock";
 
+        String idResultado;
         if (original.getCantidad() > 1) {
             repository.decrementarCantidad(id);
 
@@ -493,13 +577,29 @@ public class PerifericoManualService {
             asignado.setLoteOrigenId(original.getLoteOrigenId() != null ? original.getLoteOrigenId() : id);
             asignado.setUbicacion(original.getUbicacion());
 
-            String nuevoId = repository.create(asignado);
-            cambiarEstado(nuevoId, "ASIGNADA", motivoFinal);
-            return obtenerPorId(nuevoId);
+            idResultado = repository.create(asignado);
+            cambiarEstado(idResultado, "ASIGNADA", motivoFinal);
         } else {
+            idResultado = id;
             repository.updateAsignacionPc(id, uuid, hostname);
-            return cambiarEstado(id, "ASIGNADA", motivoFinal);
+            cambiarEstado(id, "ASIGNADA", motivoFinal);
         }
+
+        auditService.registrar(AuditStockService.RegistroAudit.builder(TipoMovimiento.ASIGNACION, idResultado)
+                .codigoInterno(original.getCodigoInterno())
+                .tipoEquipo(original.getTipo())
+                .marca(original.getFabricante())
+                .modelo(original.getNombre())
+                .serieOImei(original.getNumeroSerie())
+                .responsable(hostname)
+                .computadoraUuid(uuid)
+                .motivo(motivoFinal)
+                .estadoAnterior(original.getEstadoActual() != null ? original.getEstadoActual().getNombre() : null)
+                .estadoNuevo("Asignada")
+                .ubicacionOrigen(original.getUbicacion())
+                .build());
+
+        return obtenerPorId(idResultado);
     }
 
     /**
@@ -553,6 +653,11 @@ public class PerifericoManualService {
 
     public PerifericoManualDTO cambiarEstado(String id, String estadoRaw, String motivo)
             throws ExecutionException, InterruptedException {
+        return cambiarEstado(id, estadoRaw, motivo, null);
+    }
+
+    public PerifericoManualDTO cambiarEstado(String id, String estadoRaw, String motivo, String uid)
+            throws ExecutionException, InterruptedException {
         PerifericoManual p = repository.findById(id);
         if (p == null) return null;
 
@@ -570,8 +675,26 @@ public class PerifericoManualService {
         Estado estado = new Estado();
         estado.setNombre(estadoOperativo.getNombre());
         estado.setDescripcion(estadoOperativo.getDescripcion());
-        repository.cambiarEstado(id, estado, motivo);
+
+        ActorHistorial actor = actorDe(uid);
+        repository.aplicarHistorial(id, (doc, ahora) ->
+            PerifericoManualHistorialReglas.cambiarEstado(doc, estado, motivo, actor, ahora)
+        );
+
         return obtenerPorId(id);
+    }
+
+    private ActorHistorial actorDe(String uid) {
+        if (uid == null || uid.isBlank()) {
+            return ActorHistorial.SISTEMA;
+        }
+        try {
+            return usuarioRepository.findById(uid)
+                    .map(u -> new ActorHistorial(uid, u.getNombre()))
+                    .orElseGet(() -> new ActorHistorial(uid, uid));
+        } catch (Exception e) {
+            return new ActorHistorial(uid, uid);
+        }
     }
 
     private static String blankToNull(String s) {
@@ -605,5 +728,4 @@ public class PerifericoManualService {
         return (lote.getComputadoraUuid() == null || lote.getComputadoraUuid().isBlank())
                 && (lote.getComputadoraHostname() == null || lote.getComputadoraHostname().isBlank());
     }
-
 }

@@ -13,6 +13,9 @@ import lombok.NoArgsConstructor;
 public class PerifericoManualDTO {
 
     private String id;
+    private String codigoInterno;
+    private String responsable;
+    private String condicion;
     private String tipo;
     private int cantidad;
     private String nombre;
@@ -30,4 +33,5 @@ public class PerifericoManualDTO {
     private String numeroSerie;
     private String loteOrigenId;
     private List<CambioEstadoDTO> historialEstados;
+    private List<RenglonHistorialDTO> historial;
 }

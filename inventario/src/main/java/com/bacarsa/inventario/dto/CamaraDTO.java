@@ -27,4 +27,5 @@ public class CamaraDTO {
     private String nvrId;
     private String usuario;
     private String password;
+    private List<RenglonHistorialDTO> historial;
 }

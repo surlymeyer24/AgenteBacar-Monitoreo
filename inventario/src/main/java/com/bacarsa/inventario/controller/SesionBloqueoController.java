@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.bacarsa.inventario.dto.ComputadoraSesionDTO;
 import com.bacarsa.inventario.dto.SesionBloqueoDTO;
 import com.bacarsa.inventario.services.SesionBloqueoService;
 
@@ -27,5 +28,11 @@ public class SesionBloqueoController {
             @RequestParam(required = false) Integer limit)
             throws ExecutionException, InterruptedException {
         return ResponseEntity.ok(service.listarRecientes(limit));
+    }
+
+    @GetMapping("/computadoras")
+    public ResponseEntity<List<ComputadoraSesionDTO>> listarComputadoras()
+            throws ExecutionException, InterruptedException {
+        return ResponseEntity.ok(service.listarComputadorasSesion());
     }
 }

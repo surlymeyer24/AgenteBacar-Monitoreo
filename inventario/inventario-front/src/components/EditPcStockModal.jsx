@@ -42,6 +42,10 @@ export default function EditPcStockModal({
   onCondicionChange,
   ubicacionDeposito,
   onUbicacionDepositoChange,
+  notas,
+  onNotasChange,
+  comentarios,
+  onComentariosChange,
   tiposEquipoItems,
   condicionesItems,
   ubicCompItems,
@@ -158,6 +162,32 @@ export default function EditPcStockModal({
                   cantidadReadonly
                   disabled={formDisabled}
                 />
+              )}
+              {!isCreate && (
+                <>
+                  <div>
+                    <label className="text-slate-700 block mb-1">Notas</label>
+                    <textarea
+                      rows={2}
+                      value={notas ?? ''}
+                      onChange={(e) => onNotasChange(e.target.value)}
+                      disabled={formDisabled}
+                      placeholder="Notas internas sobre esta PC"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-teal-600 focus:border-transparent resize-y text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-slate-700 block mb-1">Comentarios</label>
+                    <textarea
+                      rows={2}
+                      value={comentarios ?? ''}
+                      onChange={(e) => onComentariosChange(e.target.value)}
+                      disabled={formDisabled}
+                      placeholder="Comentarios adicionales"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-teal-600 focus:border-transparent resize-y text-xs"
+                    />
+                  </div>
+                </>
               )}
               {!isCreate && !yaEnDeposito && (
                 <div>

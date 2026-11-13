@@ -3,28 +3,35 @@ package com.bacarsa.inventario.services;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
-import java.util.Map;
 
 import org.springframework.stereotype.Service;
 
 import com.bacarsa.inventario.dto.RouterCreateDTO;
 import com.bacarsa.inventario.dto.RouterDTO;
+import com.bacarsa.inventario.historial.ActorHistorial;
+import com.bacarsa.inventario.historial.RouterHistorialReglas;
 import com.bacarsa.inventario.mapper.RouterMapper;
 import com.bacarsa.inventario.models.Estado;
 import com.bacarsa.inventario.models.EstadoOperativo;
 import com.bacarsa.inventario.models.Router;
 import com.bacarsa.inventario.models.UbicacionRed;
+import com.bacarsa.inventario.models.Usuario;
 import com.bacarsa.inventario.repository.RouterRepository;
+import com.bacarsa.inventario.repository.UsuarioRepository;
 
 @Service
 public class RouterService {
 
     private final RouterRepository routerRepository;
+    private final UsuarioRepository usuarioRepository;
 
-    public RouterService(RouterRepository routerRepository) {
+    public RouterService(RouterRepository routerRepository, UsuarioRepository usuarioRepository) {
         this.routerRepository = routerRepository;
+        this.usuarioRepository = usuarioRepository;
     }
 
     public List<RouterDTO> listarTodos() throws ExecutionException, InterruptedException {
@@ -38,6 +45,10 @@ public class RouterService {
     }
 
     public RouterDTO crear(RouterCreateDTO dto) throws ExecutionException, InterruptedException {
+        return crear(dto, null);
+    }
+
+    public RouterDTO crear(RouterCreateDTO dto, String actorUid) throws ExecutionException, InterruptedException {
         validarCrear(dto);
         UbicacionRed ubicacion;
         try {
@@ -46,25 +57,36 @@ public class RouterService {
             throw new IllegalArgumentException("Ubicación de red inválida: " + dto.getUbicacion(), ex);
         }
 
-        Router router = new Router();
-        router.setNombre(dto.getNombre().trim());
-        router.setMarca(blankToNull(dto.getMarca()));
-        router.setModelo(blankToNull(dto.getModelo()));
-        router.setIp(blankToNull(dto.getIp()));
-        router.setNumeroSerie(blankToNull(dto.getNumeroSerie()));
-        router.setFirmware(blankToNull(dto.getFirmware()));
-        router.setCantidadPuertosWan(dto.getCantidadPuertosWan());
-        router.setCantidadPuertosLan(dto.getCantidadPuertosLan());
-        router.setGateway(blankToNull(dto.getGateway()));
-        router.setUbicacion(ubicacion);
+        String id = UUID.randomUUID().toString();
         LocalDate fa = dto.getFechaAlta() != null ? dto.getFechaAlta() : LocalDate.now();
-        router.setFechaAlta(fa.toString());
 
-        String id = routerRepository.create(router);
-        return RouterMapper.toDTO(routerRepository.findById(id));
+        Map<String, Object> cuerpo = new HashMap<>();
+        cuerpo.put("nombre", dto.getNombre().trim());
+        if (blankToNull(dto.getMarca()) != null) cuerpo.put("marca", dto.getMarca().trim());
+        if (blankToNull(dto.getModelo()) != null) cuerpo.put("modelo", dto.getModelo().trim());
+        if (blankToNull(dto.getIp()) != null) cuerpo.put("ip", dto.getIp().trim());
+        if (blankToNull(dto.getNumeroSerie()) != null) cuerpo.put("numero_serie", dto.getNumeroSerie().trim());
+        if (blankToNull(dto.getFirmware()) != null) cuerpo.put("firmware", dto.getFirmware().trim());
+        cuerpo.put("cantidad_puertos_wan", dto.getCantidadPuertosWan());
+        cuerpo.put("cantidad_puertos_lan", dto.getCantidadPuertosLan());
+        if (blankToNull(dto.getGateway()) != null) cuerpo.put("gateway", dto.getGateway().trim());
+        cuerpo.put("ubicacion", ubicacion.name());
+        cuerpo.put("fecha_alta", fa.toString());
+
+        ActorHistorial actor = resolverActor(actorUid);
+
+        routerRepository.aplicarHistorial(id, (doc, ahora) ->
+                RouterHistorialReglas.altaManual(id, cuerpo, actor, ahora));
+
+        return obtenerPorId(id);
     }
 
     public RouterDTO cambiarEstado(String id, String estadoRaw, String motivo)
+            throws ExecutionException, InterruptedException {
+        return cambiarEstado(id, estadoRaw, motivo, null);
+    }
+
+    public RouterDTO cambiarEstado(String id, String estadoRaw, String motivo, String actorUid)
             throws ExecutionException, InterruptedException {
         Router router = routerRepository.findById(id);
         if (router == null) {
@@ -80,42 +102,21 @@ public class RouterService {
         Estado estado = new Estado();
         estado.setNombre(estadoOperativo.getNombre());
         estado.setDescripcion(estadoOperativo.getDescripcion());
-        routerRepository.cambiarEstado(id, estado, motivo);
+
+        ActorHistorial actor = resolverActor(actorUid);
+
+        routerRepository.aplicarHistorial(id, (doc, ahora) ->
+                RouterHistorialReglas.cambioEstado(doc, estado, motivo, actor, ahora));
+
         return obtenerPorId(id);
     }
 
-    private static void validarCrear(RouterCreateDTO dto) {
-        if (dto.getNombre() == null || dto.getNombre().isBlank()) {
-            throw new IllegalArgumentException("El nombre es obligatorio");
-        }
-        if (dto.getUbicacion() == null || dto.getUbicacion().isBlank()) {
-            throw new IllegalArgumentException("La ubicación es obligatoria");
-        }
-    }
-
-    private static String blankToNull(String s) {
-        if (s == null || s.isBlank()) {
-            return null;
-        }
-        return s.trim();
-    }
-
-    /** Firestore {@code update} no acepta null; los campos editables del form van como string (vacío si se limpia). */
-    private static String blankToEmpty(String s) {
-        if (s == null || s.isBlank()) {
-            return "";
-        }
-        return s.trim();
-    }
-
-    /** Solo incluye el campo si el cliente lo envió (evita pisar datos Omada no editados en el modal). */
-    private static void putSiPresente(Map<String, Object> campos, String key, String value) {
-        if (value != null && !value.isBlank()) {
-            campos.put(key, value.trim());
-        }
-    }
-
     public RouterDTO update(String id, RouterCreateDTO dto) throws ExecutionException, InterruptedException {
+        return update(id, dto, null);
+    }
+
+    public RouterDTO update(String id, RouterCreateDTO dto, String actorUid)
+            throws ExecutionException, InterruptedException {
         Router routerExistente = routerRepository.findById(id);
         if (routerExistente == null) {
             throw new IllegalArgumentException("Router no encontrado: " + id);
@@ -157,16 +158,65 @@ public class RouterService {
             campos.put("salto", dto.getSalto());
         }
 
-        routerRepository.update(id, campos);
+        ActorHistorial actor = resolverActor(actorUid);
+
+        routerRepository.aplicarHistorial(id, (doc, ahora) ->
+                RouterHistorialReglas.edicionFicha(doc, campos, actor, ahora));
 
         return obtenerPorId(id);
     }
 
     public boolean eliminar(String id) throws ExecutionException, InterruptedException {
+        return eliminar(id, null);
+    }
+
+    public boolean eliminar(String id, String actorUid) throws ExecutionException, InterruptedException {
         if (routerRepository.findById(id) == null) {
             return false;
         }
-        routerRepository.deleteById(id);
+        cambiarEstado(id, "BAJA", "Baja de equipo solicitada por usuario", actorUid);
         return true;
+    }
+
+    private ActorHistorial resolverActor(String uid) {
+        if (uid == null || uid.isBlank()) {
+            return ActorHistorial.SISTEMA;
+        }
+        try {
+            return usuarioRepository.findById(uid)
+                    .map(u -> new ActorHistorial(u.getId(), u.getNombre() != null ? u.getNombre() : u.getEmail()))
+                    .orElseGet(() -> new ActorHistorial(uid, ""));
+        } catch (Exception ex) {
+            return new ActorHistorial(uid, "");
+        }
+    }
+
+    private static void validarCrear(RouterCreateDTO dto) {
+        if (dto.getNombre() == null || dto.getNombre().isBlank()) {
+            throw new IllegalArgumentException("El nombre es obligatorio");
+        }
+        if (dto.getUbicacion() == null || dto.getUbicacion().isBlank()) {
+            throw new IllegalArgumentException("La ubicación es obligatoria");
+        }
+    }
+
+    private static String blankToNull(String s) {
+        if (s == null || s.isBlank()) {
+            return null;
+        }
+        return s.trim();
+    }
+
+    private static String blankToEmpty(String s) {
+        if (s == null || s.isBlank()) {
+            return "";
+        }
+        return s.trim();
+    }
+
+    private static void putSiPresente(Map<String, Object> campos, String key, String value) {
+        if (value != null && !value.isBlank()) {
+            campos.put(key, value.trim());
+        }
     }
 }

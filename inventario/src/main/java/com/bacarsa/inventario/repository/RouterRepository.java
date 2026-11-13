@@ -4,7 +4,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.LinkedHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.function.BiFunction;
+import com.bacarsa.inventario.historial.EscrituraHistorial;
+import com.bacarsa.inventario.historial.HistorialLectura;
+import com.google.cloud.firestore.FieldValue;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
@@ -20,6 +25,7 @@ import com.google.cloud.firestore.DocumentSnapshot;
 import com.google.cloud.firestore.Firestore;
 import com.google.cloud.firestore.QueryDocumentSnapshot;
 import com.google.cloud.firestore.QuerySnapshot;
+import com.google.cloud.firestore.SetOptions;
 
 @Repository
 public class RouterRepository {
@@ -120,7 +126,46 @@ public class RouterRepository {
             r = new Router();
         }
         r.setId(doc.getId());
+        r.setHistorial(HistorialLectura.desdeDocumento(doc.getData()));
         return r;
+    }
+
+    @CacheEvict(value = "routers", allEntries = true)
+    public void aplicarHistorial(String id, BiFunction<Map<String, Object>, Timestamp, EscrituraHistorial> plan)
+            throws ExecutionException, InterruptedException {
+        DocumentReference ref = firestore.collection(collectionName).document(id);
+        try {
+            firestore.runTransaction(transaction -> {
+                DocumentSnapshot doc = transaction.get(ref).get();
+                Map<String, Object> data = doc.exists() ? doc.getData() : null;
+                EscrituraHistorial escritura = plan.apply(data, Timestamp.now());
+                if (escritura.modo() == EscrituraHistorial.Modo.NADA) {
+                    return null;
+                }
+                Map<String, Object> campos = conBorrados(escritura.campos());
+                if (!doc.exists()) {
+                    if (escritura.modo() != EscrituraHistorial.Modo.CREAR_CON_HISTORIAL) {
+                        throw new IllegalArgumentException("Router no encontrado: " + id);
+                    }
+                    transaction.set(ref, campos);
+                } else {
+                    transaction.update(ref, campos);
+                }
+                return null;
+            }).get();
+        } catch (ExecutionException ex) {
+            Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
+            if (cause instanceof RuntimeException re) throw re;
+            throw ex;
+        }
+    }
+
+    private static Map<String, Object> conBorrados(Map<String, Object> campos) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> entry : campos.entrySet()) {
+            out.put(entry.getKey(), entry.getValue() == null ? FieldValue.delete() : entry.getValue());
+        }
+        return out;
     }
 
     @CacheEvict(value = "routers", allEntries = true)
@@ -130,7 +175,21 @@ public class RouterRepository {
     }
 
     @CacheEvict(value = "routers", allEntries = true)
+    public void actualizar(String id, Map<String, Object> campos) throws ExecutionException, InterruptedException {
+        firestore.collection(collectionName).document(id).set(campos, SetOptions.merge()).get();
+    }
+
+    @CacheEvict(value = "routers", allEntries = true)
     public void deleteById(String id) throws ExecutionException, InterruptedException {
         firestore.collection(collectionName).document(id).delete().get();
+    }
+
+    @CacheEvict(value = "routers", allEntries = true)
+    public void mergeCodigoInterno(String id, String codigo) throws ExecutionException, InterruptedException {
+        if (id == null || id.isBlank() || codigo == null || codigo.isBlank()) {
+            return;
+        }
+        firestore.collection(collectionName).document(id)
+                .set(MergeCodigoInterno.unSoloCampo(codigo), SetOptions.merge()).get();
     }
 }

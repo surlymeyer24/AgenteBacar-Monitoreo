@@ -114,6 +114,15 @@ public class MaquinaTesoreriaService {
         return obtenerPorId(id);
     }
 
+    public boolean eliminar(String id) throws ExecutionException, InterruptedException {
+        MaquinaTesoreria maquina = maquinaTesoreriaRepository.findById(id);
+        if (maquina == null) {
+            return false;
+        }
+        maquinaTesoreriaRepository.delete(id);
+        return true;
+    }
+
     private static void validarCrear(MaquinaTesoreriaCreateDTO dto) {
         if (dto.getTipo() == null || dto.getTipo().isBlank()) {
             throw new IllegalArgumentException("El tipo es obligatorio");

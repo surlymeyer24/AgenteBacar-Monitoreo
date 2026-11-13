@@ -7,6 +7,26 @@
       "runtimeArgs": ["run", "dev"],
       "port": 5173,
       "cwd": "inventario/inventario-front"
+    },
+    {
+      "name": "firestore-emu-inventario",
+      "runtimeExecutable": "java",
+      "runtimeArgs": ["-jar", "C:/Users/Usr/.cache/firebase/emulators/cloud-firestore-emulator-v1.22.0.jar", "--host", "127.0.0.1", "--port", "8180", "--project_id", "devbac-42d14"],
+      "port": 8180
+    },
+    {
+      "name": "backend-emulador",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "D:\\Desarrollo\\MiniAgente-Inventario\\inventario\\run-backend-emu.cmd"],
+      "port": 8081,
+      "cwd": "inventario"
+    },
+    {
+      "name": "frontend-5174",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--", "--port", "5174", "--strictPort"],
+      "port": 5174,
+      "cwd": "inventario/inventario-front"
     }
   ]
 }

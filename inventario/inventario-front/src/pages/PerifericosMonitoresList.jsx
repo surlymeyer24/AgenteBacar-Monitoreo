@@ -13,14 +13,6 @@ function fmtNumOGuion(n, dec = 1) {
   return Number.isFinite(x) ? x.toFixed(dec) : 'N/A';
 }
 
-function claveFila(r, index) {
-  return `${r.pcUuid ?? ''}-${r.nombre ?? ''}-${r.resolucion ?? ''}-${index}`;
-}
-
-function limpiarNombre(n) {
-  return (n ?? '—').replace(/\u0000/g, '');
-}
-
 function PerifericosMonitoresList() {
   const [filas, setFilas] = useState([]);
   const [cargando, setCargando] = useState(true);

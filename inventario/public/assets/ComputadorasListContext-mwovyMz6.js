@@ -1,0 +1,1 @@
+import{a as e}from"./rolldown-runtime-COnpUsM8.js";import{Dn as t}from"./icons-B6pXj7-s.js";var n=e(t(),1),r=(0,n.createContext)(null);function i(){let e=(0,n.useContext)(r);if(!e)throw Error(`useComputadorasList debe usarse dentro de ComputadorasListLayout`);return e}function a(){return(0,n.useContext)(r)}export{i as n,a as r,r as t};

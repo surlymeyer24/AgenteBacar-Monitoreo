@@ -12,8 +12,10 @@ import { fetchMonitoresReportadosAgente } from '../api/monitorApi';
 import { fetchCelulares } from '../api/celularApi';
 import { fetchEtiquetasQr, fetchProgresosLogistica } from '../api/etiquetaQrApi';
 import { fetchEventosHardware, fetchPendientesCount } from '../api/eventosHardwareApi';
-import { fetchConciliacionPendientesCount } from '../api/conciliacionApi';
 import { fetchResponsables, fetchResponsableDetalle } from '../api/responsableApi';
+import { fetchUnidadesStock, fetchAsignacionesStock } from '../api/stockApi';
+
+export { useConciliacionesPendientesCount } from './useConciliacionesPendientesCount';
 
 export function useDashboardStats(options) {
   return useQuery({
@@ -166,16 +168,6 @@ export function useEventosHardwarePendientesCount(options) {
   });
 }
 
-export function useConciliacionesPendientesCount(options) {
-  return useQuery({
-    queryKey: ['conciliacionesPendientesCount'],
-    queryFn: fetchConciliacionPendientesCount,
-    staleTime: 60 * 1000,
-    refetchInterval: 2 * 60 * 1000,
-    ...options,
-  });
-}
-
 export function useResponsables(options) {
   return useQuery({
     queryKey: ['responsables'],
@@ -189,6 +181,22 @@ export function useResponsableDetalle(id, options) {
     queryKey: ['responsables', id],
     queryFn: () => fetchResponsableDetalle(id),
     enabled: Boolean(id),
+    ...options,
+  });
+}
+
+export function useStockUnidades(options) {
+  return useQuery({
+    queryKey: ['stockUnidades'],
+    queryFn: fetchUnidadesStock,
+    ...options,
+  });
+}
+
+export function useStockAsignaciones(options) {
+  return useQuery({
+    queryKey: ['stockAsignaciones'],
+    queryFn: fetchAsignacionesStock,
     ...options,
   });
 }

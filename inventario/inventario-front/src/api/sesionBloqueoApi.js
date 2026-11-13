@@ -13,6 +13,13 @@ export function fetchSesionBloqueos(limit = 500) {
   });
 }
 
+export function fetchComputadorasSesion() {
+  return apiFetch(`${BASE_URL}/computadoras`).then(res => {
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  });
+}
+
 export function sincronizarHistorialBloqueosInicial() {
   return apiFetch(`${API_ORIGIN}/api/admin/sesion-bloqueos/sincronizar-inicial`, {
     method: 'POST',

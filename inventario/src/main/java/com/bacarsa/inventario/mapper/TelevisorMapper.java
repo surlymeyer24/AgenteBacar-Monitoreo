@@ -1,6 +1,7 @@
 package com.bacarsa.inventario.mapper;
 
 import com.bacarsa.inventario.dto.TelevisorDTO;
+import com.bacarsa.inventario.historial.HistorialLectura;
 import com.bacarsa.inventario.models.Televisor;
 
 public class TelevisorMapper {
@@ -19,6 +20,7 @@ public class TelevisorMapper {
         dto.setArea(tv.getArea());
         dto.setDireccionIp(tv.getDireccionIp());
         dto.setEstado(tv.getEstado());
+        dto.setHistorial(HistorialLectura.aDtoOrdenado(tv.getHistorial()));
         return dto;
     }
 }

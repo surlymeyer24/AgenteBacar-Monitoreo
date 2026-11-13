@@ -1,6 +1,7 @@
 package com.bacarsa.inventario.mapper;
 
 import com.bacarsa.inventario.dto.ServidorDTO;
+import com.bacarsa.inventario.historial.HistorialLectura;
 import com.bacarsa.inventario.models.Servidor;
 
 public class ServidorMapper {
@@ -18,6 +19,7 @@ public class ServidorMapper {
         dto.setUbicacion(s.getUbicacion());
         dto.setDescripcion(s.getDescripcion());
         dto.setEstado(s.getEstado());
+        dto.setHistorial(HistorialLectura.aDtoOrdenado(s.getHistorial()));
         return dto;
     }
 }

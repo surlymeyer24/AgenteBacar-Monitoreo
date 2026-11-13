@@ -1,5 +1,8 @@
 package com.bacarsa.inventario.models;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import com.google.cloud.firestore.annotation.DocumentId;
 import com.google.cloud.firestore.annotation.PropertyName;
 
@@ -12,6 +15,10 @@ public class Televisor {
 
     @DocumentId
     private String id;
+
+    @Getter(onMethod_ = @PropertyName("codigo_interno"))
+    @Setter(onMethod_ = @PropertyName("codigo_interno"))
+    private String codigoInterno;
 
     private String marca;
     private String modelo;
@@ -27,4 +34,5 @@ public class Televisor {
     private String direccionIp;
 
     private String estado;
+    private List<RenglonHistorial> historial = new ArrayList<>();
 }

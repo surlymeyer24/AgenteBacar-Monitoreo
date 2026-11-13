@@ -35,15 +35,21 @@ public class ComputadoraDTO {
     private List<RamDTO> modulos;
     private PerifericoAgenteDTO perifericos;
     private List<CambioEstadoDTO> historialEstados;
+    /** Historial unificado, del más nuevo al más viejo. */
+    private List<RenglonHistorialDTO> historial;
+    private String serialEquipo;
+    private String notas;
     /** Documentos de la subcolección Firestore {@code programas} bajo la PC (vacío si no hay datos). */
     private List<Map<String, Object>> programas;
     /** Mapa {@code windows_version_detallada} del documento de la PC (solo en detalle completo). */
     private Map<String, Object> windowsVersionDetallada;
     private String responsableInventario;
+    private String asignacionTipo;
     /** ID numérico de AnyDesk reportado por el agente (Firestore {@code anydesk_id}). */
     private String anydeskId;
     private String condicion;
     private String origenAlta;
+    private Boolean enDeposito;
     private String estadoConciliacion;
     private String estadoPreparacion;
     private String estadoReporteAgente;
@@ -58,5 +64,11 @@ public class ComputadoraDTO {
     private EspecificacionStockDTO especificacionEsperada;
     private String descripcionStock;
     private String ubicacionStock;
+    /** true si el agente reportó alguna vez ({@code tiene_agente} persistido). */
+    private Boolean tieneAgente;
+    /** Mapa {@code software_critico} del agente (solo en detalle completo). */
+    private Map<String, Object> softwareCritico;
+    /** Mapa {@code windows_updates} del agente (solo en detalle completo). */
+    private Map<String, Object> windowsUpdates;
 
 }

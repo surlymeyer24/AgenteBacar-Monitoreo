@@ -1,9 +1,9 @@
 ---
 name: computadoras
 description: >-
-  Especialista del módulo computadoras. Use proactively when working on PCs,
-  asignaciones, estados operativos, reparación, baja o historial de estados de
-  computadoras. Do not use for stock tabs, periféricos, celulares u otros módulos.
+  Especialista del módulo computadoras. Use proactively when working on la ficha
+  de PC, alta, estado (asignada, depósito, reparación, baja), historial de cambios
+  o migración de historial. Do not use for stock tabs, periféricos, celulares u otros módulos.
 model: inherit
 ---
 

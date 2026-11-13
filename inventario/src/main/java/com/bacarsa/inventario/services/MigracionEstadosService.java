@@ -19,11 +19,14 @@ public class MigracionEstadosService {
 
     private final ComputadoraRepository computadoraRepository;
     private final CamaraRepository camaraRepository;
+    private final ComputadoraHistorialService computadoraHistorialService;
 
     public MigracionEstadosService(ComputadoraRepository computadoraRepository,
-            CamaraRepository camaraRepository) {
+            CamaraRepository camaraRepository,
+            ComputadoraHistorialService computadoraHistorialService) {
         this.computadoraRepository = computadoraRepository;
         this.camaraRepository = camaraRepository;
+        this.computadoraHistorialService = computadoraHistorialService;
     }
 
     /**
@@ -92,4 +95,77 @@ public class MigracionEstadosService {
         }
         out.getFallos().add(msg);
     }
+
+    /**
+     * Normaliza a estado {@link EstadoOperativo#ASIGNADA} todas las computadoras que actualmente
+     * están en "Sin Asignar" pero tienen un responsable asignado o están ubicadas en un área operativa
+     * (fuera de depósito/stock).
+     */
+    public MigracionEstadoMasivoResultDTO normalizarAsignacionesPcs(String motivo)
+            throws ExecutionException, InterruptedException {
+        String m = (motivo == null || motivo.isBlank())
+                ? "Normalización masiva: equipo con responsable o área asignada"
+                : motivo.trim();
+
+        MigracionEstadoMasivoResultDTO out = new MigracionEstadoMasivoResultDTO();
+
+        for (Computadora pc : computadoraRepository.findAllSinCache()) {
+            if (pc.getUuid() == null || pc.getUuid().isBlank()) {
+                agregarFallo(out, "computadora sin UUID");
+                continue;
+            }
+            Estado estadoActual = pc.getEstadoActual();
+            String nombreEstado = estadoActual != null ? estadoActual.getNombre() : null;
+
+            if (yaEsAsignada(estadoActual)) {
+                out.setComputadorasOmitidas(out.getComputadorasOmitidas() + 1);
+                continue;
+            }
+            if (nombreEstado != null) {
+                String u = nombreEstado.trim().toUpperCase(java.util.Locale.ROOT);
+                if (u.contains("BAJA") || u.contains("MANTENIMIENTO")) {
+                    out.setComputadorasOmitidas(out.getComputadorasOmitidas() + 1);
+                    continue;
+                }
+            }
+
+            String respInv = pc.getResponsableInventario();
+            String ubi = pc.getUbicacion() != null ? pc.getUbicacion().name() : null;
+            String userActual = com.bacarsa.inventario.util.UsuarioSesionHelper.limpiar(pc.getUsuarioActual());
+            boolean enDep = Boolean.TRUE.equals(pc.getEnDeposito());
+
+            boolean tieneResp = respInv != null && !respInv.isBlank() && !com.bacarsa.inventario.util.UsuarioSesionHelper.esUsuarioSistema(respInv);
+            boolean ubicacionValida = ubi != null && !ubi.isBlank()
+                    && !"DEPOSITO".equalsIgnoreCase(ubi.trim())
+                    && !"STOCK".equalsIgnoreCase(ubi.trim())
+                    && !enDep;
+            boolean tieneUserSesionValido = userActual != null && !userActual.isBlank() && !com.bacarsa.inventario.util.UsuarioSesionHelper.esUsuarioSistema(userActual);
+
+            boolean debeEstarAsignada = tieneResp || ubicacionValida || (tieneUserSesionValido && ubicacionValida);
+
+            if (debeEstarAsignada) {
+                try {
+                    java.util.Map<String, Object> ficha = new java.util.LinkedHashMap<>();
+                    if (!tieneResp && tieneUserSesionValido) {
+                        ficha.put("responsableInventario", userActual);
+                    }
+                    if (pc.getAsignacionTipo() != null) {
+                        ficha.put("asignacionTipo", pc.getAsignacionTipo());
+                    } else if (tieneResp || tieneUserSesionValido) {
+                        ficha.put("asignacionTipo", "PERSONA");
+                    } else if (ubicacionValida) {
+                        ficha.put("asignacionTipo", "AREA");
+                    }
+                    computadoraHistorialService.cambiarEstado(pc.getUuid(), "ASIGNADA", m, ficha, "SISTEMA");
+                    out.setComputadorasActualizadas(out.getComputadorasActualizadas() + 1);
+                } catch (Exception e) {
+                    agregarFallo(out, "computadora " + pc.getUuid() + ": " + e.getMessage());
+                }
+            } else {
+                out.setComputadorasOmitidas(out.getComputadorasOmitidas() + 1);
+            }
+        }
+        return out;
+    }
+
 }

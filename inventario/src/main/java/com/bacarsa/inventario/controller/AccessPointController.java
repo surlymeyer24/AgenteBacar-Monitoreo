@@ -16,8 +16,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.bacarsa.inventario.dto.AccessPointCreateDTO;
 import com.bacarsa.inventario.dto.AccessPointDTO;
+import com.bacarsa.inventario.dto.CambiarEstadoDTO;
 import com.bacarsa.inventario.services.AccessPointService;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
 @RestController
@@ -46,10 +48,12 @@ public class AccessPointController {
     }
 
     @PostMapping
-    public ResponseEntity<AccessPointDTO> crear(@Valid @RequestBody AccessPointCreateDTO body)
+    public ResponseEntity<AccessPointDTO> crear(
+            @Valid @RequestBody AccessPointCreateDTO body,
+            HttpServletRequest request)
             throws ExecutionException, InterruptedException {
         try {
-            AccessPointDTO creado = accessPointService.crear(body);
+            AccessPointDTO creado = accessPointService.crear(body, uid(request));
             return ResponseEntity.status(HttpStatus.CREATED).body(creado);
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().build();
@@ -59,28 +63,57 @@ public class AccessPointController {
     @PutMapping("/{id}")
     public ResponseEntity<AccessPointDTO> actualizar(
             @PathVariable String id,
-            @Valid @RequestBody AccessPointCreateDTO dto)
+            @Valid @RequestBody AccessPointCreateDTO dto,
+            HttpServletRequest request)
             throws ExecutionException, InterruptedException {
         try {
-            AccessPointDTO actualizado = accessPointService.update(id, dto);
+            AccessPointDTO actualizado = accessPointService.update(id, dto, uid(request));
             return ResponseEntity.ok(actualizado);
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.notFound().build();
         }
     }
 
+    @PostMapping("/{id}/estado")
+    public ResponseEntity<AccessPointDTO> cambiarEstado(
+            @PathVariable String id,
+            @Valid @RequestBody CambiarEstadoDTO body,
+            HttpServletRequest request) throws ExecutionException, InterruptedException {
+        try {
+            AccessPointDTO dto = accessPointService.cambiarEstado(id, body.getEstado(), body.getMotivo(), uid(request));
+            if (dto == null) {
+                return ResponseEntity.notFound().build();
+            }
+            return ResponseEntity.ok(dto);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> eliminar(@PathVariable String id)
+    public ResponseEntity<Void> eliminar(
+            @PathVariable String id,
+            HttpServletRequest request)
             throws ExecutionException, InterruptedException {
-        if (!accessPointService.eliminar(id)) {
+        if (!accessPointService.eliminar(id, uid(request))) {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id}/eliminar")
-    public ResponseEntity<Void> eliminarPost(@PathVariable String id)
+    public ResponseEntity<Void> eliminarPost(
+            @PathVariable String id,
+            HttpServletRequest request)
             throws ExecutionException, InterruptedException {
-        return eliminar(id);
+        return eliminar(id, request);
+    }
+
+    private static String uid(HttpServletRequest request) {
+        if (request == null) {
+            return null;
+        }
+        Object attr = request.getAttribute("firebaseUid");
+        return attr instanceof String s ? s : null;
     }
 }

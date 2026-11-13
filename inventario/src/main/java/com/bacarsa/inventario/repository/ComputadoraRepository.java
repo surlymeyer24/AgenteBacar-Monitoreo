@@ -9,6 +9,8 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.concurrent.ExecutionException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -31,9 +33,13 @@ import com.bacarsa.inventario.models.ProcesadorDetallado;
 import com.bacarsa.inventario.models.Ram;
 import com.bacarsa.inventario.models.RamPlaca;
 import com.bacarsa.inventario.models.Ubicacion;
+import com.bacarsa.inventario.exception.HistorialNoGuardadoException;
+import com.bacarsa.inventario.historial.EscrituraHistorial;
+import com.bacarsa.inventario.historial.HistorialLectura;
 import com.bacarsa.inventario.util.AnydeskIdResolver;
 import com.bacarsa.inventario.util.FirestoreComputadoraParser;
 import com.bacarsa.inventario.util.FirestoreJsonHelper;
+import com.bacarsa.inventario.util.UsuarioSesionHelper;
 import com.google.api.core.ApiFuture;
 import com.google.cloud.Timestamp;
 import com.google.cloud.firestore.CollectionReference;
@@ -48,6 +54,8 @@ import com.google.cloud.firestore.WriteBatch;
 
 @Repository
 public class ComputadoraRepository {
+
+    private static final Logger log = LoggerFactory.getLogger(ComputadoraRepository.class);
 
     private final Firestore firestore;
     private final String collectionName;
@@ -65,7 +73,7 @@ public class ComputadoraRepository {
         this.tareasCollection = tareasCollection;
     }
 
-    @Cacheable("computadoras-gordo")
+    @Cacheable(value = "computadoras-gordo", sync = true)
     public List<Computadora> findAll() throws ExecutionException, InterruptedException {
         ApiFuture<QuerySnapshot> future = firestore.collection(collectionName).get();
         List<QueryDocumentSnapshot> documents = future.get().getDocuments();
@@ -89,7 +97,7 @@ public class ComputadoraRepository {
         return result;
     }
 
-    @Cacheable("pc-listado")
+    @Cacheable(value = "pc-listado", sync = true)
     public List<ComputadoraListadoDTO> findAllListado() throws ExecutionException, InterruptedException {
         Query query = firestore.collection(collectionName)
                 .select(ComputadoraListadoFields.ALL.toArray(new String[0]));
@@ -153,16 +161,6 @@ public class ComputadoraRepository {
             out.add(row);
         }
         return out;
-    }
-
-    @Caching(evict = {
-            @CacheEvict(value = "pc-listado", allEntries = true),
-            @CacheEvict(value = "computadoras-gordo", allEntries = true)
-    })
-    public String create(Computadora computadora) throws ExecutionException, InterruptedException {
-        DocumentReference ref = firestore.collection(collectionName).document(computadora.getUuid());
-        ref.set(computadora).get();
-        return computadora.getUuid();
     }
 
     /**
@@ -322,9 +320,12 @@ public class ComputadoraRepository {
             var spec = com.bacarsa.inventario.mapper.EspecificacionStockMapper.fromDTO(especificacionEsperada);
             if (spec == null) {
                 updates.put("especificacion_esperada", FieldValue.delete());
+                updates.put("descripcion_completa", FieldValue.delete());
             } else {
                 updates.put("especificacion_esperada",
                         com.bacarsa.inventario.mapper.EspecificacionStockMapper.toFirestoreMap(spec));
+                updates.put("descripcion_completa",
+                        com.bacarsa.inventario.services.ProyeccionStock.descripcionDesdeSpec(spec));
             }
         }
         if (descripcionStock != null) {
@@ -335,6 +336,17 @@ public class ComputadoraRepository {
             updates.put("hostname", hostname.trim());
         }
         return updates;
+    }
+
+    @Cacheable(value = "pc-detalle", key = "'codigo:' + #codigo")
+    public Computadora findByCodigoInterno(String codigo) throws ExecutionException, InterruptedException {
+        DocumentSnapshot doc = firestore.collection(collectionName)
+                .whereEqualTo("codigo_interno", codigo).get().get()
+                .getDocuments().stream().findFirst().orElse(null);
+        if (doc == null || !doc.exists()) {
+            return null;
+        }
+        return documentToComputadora(doc);
     }
 
     @Cacheable(value = "pc-detalle", key = "'hostname:' + #hostname")
@@ -418,6 +430,21 @@ public class ComputadoraRepository {
             Map<String, Object> usuarios = (Map<String, Object>) usuariosObj;
             c.setUsuarioActual((String) usuarios.get("usuario_actual"));
         }
+        // El agente reporta SYSTEM cuando no hay persona con sesión: se trata como sin usuario.
+        c.setUsuarioActual(UsuarioSesionHelper.limpiar(c.getUsuarioActual()));
+
+        // Campos que toObject no carga: se leen a mano del documento.
+        if (c.getUbicacionStock() == null) {
+            c.setUbicacionStock(doc.getString("ubicacion_stock"));
+        }
+        if (c.getAsignacionTipo() == null) {
+            String asigTipo = doc.getString("asignacion_tipo");
+            if (asigTipo == null) asigTipo = doc.getString("asignacionTipo");
+            c.setAsignacionTipo(asigTipo);
+        }
+        c.setTieneAgente(doc.getBoolean("tiene_agente"));
+        c.setSoftwareCritico(mapaOnull(data.get("software_critico")));
+        c.setWindowsUpdates(mapaOnull(data.get("windows_updates")));
 
         if (c.getAnydeskId() == null || c.getAnydeskId().isBlank()) {
             String anydesk = AnydeskIdResolver.resolver(data);
@@ -465,8 +492,23 @@ public class ComputadoraRepository {
                 c.setPerifericos(perifericos);
             }
         }
+        c.setHistorial(HistorialLectura.desdeDocumento(data.get("historial")));
+        if (c.getNotas() == null) {
+            c.setNotas(doc.getString("notas"));
+        }
+        if (c.getSerialEquipo() == null) {
+            c.setSerialEquipo(doc.getString("serial_equipo"));
+        }
+        if (c.getHistorialMigrado() == null) {
+            c.setHistorialMigrado(doc.getBoolean("historial_migrado"));
+        }
 
         return c;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> mapaOnull(Object raw) {
+        return raw instanceof Map<?, ?> ? (Map<String, Object>) raw : null;
     }
 
     /** Campos de listado que deben existir aunque {@code toObject} falle parcialmente. */
@@ -810,5 +852,163 @@ public class ComputadoraRepository {
             }
         }
         return result;
+    }
+
+    /**
+     * Aplica ficha y renglón en la misma transacción. Si el plan no trae historial
+     * cuando la ficha cambia, no se escribe nada.
+     */
+    @Caching(evict = {
+            @CacheEvict(value = "pc-listado", allEntries = true),
+            @CacheEvict(value = "pc-detalle", allEntries = true),
+            @CacheEvict(value = "computadoras-gordo", allEntries = true)
+    })
+    public void aplicarHistorial(String uuid, java.util.function.BiFunction<Map<String, Object>, Timestamp, EscrituraHistorial> plan)
+            throws ExecutionException, InterruptedException {
+        DocumentReference ref = firestore.collection(collectionName).document(uuid);
+        try {
+            firestore.runTransaction(transaction -> {
+                DocumentSnapshot doc = transaction.get(ref).get();
+                Map<String, Object> data = doc.exists() ? doc.getData() : null;
+                EscrituraHistorial escritura = plan.apply(data, Timestamp.now());
+                if (escritura.modo() == EscrituraHistorial.Modo.NADA) {
+                    return null;
+                }
+                validarEscritura(uuid, escritura);
+                Map<String, Object> campos = conBorrados(escritura.campos());
+                if (!doc.exists()) {
+                    if (escritura.modo() != EscrituraHistorial.Modo.CREAR_CON_HISTORIAL) {
+                        throw new IllegalArgumentException("Documento no encontrado: " + uuid);
+                    }
+                    transaction.set(ref, campos);
+                } else {
+                    transaction.update(ref, campos);
+                }
+                return null;
+            }).get();
+        } catch (ExecutionException ex) {
+            throw traducirFallo(uuid, ex);
+        }
+    }
+
+    public List<String> listarUuidsSinMigrar(int limite) throws ExecutionException, InterruptedException {
+        List<QueryDocumentSnapshot> documents = firestore.collection(collectionName).get().get().getDocuments();
+        List<String> ids = new ArrayList<>();
+        for (QueryDocumentSnapshot doc : documents) {
+            if (Boolean.TRUE.equals(doc.getBoolean("historial_migrado"))) {
+                continue;
+            }
+            ids.add(doc.getId());
+            if (ids.size() >= limite) {
+                break;
+            }
+        }
+        return ids;
+    }
+
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> limpiarUsuarioActualResidual() throws ExecutionException, InterruptedException {
+        List<QueryDocumentSnapshot> docs = firestore.collection(collectionName).get().get().getDocuments();
+        List<String> corregidos = new ArrayList<>();
+        List<String> errores = new ArrayList<>();
+        WriteBatch batch = firestore.batch();
+        int enBatch = 0;
+
+        for (QueryDocumentSnapshot doc : docs) {
+            String usuarioActual = doc.getString("usuarioActual");
+            if (usuarioActual == null || usuarioActual.isBlank()) {
+                continue;
+            }
+            String uUpper = usuarioActual.trim().toUpperCase(java.util.Locale.ROOT);
+            if ("SYSTEM".equals(uUpper) || "LOCAL SERVICE".equals(uUpper) || "NETWORK SERVICE".equals(uUpper)) {
+                continue;
+            }
+            boolean sinAsignar = false;
+            Object estadoRaw = doc.get("estadoActual");
+            if (estadoRaw instanceof Map<?, ?> mapa) {
+                Object nombre = ((Map<String, Object>) mapa).get("nombre");
+                if (nombre instanceof String n) {
+                    String upper = n.trim().toUpperCase(java.util.Locale.ROOT);
+                    sinAsignar = upper.contains("SIN ASIGNAR") || upper.contains("SIN_ASIGNAR");
+                }
+            } else if (estadoRaw == null) {
+                sinAsignar = true;
+            }
+            if (!sinAsignar) {
+                continue;
+            }
+            batch.update(doc.getReference(), "usuarioActual", FieldValue.delete());
+            corregidos.add(doc.getId());
+            enBatch++;
+            if (enBatch >= 400) {
+                try {
+                    batch.commit().get();
+                } catch (ExecutionException ex) {
+                    corregidos.subList(corregidos.size() - enBatch, corregidos.size()).forEach(id -> {
+                        errores.add(id);
+                    });
+                    corregidos.subList(corregidos.size() - enBatch, corregidos.size()).clear();
+                }
+                batch = firestore.batch();
+                enBatch = 0;
+            }
+        }
+        if (enBatch > 0) {
+            try {
+                batch.commit().get();
+            } catch (ExecutionException ex) {
+                corregidos.subList(corregidos.size() - enBatch, corregidos.size()).forEach(id -> {
+                    errores.add(id);
+                });
+                corregidos.subList(corregidos.size() - enBatch, corregidos.size()).clear();
+            }
+        }
+        log.info("Limpieza usuarioActual: {} corregidos, {} errores de {} total", corregidos.size(), errores.size(), docs.size());
+        Map<String, Object> resultado = new LinkedHashMap<>();
+        resultado.put("totalEscaneados", docs.size());
+        resultado.put("corregidos", corregidos.size());
+        resultado.put("errores", errores.size());
+        resultado.put("idsCorregidos", corregidos);
+        if (!errores.isEmpty()) {
+            resultado.put("idsConError", errores);
+        }
+        return resultado;
+    }
+
+    private static void validarEscritura(String uuid, EscrituraHistorial escritura) {
+        if (escritura.modo() == EscrituraHistorial.Modo.CREAR_CON_HISTORIAL
+                || escritura.modo() == EscrituraHistorial.Modo.ACTUALIZAR_CON_HISTORIAL) {
+            Object historial = escritura.campos().get("historial");
+            if (!(historial instanceof List<?> lista) || lista.isEmpty()) {
+                throw new HistorialNoGuardadoException(uuid, new IllegalStateException(
+                        "La escritura de la ficha no incluye renglón"));
+            }
+        }
+        if (escritura.modo() == EscrituraHistorial.Modo.SOLO_CAMPOS_AGENTE
+                && escritura.campos().containsKey("historial")) {
+            throw new HistorialNoGuardadoException(uuid, new IllegalStateException(
+                    "Un reporte del agente no puede agregar renglón"));
+        }
+    }
+
+    private static Map<String, Object> conBorrados(Map<String, Object> campos) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> entry : campos.entrySet()) {
+            out.put(entry.getKey(), entry.getValue() == null ? FieldValue.delete() : entry.getValue());
+        }
+        return out;
+    }
+
+    private static RuntimeException traducirFallo(String uuid, ExecutionException ex) {
+        Throwable causa = ex.getCause() != null ? ex.getCause() : ex;
+        if (causa instanceof IllegalArgumentException ilegal) {
+            return ilegal;
+        }
+        if (causa instanceof HistorialNoGuardadoException historial) {
+            log.error("No se pudo guardar el historial de la ficha {}", uuid, ex);
+            return historial;
+        }
+        log.error("No se pudo guardar el historial de la ficha {}", uuid, ex);
+        return new HistorialNoGuardadoException(uuid, ex);
     }
 }

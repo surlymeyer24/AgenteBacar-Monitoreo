@@ -78,10 +78,23 @@ export function updateEstado(uuid, estado, motivo, extras = {}) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ estado, motivo, ...extras }),
-  }).then(res => {
+  }).then(async res => {
     if (res.status === 404) return null;
-    if (res.status === 400) throw new Error('Estado o motivo inválido');
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) throw new Error(await parseErrorBody(res));
+    return res.json();
+  });
+}
+
+/** POST /api/computadoras/{uuid}/ficha — un guardado, un renglón si cambió algo. */
+export function updateFicha(uuid, body) {
+  const id = encodeURIComponent(uuid);
+  return apiFetch(`${BASE_URL}/${id}/ficha`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }).then(async res => {
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error(await parseErrorBody(res));
     return res.json();
   });
 }

@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 
 import com.bacarsa.inventario.dto.SwitchRedDTO;
+import com.bacarsa.inventario.historial.HistorialLectura;
 import com.bacarsa.inventario.models.SwitchRed;
 
 public class SwitchRedMapper {
@@ -45,6 +46,7 @@ public class SwitchRedMapper {
         dto.setEstado(sw.getEstadoActual() == null ? null : sw.getEstadoActual().getNombre());
         dto.setFechaAlta(parseFechaAltaIso(sw.getFechaAlta()));
         dto.setHistorialEstados(CambioEstadoMapper.toDTOList(sw.getHistorialEstados()));
+        dto.setHistorial(HistorialLectura.aDtoOrdenado(sw.getHistorial()));
         return dto;
     }
 }

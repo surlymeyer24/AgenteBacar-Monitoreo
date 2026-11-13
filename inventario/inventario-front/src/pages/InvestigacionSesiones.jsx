@@ -11,11 +11,11 @@ import { sincronizarHistorialBloqueosInicial } from '../api/sesionBloqueoApi';
 import { useCatalogo, labelDeCatalogo } from '../hooks/useCatalogo';
 import { formatTimestamp } from '../lib/formatFirestore';
 import {
-  StudioPageShell,
   StudioLoading,
   StudioError,
   StudioFilterBar,
 } from '../components/studio/StudioUi';
+import { ModuleHeader } from '../components/layout';
 import { nivelActividadSync } from '../utils/syncActividad';
 
 const PIE_COLORS = {
@@ -41,10 +41,14 @@ const LABEL_ESTADO_ANTERIOR = {
 
 function KpiCard({ label, value, color = 'text-slate-900', sub }) {
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-4 flex flex-col gap-1">
-      <span className="text-sm font-semibold text-slate-500 uppercase tracking-wide">{label}</span>
-      <span className={`text-4xl font-bold leading-none ${color}`}>{value}</span>
-      {sub ? <span className="text-sm text-slate-400">{sub}</span> : null}
+    <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs flex flex-col justify-between">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">{label}</span>
+      </div>
+      <div className="my-2">
+        <span className={`text-3xl font-extrabold tracking-tight ${color}`}>{value}</span>
+      </div>
+      {sub ? <span className="text-xs text-slate-400 truncate">{sub}</span> : null}
     </div>
   );
 }
@@ -111,7 +115,7 @@ function bloqueoBadge(min) {
 }
 
 export default function InvestigacionSesiones() {
-  const { computadoras, loading, error } = useComputadorasSesion();
+  const { computadoras, loading, error, refresh: refreshComputadoras } = useComputadorasSesion();
   const { bloqueos, loading: loadingBloqueos, error: errorBloqueos, refresh: refreshBloqueos } = useSesionBloqueos();
   const { esAdministrador } = usePermisos();
   const { items: ubicItems } = useCatalogo('ubicaciones_computadora');
@@ -276,13 +280,14 @@ export default function InvestigacionSesiones() {
     try {
       const res = await sincronizarHistorialBloqueosInicial();
       refreshBloqueos();
+      refreshComputadoras();
       setSyncMsg(`Listo: ${res.registrados ?? 0} bloqueo(s) registrado(s).`);
     } catch (err) {
       setSyncMsg(err.message || 'No se pudo sincronizar el historial');
     } finally {
       setSyncing(false);
     }
-  }, [refreshBloqueos]);
+  }, [refreshBloqueos, refreshComputadoras]);
 
   const bloqueosHoy = useMemo(() => {
     const hoy = new Date().toLocaleDateString('es-AR');
@@ -298,13 +303,15 @@ export default function InvestigacionSesiones() {
 
   return (
     <div className="space-y-6">
-      <StudioPageShell
+      {/* ── 1. ENCABEZADO ESTÁNDAR ── */}
+      <ModuleHeader
         title="Investigación"
-        subtitle="Datos de sesión Windows — recolección activa para decidir estrategia de monitoreo de monitores"
+        badge={`${stats.total} PCs reportando`}
+        description="Datos de sesión Windows — recolección activa para decidir estrategia de monitoreo de monitores."
       />
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         <KpiCard label="PCs reportando" value={stats.total} />
         <KpiCard
           label="Bloqueos hoy"
@@ -396,7 +403,7 @@ export default function InvestigacionSesiones() {
         <select
           value={filtroEstado}
           onChange={e => setFiltroEstado(e.target.value)}
-          className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+          className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 focus:outline-none focus:border-blue-500 !w-[20%] max-w-[22%] min-w-[140px] truncate cursor-pointer"
         >
           <option value="">Todos los estados</option>
           <option value="activa">Activa</option>
@@ -407,7 +414,7 @@ export default function InvestigacionSesiones() {
         <select
           value={filtroBloqueo}
           onChange={e => setFiltroBloqueo(e.target.value)}
-          className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+          className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 focus:outline-none focus:border-blue-500 !w-[20%] max-w-[22%] min-w-[140px] truncate cursor-pointer"
         >
           <option value="">Bloqueo: todos</option>
           <option value="con">Con bloqueo auto</option>

@@ -1,14 +1,15 @@
 package com.bacarsa.inventario.controller;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -17,17 +18,16 @@ import com.bacarsa.inventario.dto.ActualizarPerifericoDTO;
 import com.bacarsa.inventario.dto.AsignarPerifericoDTO;
 import com.bacarsa.inventario.dto.AsignarUbicacionDTO;
 import com.bacarsa.inventario.dto.CambiarEstadoDTO;
-import com.bacarsa.inventario.dto.DevolverStockDTO;
 import com.bacarsa.inventario.dto.ComboCreateDTO;
+import com.bacarsa.inventario.dto.DevolverStockDTO;
 import com.bacarsa.inventario.dto.PerifericoManualCreateDTO;
 import com.bacarsa.inventario.dto.PerifericoManualDTO;
 import com.bacarsa.inventario.dto.SacarUnidadStockDTO;
 import com.bacarsa.inventario.dto.SacarUnidadStockResultDTO;
 import com.bacarsa.inventario.services.PerifericoManualService;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/perifericos-manuales")
@@ -54,7 +54,9 @@ public class PerifericoManualController {
     }
 
     @PostMapping
-    public ResponseEntity<PerifericoManualDTO> crear(@Valid @RequestBody PerifericoManualCreateDTO body)
+    public ResponseEntity<PerifericoManualDTO> crear(
+            @Valid @RequestBody PerifericoManualCreateDTO body,
+            HttpServletRequest request)
             throws ExecutionException, InterruptedException {
         try {
             PerifericoManualDTO creado = service.crear(body);
@@ -78,10 +80,11 @@ public class PerifericoManualController {
     @PostMapping("/{id}/actualizar")
     public ResponseEntity<PerifericoManualDTO> actualizar(
             @PathVariable String id,
-            @RequestBody ActualizarPerifericoDTO body)
+            @RequestBody ActualizarPerifericoDTO body,
+            HttpServletRequest request)
             throws ExecutionException, InterruptedException {
         try {
-            PerifericoManualDTO dto = service.actualizar(id, body);
+            PerifericoManualDTO dto = service.actualizar(id, body, uid(request));
             if (dto == null) return ResponseEntity.notFound().build();
             return ResponseEntity.ok(dto);
         } catch (IllegalArgumentException ex) {
@@ -150,10 +153,11 @@ public class PerifericoManualController {
     @PostMapping("/{id}/estado")
     public ResponseEntity<PerifericoManualDTO> cambiarEstado(
             @PathVariable String id,
-            @Valid @RequestBody CambiarEstadoDTO body)
+            @Valid @RequestBody CambiarEstadoDTO body,
+            HttpServletRequest request)
             throws ExecutionException, InterruptedException {
         try {
-            PerifericoManualDTO dto = service.cambiarEstado(id, body.getEstado(), body.getMotivo());
+            PerifericoManualDTO dto = service.cambiarEstado(id, body.getEstado(), body.getMotivo(), uid(request));
             if (dto == null) return ResponseEntity.notFound().build();
             return ResponseEntity.ok(dto);
         } catch (IllegalArgumentException ex) {
@@ -180,5 +184,11 @@ public class PerifericoManualController {
             throws ExecutionException, InterruptedException {
         service.eliminar(id);
         return ResponseEntity.noContent().build();
+    }
+
+    private static String uid(HttpServletRequest request) {
+        if (request == null) return null;
+        Object uid = request.getAttribute("uid");
+        return uid == null ? null : String.valueOf(uid);
     }
 }

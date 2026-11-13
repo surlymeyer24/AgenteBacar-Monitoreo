@@ -1,5 +1,8 @@
 package com.bacarsa.inventario.models;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import com.google.cloud.firestore.annotation.DocumentId;
 import lombok.Getter;
 import lombok.Setter;
@@ -19,4 +22,5 @@ public class Servidor {
     private String descripcion;
     /** activo / inactivo / mantenimiento */
     private String estado;
+    private List<RenglonHistorial> historial = new ArrayList<>();
 }

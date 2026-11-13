@@ -1,0 +1,1 @@
+import{ln as e}from"./vendor-Dbx5x8of.js";import{n as t}from"./conciliacionApi-vrk8jjMt.js";function n(n){return e({queryKey:[`conciliacionesPendientesCount`],queryFn:t,staleTime:60*1e3,refetchInterval:120*1e3,...n})}export{n as t};

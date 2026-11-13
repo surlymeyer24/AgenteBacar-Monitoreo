@@ -33,4 +33,5 @@ public class RouterDTO {
     private String estado;
     private LocalDate fechaAlta;
     private List<CambioEstadoDTO> historialEstados;
+    private List<RenglonHistorialDTO> historial;
 }
