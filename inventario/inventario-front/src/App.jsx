@@ -6,7 +6,7 @@ import SidebarNav from './components/SidebarNav';
 import SidebarAuthFooter from './components/SidebarAuthFooter';
 import TopBar from './components/TopBar';
 import { useFirebaseAuthUser } from './hooks/useFirebaseAuth';
-import { PermisosProvider } from './context/PermisosContext';
+import { PermisosProvider, usePermisos } from './context/PermisosContext';
 import { PermisosBoot, RequireWrite, RequireAdmin } from './components/RoutePermiso';
 import PwaInstallBanner from './components/PwaInstallBanner';
 import { getFirebaseAuth } from './lib/firebase';
@@ -77,9 +77,24 @@ function RouteFallback() {
   );
 }
 
+function MainContentSkeleton() {
+  return (
+    <div className="p-6 space-y-4" aria-busy="true" aria-label="Cargando permisos">
+      <div className="h-8 w-48 rounded-lg bg-slate-200/80 animate-pulse" />
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+        {[0, 1, 2, 3, 4, 5].map((i) => (
+          <div key={i} className="h-36 rounded-xl bg-slate-100 animate-pulse" />
+        ))}
+      </div>
+      <div className="h-64 rounded-xl bg-slate-100 animate-pulse" />
+    </div>
+  );
+}
+
 function AppShell() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { loading: permisosLoading } = usePermisos();
 
   const handleLogout = () => {
     try {
@@ -158,9 +173,13 @@ function AppShell() {
         <div className="main">
           <TopBar />
           <div className="main-scroll">
-            <Suspense fallback={<RouteFallback />}>
-              <Outlet />
-            </Suspense>
+            {permisosLoading ? (
+              <MainContentSkeleton />
+            ) : (
+              <Suspense fallback={<RouteFallback />}>
+                <Outlet />
+              </Suspense>
+            )}
           </div>
         </div>
       </div>

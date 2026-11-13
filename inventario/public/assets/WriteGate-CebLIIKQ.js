@@ -1,0 +1,1 @@
+import{n as e}from"./usePermisos-DQCcE1rE.js";function t({children:t,fallback:n=null}){let{loading:r,puedeEscribir:i}=e();return r||!i?n:t}export{t};

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDashboardStats } from '../hooks/useQueries';
 import {
@@ -15,11 +15,12 @@ import {
   Cpu,
   SlidersHorizontal,
 } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
-import ComputadorasEstadoModal from '../components/ComputadorasEstadoModal';
 import { labelUbicacion } from '../constants/ubicaciones';
 import { useCatalogo } from '../hooks/useCatalogo';
 import { ModuleHeader } from '../components/layout';
+
+const DashboardSyncPie = lazy(() => import('../components/DashboardSyncPie'));
+const ComputadorasEstadoModal = lazy(() => import('../components/ComputadorasEstadoModal'));
 
 const ACCENT = '#BA1814';
 const SYNC_COLORS = {
@@ -406,35 +407,13 @@ function Dashboard() {
             </p>
 
             <div className="flex flex-col sm:flex-row items-center gap-4 py-2">
-              {/* Gráfico Donut con label central */}
-              <div className="relative w-36 h-36 shrink-0 flex items-center justify-center">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={pieData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={46}
-                      outerRadius={64}
-                      paddingAngle={3}
-                      dataKey="value"
-                      stroke="none"
-                    >
-                      {pieData.map((entry) => (
-                        <Cell key={entry.key} fill={entry.color} />
-                      ))}
-                    </Pie>
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
-                  <span className="text-lg font-extrabold text-slate-900 leading-tight">
-                    {saludRed}%
-                  </span>
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider leading-none">
-                    Salud de Red
-                  </span>
-                </div>
-              </div>
+              <Suspense
+                fallback={
+                  <div className="w-36 h-36 shrink-0 rounded-full bg-slate-100 animate-pulse" aria-hidden />
+                }
+              >
+                <DashboardSyncPie pieData={pieData} saludRed={saludRed} />
+              </Suspense>
 
               {/* Leyenda de 3 estados */}
               <div className="flex-1 w-full space-y-2 text-xs">
@@ -616,10 +595,14 @@ function Dashboard() {
         </div>
       </div>
 
-      <ComputadorasEstadoModal
-        isOpen={modalPcsOpen}
-        onClose={() => setModalPcsOpen(false)}
-      />
+      {modalPcsOpen ? (
+        <Suspense fallback={null}>
+          <ComputadorasEstadoModal
+            isOpen={modalPcsOpen}
+            onClose={() => setModalPcsOpen(false)}
+          />
+        </Suspense>
+      ) : null}
     </div>
   );
 }

@@ -1,0 +1,1 @@
+import{fn as e}from"./vendor-Dbx5x8of.js";import t from"./RoutersSwitchesList-DiPBSPqZ.js";var n=e();function r(){return(0,n.jsx)(t,{defaultTab:`router`})}export{r as default};

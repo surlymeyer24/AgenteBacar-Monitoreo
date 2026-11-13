@@ -1,0 +1,1 @@
+import{k as e}from"./vendor-Dbx5x8of.js";export default e();

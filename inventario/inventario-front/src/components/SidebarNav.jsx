@@ -31,7 +31,7 @@ import {
   Terminal,
   Sliders,
 } from 'lucide-react';
-import { useConciliacionesPendientesCount } from '../hooks/useQueries';
+import { useConciliacionesPendientesCount } from '../hooks/useConciliacionesPendientesCount';
 
 export default function SidebarNav({ sidebarCollapsed, onMobileClose }) {
   const location = useLocation();

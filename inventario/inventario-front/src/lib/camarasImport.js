@@ -1,5 +1,3 @@
-import * as XLSX from 'xlsx';
-
 /** Excel (sobre todo en macOS) puede exportar CSV solo con \\r; split(/\\r?\\n/) no parte esas líneas. */
 function normalizeNewlines(text) {
   return String(text ?? '')
@@ -321,7 +319,8 @@ function rowLooksLikeHeader(row) {
 /**
  * Lee la primera hoja como tabla: detecta fila de cabeceras aunque arriba haya un título.
  */
-export function parseCamaraRowsFromXlsx(arrayBuffer) {
+export async function parseCamaraRowsFromXlsx(arrayBuffer) {
+  const XLSX = await import('xlsx');
   const wb = XLSX.read(arrayBuffer, { type: 'array' });
   const sheet = wb.Sheets[wb.SheetNames[0]];
   const aoa = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: false });

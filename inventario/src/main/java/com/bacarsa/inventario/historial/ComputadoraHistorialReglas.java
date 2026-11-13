@@ -264,6 +264,13 @@ public final class ComputadoraHistorialReglas {
                 }
             }
         }
+        // Código de stock asignado por el sistema al ingresar a depósito: solo si la PC no tenía.
+        String codigoPedido = fichaEnElMismoActo == null ? null : texto(fichaEnElMismoActo.get("codigo_interno"));
+        if (codigoPedido != null && texto(doc.get("codigo_interno")) == null) {
+            cambiosFicha = new ArrayList<>(cambiosFicha);
+            cambiosFicha.add(cambio("codigo_interno", null, codigoPedido));
+            updates.put("codigo_interno", codigoPedido);
+        }
         if (!cambiosFicha.isEmpty()) {
             updates.putAll(aplicarCambiosFicha(doc, cambiosFicha));
             historial.add(renglonFicha(actor, ahora, acto, "MANUAL", cambiosFicha));

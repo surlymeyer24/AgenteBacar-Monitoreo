@@ -34,7 +34,11 @@ public class StockFicha {
     @PropertyName("serie_o_imei")
     private String serieOImei;
 
-    private String estado; // EN_DEPOSITO, ASIGNADA, EN_MANTENIMIENTO, BAJA
+    private String estado; // EN_DEPOSITO, ASIGNADA, EN_MANTENIMIENTO, BAJA, REEMPLAZADA
+
+    /** Código de la ficha que reemplaza a esta (fichas viejas de PC identificadas por hostname). */
+    @PropertyName("reemplazada_por")
+    private String reemplazadaPor;
 
     @PropertyName("responsable_id")
     private String responsableId;

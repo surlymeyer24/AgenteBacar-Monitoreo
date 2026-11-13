@@ -105,6 +105,7 @@ const CAMPO_HISTORIAL_LABEL = {
   sistema_operativo: 'Sistema operativo',
   arquitectura: 'Arquitectura',
   ubicacion_stock: 'Ubicación de stock',
+  codigo_interno: 'Código interno',
 };
 
 function labelEstadoHistorial(valor) {

@@ -57,7 +57,7 @@ public class StockUnidadesService {
                 if (fichas != null && !fichas.isEmpty()) {
                     List<UnidadStockDTO> dtos = new ArrayList<>();
                     for (StockFicha ficha : fichas) {
-                        if (ficha != null) {
+                        if (ficha != null && !"REEMPLAZADA".equalsIgnoreCase(ficha.getEstado())) {
                             dtos.add(aDto(ficha));
                         }
                     }

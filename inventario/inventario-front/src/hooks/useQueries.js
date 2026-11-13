@@ -12,9 +12,10 @@ import { fetchMonitoresReportadosAgente } from '../api/monitorApi';
 import { fetchCelulares } from '../api/celularApi';
 import { fetchEtiquetasQr, fetchProgresosLogistica } from '../api/etiquetaQrApi';
 import { fetchEventosHardware, fetchPendientesCount } from '../api/eventosHardwareApi';
-import { fetchConciliacionPendientesCount } from '../api/conciliacionApi';
 import { fetchResponsables, fetchResponsableDetalle } from '../api/responsableApi';
 import { fetchUnidadesStock, fetchAsignacionesStock } from '../api/stockApi';
+
+export { useConciliacionesPendientesCount } from './useConciliacionesPendientesCount';
 
 export function useDashboardStats(options) {
   return useQuery({
@@ -161,16 +162,6 @@ export function useEventosHardwarePendientesCount(options) {
   return useQuery({
     queryKey: ['eventosHardwarePendientesCount'],
     queryFn: fetchPendientesCount,
-    staleTime: 60 * 1000,
-    refetchInterval: 2 * 60 * 1000,
-    ...options,
-  });
-}
-
-export function useConciliacionesPendientesCount(options) {
-  return useQuery({
-    queryKey: ['conciliacionesPendientesCount'],
-    queryFn: fetchConciliacionPendientesCount,
     staleTime: 60 * 1000,
     refetchInterval: 2 * 60 * 1000,
     ...options,

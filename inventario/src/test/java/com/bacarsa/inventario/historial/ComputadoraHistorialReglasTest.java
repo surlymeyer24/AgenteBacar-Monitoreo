@@ -115,6 +115,37 @@ class ComputadoraHistorialReglasTest {
     }
 
     @Test
+    void ingresoADepositoAsignaCodigoInternoSoloSiNoTenia() {
+        Map<String, Object> doc = docConAlta();
+        doc = aplicar(doc, ComputadoraHistorialReglas.cambiarEstado(
+                doc, "ASIGNADA", "Asignación", Map.of("responsableInventario", "Luis"), MARIA, DESPUES));
+
+        Map<String, Object> ficha = new LinkedHashMap<>();
+        ficha.put("en_deposito", true);
+        ficha.put("codigo_interno", "PC-7");
+        EscrituraHistorial esc = ComputadoraHistorialReglas.cambiarEstado(
+                doc, "SIN_ASIGNAR", "Ingreso a stock", ficha, MARIA, MAS_TARDE);
+        assertEquals("PC-7", esc.campos().get("codigo_interno"));
+        doc = aplicar(doc, esc);
+
+        Map<String, Object> renglon = historial(doc).get(historial(doc).size() - 1);
+        assertEquals("FICHA", renglon.get("tipo"));
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> cambios = (List<Map<String, Object>>) renglon.get("cambios");
+        assertTrue(cambios.stream().anyMatch(c -> "codigo_interno".equals(c.get("campo"))
+                && c.get("valor_anterior") == null && "PC-7".equals(c.get("valor_nuevo"))));
+
+        // Con código ya puesto, no se pisa.
+        doc = aplicar(doc, ComputadoraHistorialReglas.cambiarEstado(
+                doc, "ASIGNADA", "Reasignación", Map.of("responsableInventario", "Ana"), MARIA, AUN_MAS));
+        Map<String, Object> otra = new LinkedHashMap<>();
+        otra.put("codigo_interno", "PC-99");
+        EscrituraHistorial segunda = ComputadoraHistorialReglas.cambiarEstado(
+                doc, "SIN_ASIGNAR", "Vuelve a stock", otra, MARIA, Timestamp.ofTimeSecondsAndNanos(1_700_000_400L, 0));
+        assertFalse(segunda.campos().containsKey("codigo_interno"));
+    }
+
+    @Test
     void recorridoDeEstadosCierraTramosYLaBajaNoBorraLaFicha() {
         Map<String, Object> doc = docConAlta();
         doc = aplicar(doc, ComputadoraHistorialReglas.cambiarEstado(
