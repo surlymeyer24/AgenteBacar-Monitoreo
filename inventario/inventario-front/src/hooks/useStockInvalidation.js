@@ -8,6 +8,8 @@ export function useStockInvalidation() {
     invalidarTodo: () => {
       qc.invalidateQueries({ queryKey: ['stockUnidades'] });
       qc.invalidateQueries({ queryKey: ['stockAsignaciones'] });
+      // Asignar/devolver/baja de una PC cambia su en_deposito y estado: refrescar Computadoras.
+      qc.invalidateQueries({ queryKey: ['computadoras'] });
     },
   };
 }
