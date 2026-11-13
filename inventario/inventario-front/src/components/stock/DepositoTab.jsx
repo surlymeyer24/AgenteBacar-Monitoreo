@@ -19,6 +19,7 @@ import WriteGate from '../WriteGate';
 import { labelTipoStock } from '../../constants/tiposStock';
 import { FilterBar } from '../layout';
 import ModalDetalleHistorial from './ModalDetalleHistorial';
+import { esUnidadEnDeposito } from '../../utils/stockListHelpers';
 
 const FILAS_POR_PAGINA = 25;
 
@@ -213,13 +214,7 @@ export default function DepositoTab({ unidades = [], onEditar, onAsignar, onBaja
   const [detalleItem, setDetalleItem] = useState(null);
 
   const unidadesEnDeposito = useMemo(() => {
-    return unidades.filter((u) => {
-      if ((u.cantidad ?? 1) <= 0) return false;
-      const e = (u.estadoDeposito || u.estado || '').toUpperCase();
-      if (e.includes('BAJA') || e.includes('RETIR')) return false;
-      if (e.includes('ASIGNAD') || e.includes('ACTIVA') || e.includes('OPERATIV')) return false;
-      return true;
-    });
+    return unidades.filter(esUnidadEnDeposito);
   }, [unidades]);
 
   const conteosPorFamilia = useMemo(() => {

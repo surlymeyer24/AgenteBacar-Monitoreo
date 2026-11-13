@@ -20,6 +20,7 @@ import { useCatalogo } from '../hooks/useCatalogo';
 import { useEditPcStock } from '../hooks/useEditPcStock';
 import { useStockInvalidation } from '../hooks/useStockInvalidation';
 import { editPcStockModalProps } from '../utils/editPcStockModalProps';
+import { esUnidadEnDeposito } from '../utils/stockListHelpers';
 import { ModuleHeader, TabsCard } from '../components/layout';
 
 const TABS = [
@@ -115,11 +116,7 @@ export default function StockPage() {
   };
 
   const countDeposito = useMemo(() => {
-    return unidades.filter((u) => {
-      if ((u.cantidad ?? 1) <= 0) return false;
-      const e = (u.estadoDeposito || u.estado || '').toUpperCase();
-      return e === 'EN_DEPOSITO' || e === 'DISPONIBLE' || e === 'SIN_ASIGNAR' || e === 'EN_STOCK' || e === 'EN DEPOSITO';
-    }).length;
+    return unidades.filter(esUnidadEnDeposito).length;
   }, [unidades]);
 
   const countAsignaciones = useMemo(() => {

@@ -11,6 +11,21 @@ export function resolveCondicionPc(pc) {
     || '';
 }
 
+/**
+ * Criterio único de "unidad en depósito" (contador del encabezado y tabla de Depósito).
+ * Los estados llegan con formatos distintos según la colección de origen
+ * ("Sin Asignar", "SIN_ASIGNAR", "en_stock", "EN_DEPOSITO"...), por eso se excluye
+ * lo que no está en depósito en vez de enumerar lo que sí.
+ */
+export function esUnidadEnDeposito(u) {
+  if ((u?.cantidad ?? 1) <= 0) return false;
+  const e = (u?.estadoDeposito || u?.estado || '').toUpperCase();
+  if (e.includes('BAJA') || e.includes('RETIR')) return false;
+  // ACTIV cubre "ACTIVA" (movimientos) y "activo" (celular asignado).
+  if (e.includes('ASIGNAD') || e.includes('ACTIV') || e.includes('OPERATIV')) return false;
+  return true;
+}
+
 export function getCategoryColor(category) {
   switch (category?.toLowerCase()) {
     case 'computadora': return 'bg-blue-50 text-blue-700 border-blue-100';
