@@ -16,6 +16,8 @@ Frontend (pantalla de stock):
 - `inventario/inventario-front/src/components/stock/StockUnidadesTab.jsx`
 - `inventario/inventario-front/src/components/stock/StockInfraTab.jsx`
 - `inventario/inventario-front/src/components/stock/StockCelularesTab.jsx`
+- `inventario/inventario-front/src/components/stock/StockBajasTab.jsx`
+- `inventario/inventario-front/src/utils/bajaStockHelpers.js`
 - `inventario/inventario-front/src/components/stock/StockAsignacionesTab.jsx`
 - `inventario/inventario-front/src/components/stock/StockManualListModals.jsx`
 - `inventario/inventario-front/src/components/stock/StockPcPipeline.jsx`
@@ -37,7 +39,7 @@ Backend (periféricos manuales):
 
 ## Qué ver primero (orden)
 
-1. `PerifericoManualList.jsx` — tabs (`perifericos`, `lotes-pc`, `unidades`, `infraestructura`, `celulares`), vista `stock` vs `asignaciones`, y qué props recibe cada tab.
+1. `PerifericoManualList.jsx` — tabs (`perifericos`, `lotes-pc`, `unidades`, `infraestructura`, `celulares`, `bajas`), vista `stock` vs `asignaciones`, y qué props recibe cada tab.
 2. `usePerifericoManualListData.js` — de dónde salen los datos y cómo se refrescan.
 3. El `*Tab.jsx` que corresponda — patrón de tarjetas, badges y acciones.
 4. `StockManualListModals.jsx` — cómo se montan los modales de alta/edición/asignación.
@@ -69,3 +71,6 @@ Este módulo es usado por: dashboard de periféricos, reportes.
 - Los estados operativos se resuelven por catálogo (`estadoLabels`), no hardcodeados.
 - Celulares tienen su propio estado (`activo` / `en_stock` / `baja`), distinto de los estados operativos de periféricos. No mezclar.
 - Tab Celulares (vista Stock): lista `useCelulares()` filtrado con `esCelularEnStock`. Edición y asignación van en `StockCelularesTab` (modales propios). No van a la vista Asignaciones.
+- Tab Bajas (vista Stock): solo lectura. Computadoras con `estadoActual` Baja (no entran Sin asignar ni disponibles) y periféricos manuales cuyo `estado` ya es Baja. Motivo y fecha salen de `historialEstados` si el objeto lo trae. El listado de computadoras (`ComputadoraListadoDTO`) no incluye historial: esas filas muestran hostname y estado, y «—» en desde/motivo. No cambiar el backend de computadoras desde este módulo para completar ese DTO.
+- Una baja de stock descuenta la cantidad del depósito: `esItemEnBodega` y los lotes de PCs excluyen estado Baja. Esas unidades solo se cuentan en la pestaña Bajas.
+- Botón «Baja 1» en Periféricos, Stock de PCs e Infraestructura. `POST /api/perifericos-manuales/{id}/baja-unidad` exige motivo. Si `cantidad` es 1, esa fila pasa a Baja. Si es mayor, resta 1 de la fila y crea un documento nuevo de cantidad 1 en Baja. «Cambiar estado → Baja» en la ficha sigue aplicando a toda la fila.

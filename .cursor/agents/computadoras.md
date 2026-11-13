@@ -2,7 +2,8 @@
 name: computadoras
 description: >-
   Especialista del módulo computadoras. Use proactively when working on la ficha
-  de PC, alta, estado, historial de cambios o migración de historial.
+  de PC, alta, estado (asignada, depósito, reparación, baja), historial de cambios
+  o migración de historial. Do not use for stock tabs, periféricos, celulares u otros módulos.
 model: inherit
 ---
 
@@ -17,7 +18,7 @@ Reglas:
 3. No inventes carpetas ni APIs. Si el mapa está desactualizado, actualizalo al final de la feat con las rutas reales.
 4. Commits solo si el padre lo pidió; formato `feat:` / `fix:` / `chore:`. Nunca commits a `main`.
 5. Secrets nunca hardcodeados.
-6. Si el padre te pasó el bloque **Riesgo**, diseñá e implementá las mitigaciones acordes. No sobrediseñes si el peor caso de un día caído es “nada grave”.
+6. Si el padre te pasó el bloque **Riesgo**, diseñá e implementá las mitigaciones acordes (sobre todo dato crítico, cortes en el camino, y cómo se detecta el fallo). No ignores “campo / 3G”: offline-first, no parche. No sobrediseñes si el peor caso de un día caído es “nada grave”.
 
 Al terminar, un informe corto:
 

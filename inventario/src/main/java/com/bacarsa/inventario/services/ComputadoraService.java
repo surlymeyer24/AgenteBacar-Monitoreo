@@ -23,6 +23,7 @@ import com.bacarsa.inventario.dto.ComputadoraStockUpdateDTO;
 import com.bacarsa.inventario.dto.IngresarStockDTO;
 import com.bacarsa.inventario.mapper.ComputadoraMapper;
 import com.bacarsa.inventario.models.Computadora;
+import com.bacarsa.inventario.models.Estado;
 import com.bacarsa.inventario.models.EstadoOperativo;
 import com.bacarsa.inventario.models.DispositivoAudioFirestore;
 import com.bacarsa.inventario.models.DispositivoUsbFirestore;
@@ -167,6 +168,37 @@ public class ComputadoraService {
 
     private static String blankToNull(String s) {
         return (s == null || s.isBlank()) ? null : s.trim();
+    }
+
+    /**
+     * La baja no borra el documento. Solo se acepta desde reparación y con motivo,
+     * para que {@code historialEstados} guarde el tramo. Si no cumple, no se escribe.
+     */
+    private static void exigirBajaDesdeReparacion(Computadora pc, String motivo) {
+        if (estadoOperativoDe(pc.getEstadoActual()) != EstadoOperativo.EN_MANTENIMIENTO) {
+            throw new IllegalArgumentException(
+                    "Solo se puede dar de baja un equipo que está en mantenimiento");
+        }
+        if (blankToNull(motivo) == null) {
+            throw new IllegalArgumentException("El motivo es obligatorio para dar de baja");
+        }
+    }
+
+    private static EstadoOperativo estadoOperativoDe(Estado estado) {
+        return estado == null ? null : estadoOperativoDe(estado.getNombre());
+    }
+
+    private static EstadoOperativo estadoOperativoDe(String nombreRaw) {
+        if (nombreRaw == null || nombreRaw.isBlank()) {
+            return null;
+        }
+        String nombre = nombreRaw.trim();
+        for (EstadoOperativo op : EstadoOperativo.values()) {
+            if (op.name().equalsIgnoreCase(nombre) || op.getNombre().equalsIgnoreCase(nombre)) {
+                return op;
+            }
+        }
+        return null;
     }
 
     public ComputadoraDTO actualizarDatosStock(String uuid, ComputadoraStockUpdateDTO dto, String uid)
@@ -361,6 +393,12 @@ public class ComputadoraService {
         String hostname = pc.getHostname();
         String ubicacionPc = pc.getUbicacion() == null ? null : pc.getUbicacion().name();
 
+        String motivo = dto.getMotivo();
+        if (estadoOperativoDe(dto.getEstado()) == EstadoOperativo.BAJA) {
+            exigirBajaDesdeReparacion(pc, motivo);
+            motivo = blankToNull(motivo);
+        }
+
         Map<String, Object> ficha = new LinkedHashMap<>();
         if (dto.getUbicacionStock() != null) {
             ficha.put("ubicacionStock", dto.getUbicacionStock());
@@ -368,7 +406,7 @@ public class ComputadoraService {
         if (dto.getResponsableInventario() != null) {
             ficha.put("responsableInventario", dto.getResponsableInventario());
         }
-        historialService.cambiarEstado(uuid, dto.getEstado(), dto.getMotivo(), ficha, uid);
+        historialService.cambiarEstado(uuid, dto.getEstado(), motivo, ficha, uid);
         ComputadoraDTO result = getByUuid(uuid);
         responsableService.sincronizarAsignacionPc(
                 uuid,
