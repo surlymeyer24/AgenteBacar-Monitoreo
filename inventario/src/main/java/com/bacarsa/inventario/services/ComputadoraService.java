@@ -44,22 +44,32 @@ public class ComputadoraService {
     private final ResponsableService responsableService;
     private final ComputadoraHistorialService historialService;
     private final StockFichaRepository stockFichaRepository;
+    private final StockUnidadesService stockUnidadesService;
 
     public ComputadoraService(ComputadoraRepository computadoraRepository,
             ResponsableService responsableService,
             ComputadoraHistorialService historialService) {
-        this(computadoraRepository, responsableService, historialService, null);
+        this(computadoraRepository, responsableService, historialService, null, null);
+    }
+
+    public ComputadoraService(ComputadoraRepository computadoraRepository,
+            ResponsableService responsableService,
+            ComputadoraHistorialService historialService,
+            StockFichaRepository stockFichaRepository) {
+        this(computadoraRepository, responsableService, historialService, stockFichaRepository, null);
     }
 
     @Autowired
     public ComputadoraService(ComputadoraRepository computadoraRepository,
             ResponsableService responsableService,
             ComputadoraHistorialService historialService,
-            @Autowired(required = false) StockFichaRepository stockFichaRepository) {
+            @Autowired(required = false) StockFichaRepository stockFichaRepository,
+            @Autowired(required = false) StockUnidadesService stockUnidadesService) {
         this.computadoraRepository = computadoraRepository;
         this.responsableService = responsableService;
         this.historialService = historialService;
         this.stockFichaRepository = stockFichaRepository;
+        this.stockUnidadesService = stockUnidadesService;
     }
 
     public List<ComputadoraListadoDTO> getAllComputadoras() throws ExecutionException, InterruptedException {
@@ -426,14 +436,24 @@ public class ComputadoraService {
         if (actual != null && !actual.isBlank()) {
             return actual.trim();
         }
-        if (stockFichaRepository == null) {
+        if (stockFichaRepository == null && stockUnidadesService == null) {
             return null;
         }
         try {
             List<String> existentes = new java.util.ArrayList<>();
-            for (StockFicha f : stockFichaRepository.findAll()) {
-                if (f != null && f.getCodigoInterno() != null) {
-                    existentes.add(f.getCodigoInterno());
+            if (stockFichaRepository != null) {
+                for (StockFicha f : stockFichaRepository.findAll()) {
+                    if (f != null && f.getCodigoInterno() != null) {
+                        existentes.add(f.getCodigoInterno());
+                    }
+                }
+            }
+            // Stock legacy (periféricos manuales, celulares, computadoras): puede haber PC-N/NB-N ya usados.
+            if (stockUnidadesService != null) {
+                for (FichaLectura f : stockUnidadesService.leerFichas()) {
+                    if (f != null && f.getCodigoInterno() != null) {
+                        existentes.add(f.getCodigoInterno());
+                    }
                 }
             }
             return CodigoStockPc.siguiente(CodigoStockPc.prefijo(tipoEquipo), existentes, candidato -> {
@@ -462,9 +482,16 @@ public class ComputadoraService {
             return;
         }
         try {
+            List<StockFicha> todas = stockFichaRepository.findAll();
+            if (todas == null || todas.isEmpty()) {
+                // stock_fichas todavía no está en uso: el listado se arma desde las colecciones
+                // legacy y la PC aparece con el codigo_interno guardado en computadoras.
+                // Crear la primera ficha haría que el listado muestre solo stock_fichas.
+                return;
+            }
             String refOrigen = "computadoras/" + uuid;
             StockFicha vieja = null;
-            for (StockFicha f : stockFichaRepository.findAll()) {
+            for (StockFicha f : todas) {
                 if (f == null || codigo.equalsIgnoreCase(f.getCodigoInterno())
                         || "REEMPLAZADA".equalsIgnoreCase(f.getEstado())) {
                     continue;
