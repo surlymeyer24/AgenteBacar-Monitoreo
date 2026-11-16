@@ -115,7 +115,7 @@ public class StockAbmService {
         if (dto.getCondicion() != null && !dto.getCondicion().isBlank()) {
             campos.put("condicion", dto.getCondicion().trim());
         }
-        campos.put("ubicacion", dto.getUbicacion() != null && !dto.getUbicacion().isBlank() ? dto.getUbicacion().trim() : "DEPOSITO");
+        campos.put("ubicacion", dto.getUbicacion() != null && !dto.getUbicacion().isBlank() ? dto.getUbicacion().trim() : "deposito");
         campos.put("fechaAlta", LocalDate.now().toString());
         campos.put("estadoActual", mapaEstado("SIN_ASIGNAR", "STOCK", "Alta en stock"));
         if (dto.getNotas() != null && !dto.getNotas().isBlank()) {
