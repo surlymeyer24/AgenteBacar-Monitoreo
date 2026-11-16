@@ -9,8 +9,8 @@ import {
   devolverUnidadStock,
 } from '../../api/stockApi';
 import { useStockInvalidation } from '../../hooks/useStockInvalidation';
-import { labelTipoStock, opcionesTipoStock } from '../../constants/tiposStock';
-import { useCatalogo, opcionesEnumCatalogo } from '../../hooks/useCatalogo';
+import { labelTipoStock } from '../../constants/tiposStock';
+import { useCatalogo, opcionesCatalogo, opcionesEnumCatalogo } from '../../hooks/useCatalogo';
 import {
   UBICACIONES_COMPUTADORA,
   UBICACIONES_COMPUTADORA_LABELS,
@@ -25,6 +25,7 @@ const inputClass =
 const labelClass = 'block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1';
 
 export function ModalAlta({ open, onClose }) {
+  const { items: tiposStockItems } = useCatalogo('tipos_stock');
   const [form, setForm] = useState({
     tipo: 'computadora',
     marca: '',
@@ -40,6 +41,7 @@ export function ModalAlta({ open, onClose }) {
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
   const { invalidarTodo } = useStockInvalidation();
+  const tiposOpciones = opcionesCatalogo(tiposStockItems, form.tipo);
 
   useEffect(() => {
     if (open) {
@@ -121,9 +123,9 @@ export function ModalAlta({ open, onClose }) {
                   className={inputClass}
                   required
                 >
-                  {opcionesTipoStock().map((t) => (
-                    <option key={t} value={t}>
-                      {labelTipoStock(t)}
+                  {tiposOpciones.map((t) => (
+                    <option key={t.codigo} value={t.codigo}>
+                      {t.label}
                     </option>
                   ))}
                 </select>
