@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -24,9 +25,11 @@ import com.bacarsa.inventario.dto.AltaUnidadStockDTO;
 import com.bacarsa.inventario.dto.BajaUnidadStockDTO;
 import com.bacarsa.inventario.dto.ModificarUnidadStockDTO;
 import com.bacarsa.inventario.dto.UnidadStockDTO;
+import com.bacarsa.inventario.models.StockFicha;
 import com.bacarsa.inventario.repository.CelularRepository;
 import com.bacarsa.inventario.repository.ComputadoraRepository;
 import com.bacarsa.inventario.repository.PerifericoManualRepository;
+import com.bacarsa.inventario.repository.StockFichaRepository;
 
 @ExtendWith(MockitoExtension.class)
 class StockAbmServiceTest {
@@ -41,6 +44,8 @@ class StockAbmServiceTest {
     private ComputadoraRepository computadoraRepository;
     @Mock
     private AuditStockService auditService;
+    @Mock
+    private StockFichaRepository stockFichaRepository;
 
     private StockAbmService service;
 
@@ -51,7 +56,9 @@ class StockAbmServiceTest {
                 perifericoManualRepository,
                 celularRepository,
                 computadoraRepository,
-                auditService);
+                auditService,
+                stockFichaRepository,
+                null);
     }
 
     @Test
@@ -80,6 +87,7 @@ class StockAbmServiceTest {
     @Test
     void altaComputadoraPersisteEnPerifericosManuales() throws Exception {
         when(stockUnidadesService.leerFichas()).thenReturn(List.of());
+        when(stockFichaRepository.findAll()).thenReturn(List.of());
 
         UnidadStockDTO esperado = new UnidadStockDTO();
         esperado.setCodigo("PC-1");
@@ -112,6 +120,47 @@ class StockAbmServiceTest {
         assertEquals("SN-123", campos.get("numero_serie"));
         assertEquals("DEPOSITO", campos.get("ubicacion"));
         assertEquals("nuevo", campos.get("condicion"));
+        verify(stockFichaRepository, never()).save(any(StockFicha.class));
+    }
+
+    @Test
+    void altaConStockFichasVaciaNoCreaFicha() throws Exception {
+        when(stockUnidadesService.leerFichas()).thenReturn(List.of());
+        when(stockFichaRepository.findAll()).thenReturn(List.of());
+        UnidadStockDTO esperado = new UnidadStockDTO();
+        esperado.setCodigo("TEC-1");
+        when(stockUnidadesService.obtenerPorCodigo("TEC-1")).thenReturn(esperado);
+
+        AltaUnidadStockDTO dto = new AltaUnidadStockDTO();
+        dto.setTipo("teclado");
+        dto.setMarca("Logitech");
+
+        service.alta(dto, "user-1");
+
+        verify(perifericoManualRepository).actualizar(anyString(), anyMap());
+        verify(stockFichaRepository, never()).save(any(StockFicha.class));
+    }
+
+    @Test
+    void altaConStockFichasEnUsoCreaFicha() throws Exception {
+        when(stockUnidadesService.leerFichas()).thenReturn(List.of());
+        when(stockFichaRepository.findAll()).thenReturn(List.of(
+                StockFicha.builder().codigoInterno("MON-1").estado("EN_DEPOSITO").build()));
+        UnidadStockDTO esperado = new UnidadStockDTO();
+        esperado.setCodigo("TEC-1");
+        when(stockUnidadesService.obtenerPorCodigo("TEC-1")).thenReturn(esperado);
+
+        AltaUnidadStockDTO dto = new AltaUnidadStockDTO();
+        dto.setTipo("teclado");
+        dto.setMarca("Logitech");
+        dto.setModelo("K120");
+
+        service.alta(dto, "user-1");
+
+        ArgumentCaptor<StockFicha> fichaCaptor = ArgumentCaptor.forClass(StockFicha.class);
+        verify(stockFichaRepository).save(fichaCaptor.capture());
+        assertEquals("TEC-1", fichaCaptor.getValue().getCodigoInterno());
+        assertEquals("EN_DEPOSITO", fichaCaptor.getValue().getEstado());
     }
 
     @Test
@@ -120,6 +169,7 @@ class StockAbmServiceTest {
                 ColeccionesStock.PERIFERICOS_MANUALES, "cel-1", "CEL-3", "CEL", null,
                 "celular", "Samsung", "A54", "123456789012345", "usado", "SIN_ASIGNAR", "", "Depósito");
         when(stockUnidadesService.leerFichas()).thenReturn(List.of(existente));
+        when(stockFichaRepository.findAll()).thenReturn(List.of());
 
         UnidadStockDTO esperado = new UnidadStockDTO();
         esperado.setCodigo("CEL-4");
@@ -148,6 +198,7 @@ class StockAbmServiceTest {
         assertEquals("A55", campos.get("nombre"));
         assertEquals("987654321098765", campos.get("numero_serie"));
         assertEquals("nuevo", campos.get("condicion"));
+        verify(stockFichaRepository, never()).save(any(StockFicha.class));
     }
 
     @Test
