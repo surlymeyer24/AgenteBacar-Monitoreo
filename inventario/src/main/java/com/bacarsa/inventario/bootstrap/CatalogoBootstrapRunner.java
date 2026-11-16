@@ -19,6 +19,7 @@ public class CatalogoBootstrapRunner implements ApplicationRunner {
     private static final Logger log = LoggerFactory.getLogger(CatalogoBootstrapRunner.class);
 
     private static final String CATALOGO_TIPOS_STOCK = "tipos_stock";
+    private static final String CATALOGO_UBICACIONES_STOCK = "ubicaciones_stock";
     private static final String CATALOGO_UBICACIONES_RED = "ubicaciones_red";
     private static final String CATALOGO_UBICACIONES_COMPUTADORA = "ubicaciones_computadora";
     private static final String CATALOGO_ESTADOS_OPERATIVOS = "estados_operativos";
@@ -46,6 +47,10 @@ public class CatalogoBootstrapRunner implements ApplicationRunner {
             { "access_point", "Access Point" },
             { "telefono_ip", "Teléfono IP" },
             { "otro", "Otro" },
+    };
+
+    private static final String[][] SEED_UBICACIONES_STOCK = {
+            { "deposito", "Depósito" },
     };
 
     private static final String[][] SEED_UBICACIONES_COMPUTADORA = {
@@ -199,6 +204,7 @@ public class CatalogoBootstrapRunner implements ApplicationRunner {
     @Override
     public void run(ApplicationArguments args) throws Exception {
         seedSiVacio(CATALOGO_TIPOS_STOCK, SEED_TIPOS_STOCK);
+        seedSiVacio(CATALOGO_UBICACIONES_STOCK, SEED_UBICACIONES_STOCK);
         seedSiVacio(CATALOGO_UBICACIONES_RED, SEED_UBICACIONES_RED);
         seedSiVacio(CATALOGO_UBICACIONES_COMPUTADORA, SEED_UBICACIONES_COMPUTADORA);
         seedSiVacio(CATALOGO_ESTADOS_OPERATIVOS, SEED_ESTADOS_OPERATIVOS);
