@@ -6,6 +6,12 @@ export const CATALOGOS_CONFIG = [
     icono: 'Package',
   },
   {
+    id: 'ubicaciones_stock',
+    nombre: 'Ubicaciones de Stock',
+    descripcion: 'Ubicaciones físicas del depósito para unidades en stock.',
+    icono: 'Package',
+  },
+  {
     id: 'ubicaciones_computadora',
     nombre: 'Ubicaciones de Computadora',
     descripcion: 'Sedes y dependencias donde se ubican estaciones de trabajo.',
