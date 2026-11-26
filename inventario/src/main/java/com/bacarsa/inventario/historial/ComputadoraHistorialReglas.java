@@ -254,6 +254,10 @@ public final class ComputadoraHistorialReglas {
             updates.put("estadoActual", mapaEstado(op));
             if (op == EstadoOperativo.SIN_ASIGNAR) {
                 updates.put("usuarioActual", null);
+            } else if (Boolean.TRUE.equals(doc.get("en_deposito"))
+                    && (fichaEnElMismoActo == null || !fichaEnElMismoActo.containsKey("en_deposito"))) {
+                // Sale de depósito (p.ej. SIN_ASIGNAR → ASIGNADA): no dejar en_deposito sucio.
+                updates.put("en_deposito", false);
             }
             if (op != EstadoOperativo.SIN_ASIGNAR && !ficha.containsKey("ubicacion_stock")) {
                 updates.put("ubicacion_stock", null);

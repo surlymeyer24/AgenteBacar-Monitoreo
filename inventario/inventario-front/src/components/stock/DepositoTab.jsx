@@ -160,9 +160,21 @@ function getBadgeCondicionClass(condicion) {
   return 'bg-slate-50 text-slate-600 border-slate-200';
 }
 
+/** True si la unidad está libre en depósito y se puede asignar (incl. stock_fichas EN_DEPOSITO). */
+function esEstadoDisponibleParaAsignar(estado) {
+  const e = (estado || '').toLowerCase().trim();
+  return (
+    e.includes('sin asign') ||
+    e === 'disponible' ||
+    e === 'en_stock' ||
+    e === 'en deposito' ||
+    e === 'en_deposito'
+  );
+}
+
 function getBadgeEstadoClass(estado) {
   const e = (estado || '').toLowerCase().trim();
-  if (e.includes('disponible') || e.includes('sin asign') || e === 'en_stock' || e === 'en deposito')
+  if (esEstadoDisponibleParaAsignar(e))
     return 'bg-emerald-50 text-emerald-700 border-emerald-200';
   if (e.includes('staging') || e.includes('config') || e.includes('preparaci'))
     return 'bg-amber-50 text-amber-700 border-amber-200';
@@ -179,7 +191,7 @@ function getBadgeEstadoClass(estado) {
 
 function getEstadoDotClass(estado) {
   const e = (estado || '').toLowerCase().trim();
-  if (e.includes('disponible') || e.includes('sin asign') || e === 'en_stock' || e === 'en deposito')
+  if (esEstadoDisponibleParaAsignar(e))
     return 'bg-emerald-500';
   if (e.includes('staging') || e.includes('config') || e.includes('preparaci'))
     return 'bg-amber-500';
@@ -259,7 +271,7 @@ export default function DepositoTab({ unidades = [], onEditar, onAsignar, onBaja
       if (estadoTarget) {
         const uEstado = (u.estadoDeposito || '').toLowerCase();
         if (estadoTarget === 'sin asignar') {
-          if (!uEstado.includes('sin asign') && uEstado !== 'disponible' && uEstado !== 'en_stock' && uEstado !== 'en deposito') return false;
+          if (!esEstadoDisponibleParaAsignar(uEstado)) return false;
         } else if (estadoTarget === 'mantenimiento') {
           if (!uEstado.includes('manten') && !uEstado.includes('repar') && !uEstado.includes('taller')) return false;
         }
@@ -448,11 +460,7 @@ export default function DepositoTab({ unidades = [], onEditar, onAsignar, onBaja
                 const estado = u.estadoDeposito || 'Sin Asignar';
                 const estadoNorm = estado.toLowerCase();
                 const esBaja = estadoNorm.includes('baja') || estadoNorm.includes('retir');
-                const esDisponible =
-                  estadoNorm.includes('sin asign') ||
-                  estadoNorm === 'disponible' ||
-                  estadoNorm === 'en_stock' ||
-                  estadoNorm === 'en deposito';
+                const esDisponible = esEstadoDisponibleParaAsignar(estadoNorm);
                 const tipoResuelto = resolverTipoUnidad(u);
                 const TipoIcon = getIconForTipo(tipoResuelto);
 

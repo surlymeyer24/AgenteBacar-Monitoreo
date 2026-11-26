@@ -230,6 +230,39 @@ class ComputadoraHistorialReglasTest {
                 doc, "BAJA", "  ", Map.of(), MARIA, AHORA));
     }
 
+    @Test
+    void reasignacionDesdeDepositoLimpiaEnDepositoYRegistraActo() {
+        Map<String, Object> doc = docConAlta();
+        doc = aplicar(doc, ComputadoraHistorialReglas.cambiarEstado(
+                doc, "ASIGNADA", "Asignación inicial", Map.of("responsableInventario", "Luis"), MARIA, DESPUES));
+
+        Map<String, Object> ingreso = new LinkedHashMap<>();
+        ingreso.put("en_deposito", true);
+        doc = aplicar(doc, ComputadoraHistorialReglas.cambiarEstado(
+                doc, "SIN_ASIGNAR", "Ingreso a stock", ingreso, MARIA, MAS_TARDE));
+        assertEquals(Boolean.TRUE, doc.get("en_deposito"));
+
+        EscrituraHistorial reasig = ComputadoraHistorialReglas.cambiarEstado(
+                doc, "ASIGNADA", "Reasignación desde depósito",
+                Map.of("responsableInventario", "Ana"), MARIA, AUN_MAS);
+        doc = aplicar(doc, reasig);
+
+        assertEquals(Boolean.FALSE, doc.get("en_deposito"));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> estado = (Map<String, Object>) doc.get("estadoActual");
+        assertEquals(EstadoOperativo.ASIGNADA.getNombre(), estado.get("nombre"));
+        assertEquals("Ana", doc.get("responsable_inventario"));
+
+        List<Map<String, Object>> estados = historial(doc).stream()
+                .filter(r -> "ESTADO".equals(r.get("tipo")))
+                .toList();
+        Map<String, Object> ultimo = estados.get(estados.size() - 1);
+        assertEquals("ASIGNADA", ultimo.get("estado"));
+        assertEquals("SIN_ASIGNAR", ultimo.get("estado_anterior"));
+        assertEquals("Reasignación desde depósito", ultimo.get("motivo"));
+        assertNull(ultimo.get("hasta"));
+    }
+
     @SuppressWarnings("unchecked")
     private static List<Map<String, Object>> historial(EscrituraHistorial esc) {
         return (List<Map<String, Object>>) esc.campos().get("historial");

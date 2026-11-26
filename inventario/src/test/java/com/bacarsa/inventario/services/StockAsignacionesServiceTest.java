@@ -12,6 +12,8 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -158,14 +160,24 @@ class StockAsignacionesServiceTest {
         assertNotNull(res);
         assertEquals("Activa", res.getEstado());
 
-        ArgumentCaptor<Map<String, Object>> pcCaptor = ArgumentCaptor.forClass(Map.class);
-        verify(computadoraRepository).mergeUpdates(eq("uuid-pc-1"), pcCaptor.capture());
-        Map<String, Object> pcMap = pcCaptor.getValue();
-        assertNull(pcMap.get("responsable_inventario"));
-        assertEquals("MONITOREO", pcMap.get("ubicacion"));
-        assertEquals(false, pcMap.get("en_deposito"));
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<java.util.function.BiFunction<Map<String, Object>, com.google.cloud.Timestamp,
+                com.bacarsa.inventario.historial.EscrituraHistorial>> planCaptor =
+                ArgumentCaptor.forClass(java.util.function.BiFunction.class);
+        verify(computadoraRepository).aplicarHistorial(eq("uuid-pc-1"), planCaptor.capture());
 
-
+        Map<String, Object> doc = new HashMap<>();
+        doc.put("estadoActual", Map.of("nombre", "Sin Asignar"));
+        doc.put("en_deposito", true);
+        doc.put("historial", new ArrayList<>());
+        var escritura = planCaptor.getValue().apply(doc, com.google.cloud.Timestamp.ofTimeSecondsAndNanos(1_700_000_000L, 0));
+        Map<String, Object> campos = escritura.campos();
+        assertEquals(Boolean.FALSE, campos.get("en_deposito"));
+        assertEquals("MONITOREO", campos.get("ubicacion"));
+        assertNull(campos.get("responsable_inventario"));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> estado = (Map<String, Object>) campos.get("estadoActual");
+        assertEquals("Asignada", estado.get("nombre"));
     }
 
     @Test

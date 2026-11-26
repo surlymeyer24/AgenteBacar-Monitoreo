@@ -406,7 +406,25 @@ public class ComputadoraService {
         if (dto.getResponsableInventario() != null) {
             ficha.put("responsableInventario", dto.getResponsableInventario());
         }
+        EstadoOperativo destino = estadoOperativoDe(dto.getEstado());
+        if (destino == EstadoOperativo.ASIGNADA) {
+            ficha.put("en_deposito", false);
+        } else if (destino == EstadoOperativo.SIN_ASIGNAR) {
+            ficha.put("en_deposito", true);
+        }
         historialService.cambiarEstado(uuid, dto.getEstado(), motivo, ficha, uid);
+        if (destino == EstadoOperativo.ASIGNADA || destino == EstadoOperativo.SIN_ASIGNAR) {
+            Map<String, Object> syncStock = new LinkedHashMap<>();
+            if (destino == EstadoOperativo.ASIGNADA) {
+                syncStock.put("asignacionTipo", "PERSONA");
+                if (dto.getResponsableInventario() != null) {
+                    syncStock.put("responsableInventario", dto.getResponsableInventario());
+                }
+            } else {
+                syncStock.put("asignacionTipo", "SIN_ASIGNAR");
+            }
+            sincronizarStockFichaEstado(uuid, pc.getCodigoInterno(), destino, syncStock);
+        }
         ComputadoraDTO result = getByUuid(uuid);
         responsableService.sincronizarAsignacionPc(
                 uuid,
@@ -586,26 +604,7 @@ public class ComputadoraService {
     private void sincronizarStockFicha(String uuid, String codigoInterno, Map<String, Object> cuerpo) {
         if (cuerpo == null || stockFichaRepository == null) return;
         try {
-            StockFicha ficha = codigoInterno != null && !codigoInterno.isBlank()
-                    ? stockFichaRepository.findById(codigoInterno)
-                    : null;
-            if (ficha == null || "REEMPLAZADA".equalsIgnoreCase(ficha.getEstado())) {
-                ficha = stockFichaRepository.findById(uuid);
-            }
-            if (ficha != null && "REEMPLAZADA".equalsIgnoreCase(ficha.getEstado())) {
-                ficha = null;
-            }
-            if (ficha == null) {
-                // buscar por ref_origen
-                for (StockFicha f : stockFichaRepository.findAll()) {
-                    if (f != null && !"REEMPLAZADA".equalsIgnoreCase(f.getEstado())
-                            && ("computadoras/" + uuid).equalsIgnoreCase(f.getRefOrigen())) {
-                        ficha = f;
-                        break;
-                    }
-                }
-            }
-
+            StockFicha ficha = buscarFichaStockActiva(uuid, codigoInterno);
             if (ficha != null) {
                 if (cuerpo.containsKey("condicion") && cuerpo.get("condicion") != null) {
                     ficha.setCondicion(String.valueOf(cuerpo.get("condicion")).trim());
@@ -637,6 +636,52 @@ public class ComputadoraService {
         } catch (Exception ex) {
             log.warn("Stock Ficha: no se pudo sincronizar ficha para uuid={}: {}", uuid, ex.getMessage());
         }
+    }
+
+    /** Alinea stock_fichas al salir/entrar de depósito por cambio de estado operativo. */
+    private void sincronizarStockFichaEstado(String uuid, String codigoInterno, EstadoOperativo destino,
+            Map<String, Object> cuerpo) {
+        if (stockFichaRepository == null || destino == null) return;
+        try {
+            StockFicha ficha = buscarFichaStockActiva(uuid, codigoInterno);
+            if (ficha == null) return;
+            if (destino == EstadoOperativo.ASIGNADA) {
+                ficha.setEstado("ASIGNADA");
+                Object ri = cuerpo != null ? cuerpo.get("responsableInventario") : null;
+                ficha.setResponsableNombre(ri != null ? String.valueOf(ri).trim() : null);
+                ficha.setArea(null);
+            } else if (destino == EstadoOperativo.SIN_ASIGNAR) {
+                ficha.setEstado("EN_DEPOSITO");
+                ficha.setResponsableId(null);
+                ficha.setResponsableNombre(null);
+                ficha.setArea(null);
+            }
+            ficha.setUpdatedAt(Timestamp.now());
+            stockFichaRepository.save(ficha);
+        } catch (Exception ex) {
+            log.warn("Stock Ficha: no se pudo sincronizar estado {} para uuid={}: {}", destino, uuid, ex.getMessage());
+        }
+    }
+
+    private StockFicha buscarFichaStockActiva(String uuid, String codigoInterno) throws Exception {
+        StockFicha ficha = codigoInterno != null && !codigoInterno.isBlank()
+                ? stockFichaRepository.findById(codigoInterno)
+                : null;
+        if (ficha == null || "REEMPLAZADA".equalsIgnoreCase(ficha.getEstado())) {
+            ficha = stockFichaRepository.findById(uuid);
+        }
+        if (ficha != null && "REEMPLAZADA".equalsIgnoreCase(ficha.getEstado())) {
+            ficha = null;
+        }
+        if (ficha == null) {
+            for (StockFicha f : stockFichaRepository.findAll()) {
+                if (f != null && !"REEMPLAZADA".equalsIgnoreCase(f.getEstado())
+                        && ("computadoras/" + uuid).equalsIgnoreCase(f.getRefOrigen())) {
+                    return f;
+                }
+            }
+        }
+        return ficha;
     }
 
     public int enviarComandoMasivo(List<String> uuids, String comando) throws ExecutionException, InterruptedException {
