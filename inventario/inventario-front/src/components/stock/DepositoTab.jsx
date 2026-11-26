@@ -160,9 +160,35 @@ function getBadgeCondicionClass(condicion) {
   return 'bg-slate-50 text-slate-600 border-slate-200';
 }
 
+/** Normaliza estado para comparar sin confundir SIN_ASIGNAR con ASIGNADA. */
+function normalizarEstado(estado) {
+  return (estado || '').toUpperCase().replace(/_/g, ' ').trim();
+}
+
+/** True si la unidad está libre en depósito y se puede asignar (incl. stock_fichas EN_DEPOSITO). */
+function esEstadoDisponibleParaAsignar(estado) {
+  const e = normalizarEstado(estado);
+  return (
+    e.includes('SIN ASIGN') ||
+    e === 'DISPONIBLE' ||
+    e === 'EN STOCK' ||
+    e === 'EN DEPOSITO'
+  );
+}
+
+/**
+ * True si está asignada/operativa y no debe listarse en Depósito.
+ * Ojo: "SIN ASIGNAR" contiene el substring "ASIGNAD" — no usar includes('ASIGNAD') solo.
+ */
+function estaAsignadaOOperativa(estado) {
+  const e = normalizarEstado(estado);
+  if (!e || e.includes('SIN ASIGN')) return false;
+  return e.includes('ASIGNAD') || e.includes('ACTIVA') || e.includes('OPERATIV');
+}
+
 function getBadgeEstadoClass(estado) {
   const e = (estado || '').toLowerCase().trim();
-  if (e.includes('disponible') || e.includes('sin asign') || e === 'en_stock' || e === 'en deposito')
+  if (esEstadoDisponibleParaAsignar(e))
     return 'bg-emerald-50 text-emerald-700 border-emerald-200';
   if (e.includes('staging') || e.includes('config') || e.includes('preparaci'))
     return 'bg-amber-50 text-amber-700 border-amber-200';
@@ -179,7 +205,7 @@ function getBadgeEstadoClass(estado) {
 
 function getEstadoDotClass(estado) {
   const e = (estado || '').toLowerCase().trim();
-  if (e.includes('disponible') || e.includes('sin asign') || e === 'en_stock' || e === 'en deposito')
+  if (esEstadoDisponibleParaAsignar(e))
     return 'bg-emerald-500';
   if (e.includes('staging') || e.includes('config') || e.includes('preparaci'))
     return 'bg-amber-500';
@@ -215,9 +241,9 @@ export default function DepositoTab({ unidades = [], onEditar, onAsignar, onBaja
   const unidadesEnDeposito = useMemo(() => {
     return unidades.filter((u) => {
       if ((u.cantidad ?? 1) <= 0) return false;
-      const e = (u.estadoDeposito || u.estado || '').toUpperCase();
+      const e = normalizarEstado(u.estadoDeposito || u.estado);
       if (e.includes('BAJA') || e.includes('RETIR')) return false;
-      if (e.includes('ASIGNAD') || e.includes('ACTIVA') || e.includes('OPERATIV')) return false;
+      if (estaAsignadaOOperativa(e)) return false;
       return true;
     });
   }, [unidades]);
@@ -259,7 +285,7 @@ export default function DepositoTab({ unidades = [], onEditar, onAsignar, onBaja
       if (estadoTarget) {
         const uEstado = (u.estadoDeposito || '').toLowerCase();
         if (estadoTarget === 'sin asignar') {
-          if (!uEstado.includes('sin asign') && uEstado !== 'disponible' && uEstado !== 'en_stock' && uEstado !== 'en deposito') return false;
+          if (!esEstadoDisponibleParaAsignar(uEstado)) return false;
         } else if (estadoTarget === 'mantenimiento') {
           if (!uEstado.includes('manten') && !uEstado.includes('repar') && !uEstado.includes('taller')) return false;
         }
@@ -448,11 +474,7 @@ export default function DepositoTab({ unidades = [], onEditar, onAsignar, onBaja
                 const estado = u.estadoDeposito || 'Sin Asignar';
                 const estadoNorm = estado.toLowerCase();
                 const esBaja = estadoNorm.includes('baja') || estadoNorm.includes('retir');
-                const esDisponible =
-                  estadoNorm.includes('sin asign') ||
-                  estadoNorm === 'disponible' ||
-                  estadoNorm === 'en_stock' ||
-                  estadoNorm === 'en deposito';
+                const esDisponible = esEstadoDisponibleParaAsignar(estadoNorm);
                 const tipoResuelto = resolverTipoUnidad(u);
                 const TipoIcon = getIconForTipo(tipoResuelto);
 
