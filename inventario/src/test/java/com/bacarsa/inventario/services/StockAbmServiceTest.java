@@ -102,6 +102,9 @@ class StockAbmServiceTest {
         dto.setCondicion("nuevo");
         dto.setUbicacion("DEPOSITO");
         dto.setNotas("Ingreso a stock");
+        dto.setCpuModelo("i5-10400");
+        dto.setRamTotalGb(16);
+        dto.setDiscoResumen("512 GB SSD");
 
         UnidadStockDTO resultado = service.alta(dto, "user-1");
 
@@ -120,7 +123,35 @@ class StockAbmServiceTest {
         assertEquals("SN-123", campos.get("numero_serie"));
         assertEquals("DEPOSITO", campos.get("ubicacion"));
         assertEquals("nuevo", campos.get("condicion"));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> spec = (Map<String, Object>) campos.get("especificacion_stock");
+        assertNotNull(spec);
+        assertEquals("i5-10400", spec.get("cpu_modelo"));
+        assertEquals(16, spec.get("ram_total_gb"));
+        assertEquals("512 GB SSD", spec.get("disco_resumen"));
         verify(stockFichaRepository, never()).save(any(StockFicha.class));
+    }
+
+    @Test
+    void altaPcSinSpecEsRechazada() throws Exception {
+        AltaUnidadStockDTO dto = new AltaUnidadStockDTO();
+        dto.setTipo("computadora");
+        dto.setMarca("Dell");
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> service.alta(dto, "user-1"));
+        assertEquals("CPU es obligatoria para desktop/notebook", ex.getMessage());
+        verify(perifericoManualRepository, never()).actualizar(anyString(), anyMap());
+    }
+
+    @Test
+    void altaPcSinDiscoEsRechazada() {
+        AltaUnidadStockDTO dto = new AltaUnidadStockDTO();
+        dto.setTipo("notebook");
+        dto.setCpuModelo("Ryzen 5");
+        dto.setRamTotalGb(8);
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> service.alta(dto, "user-1"));
+        assertEquals("Disco es obligatorio para desktop/notebook", ex.getMessage());
     }
 
     @Test
@@ -226,6 +257,38 @@ class StockAbmServiceTest {
         Map<String, Object> cuerpo = cuerpoCaptor.getValue();
         assertEquals("SN-NEW", cuerpo.get("numero_serie"));
         assertEquals("reacondicionado", cuerpo.get("condicion"));
+    }
+
+    @Test
+    void modificarPcCompletaSpecYPersiste() throws Exception {
+        FichaLectura ficha = FichaLectura.de(
+                ColeccionesStock.PERIFERICOS_MANUALES, "p-64", "PC-64", "PC", null,
+                "desktop", "PC Clon", "", "", "usado", "SIN_ASIGNAR", "", "deposito");
+        when(stockUnidadesService.leerFichas()).thenReturn(List.of(ficha));
+
+        UnidadStockDTO esperado = new UnidadStockDTO();
+        esperado.setCodigo("PC-64");
+        esperado.setDescripcionCompleta("Ryzen 5 4600G · 16 GB RAM · 512 GB SSD");
+        when(stockUnidadesService.obtenerPorCodigo("PC-64")).thenReturn(esperado);
+
+        ModificarUnidadStockDTO dto = new ModificarUnidadStockDTO();
+        dto.setCpuModelo("Ryzen 5 4600G");
+        dto.setRamTotalGb(16);
+        dto.setDiscoResumen("512 GB SSD");
+
+        UnidadStockDTO resultado = service.modificar("PC-64", dto, "operador-1");
+        assertNotNull(resultado);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> cuerpoCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(perifericoManualRepository).actualizar(eq("p-64"), cuerpoCaptor.capture());
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> spec = (Map<String, Object>) cuerpoCaptor.getValue().get("especificacion_stock");
+        assertNotNull(spec);
+        assertEquals("Ryzen 5 4600G", spec.get("cpu_modelo"));
+        assertEquals(16, spec.get("ram_total_gb"));
+        assertEquals("512 GB SSD", spec.get("disco_resumen"));
     }
 
     @Test

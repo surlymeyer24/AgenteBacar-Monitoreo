@@ -52,6 +52,16 @@ Fuera de esta lista, para no tocarlos: `Nvr`, `Servidor`, `InternoIp`, `MaquinaT
 - `inventario/inventario-front/src/hooks/useCatalogo.js` — fallback de `tipos_stock` si la API falla.
 - `inventario/inventario-front/src/constants/tiposStock.js` — solo como fallback / labels; no es la fuente del select de alta.
 
+## Qué tocar (spec obligatoria PC — desktop/notebook/computadora)
+
+- `StockModals.jsx` `ModalAlta`/`ModalEditar`: campos `cpuModelo`, `ramTotalGb`, `discoResumen` obligatorios si el tipo es PC (`computadora`/`desktop`/`notebook`/`pc`/`laptop`).
+- `AltaUnidadStockDTO` / `ModificarUnidadStockDTO`: mismos campos; en alta PC la API rechaza sin los tres; en modificar, si viene alguno se exigen los tres.
+- `StockAbmService.alta` / `modificar`: persiste `especificacion_stock` (periféricos) o `especificacion_esperada` (computadoras) vía `EspecificacionStockMapper.toFirestoreMap`.
+- `StockController.alta` / `modificar`: `400` con `{ "error": "..." }` ante validación (no 404/500).
+- `ProyeccionStock` + `FichaLectura` + `UnidadStockDTO`: `descripcionCompleta` desde spec (`CPU · X GB RAM · disco`); expone `cpuModelo`/`ramTotalGb`/`discoResumen` para prefill de edición. Sin marca ni spec → fallback «PC Clon» solo legacy.
+- `inventario-front/src/api/stockApi.js` — parsea `{ error }` del 400 para mensaje visible.
+- Tests: `StockAbmServiceTest` (alta con/sin spec, modificar completa spec), `StockProyeccionTest` (spec sin inventar PC Clon).
+
 ## Qué NO tocar
 
 - Resto de pantallas fuera de StockModals para este fix; bajas, asignaciones, combos, importación, exportación.

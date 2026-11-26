@@ -16,4 +16,9 @@ public class ModificarUnidadStockDTO {
     private String notas;
     private Integer cantidad;
     private String comentarios;
+
+    /** Spec de PC: al enviar alguno, los tres son obligatorios. */
+    private String cpuModelo;
+    private Integer ramTotalGb;
+    private String discoResumen;
 }

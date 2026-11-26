@@ -1,6 +1,7 @@
 package com.bacarsa.inventario.controller;
 
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -58,15 +59,19 @@ public class StockController {
     }
 
     @PostMapping
-    public ResponseEntity<UnidadStockDTO> alta(
+    public ResponseEntity<?> alta(
             @Valid @RequestBody AltaUnidadStockDTO dto,
             HttpServletRequest request) throws Exception {
-        UnidadStockDTO creado = stockAbmService.alta(dto, uid(request));
-        return ResponseEntity.status(HttpStatus.CREATED).body(creado);
+        try {
+            UnidadStockDTO creado = stockAbmService.alta(dto, uid(request));
+            return ResponseEntity.status(HttpStatus.CREATED).body(creado);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage() != null ? ex.getMessage() : "Datos inválidos"));
+        }
     }
 
     @PatchMapping("/{codigo}")
-    public ResponseEntity<UnidadStockDTO> modificar(
+    public ResponseEntity<?> modificar(
             @PathVariable String codigo,
             @RequestBody ModificarUnidadStockDTO dto,
             HttpServletRequest request) throws Exception {
@@ -74,7 +79,11 @@ public class StockController {
             UnidadStockDTO actualizado = stockAbmService.modificar(codigo, dto, uid(request));
             return ResponseEntity.ok(actualizado);
         } catch (IllegalArgumentException ex) {
-            return ResponseEntity.notFound().build();
+            String msg = ex.getMessage() != null ? ex.getMessage() : "";
+            if (msg.toLowerCase().contains("no encontrada")) {
+                return ResponseEntity.notFound().build();
+            }
+            return ResponseEntity.badRequest().body(Map.of("error", msg.isBlank() ? "Datos inválidos" : msg));
         }
     }
 

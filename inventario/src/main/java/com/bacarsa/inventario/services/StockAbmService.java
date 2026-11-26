@@ -20,6 +20,8 @@ import com.bacarsa.inventario.dto.AltaUnidadStockDTO;
 import com.bacarsa.inventario.dto.BajaUnidadStockDTO;
 import com.bacarsa.inventario.dto.ModificarUnidadStockDTO;
 import com.bacarsa.inventario.dto.UnidadStockDTO;
+import com.bacarsa.inventario.mapper.EspecificacionStockMapper;
+import com.bacarsa.inventario.models.EspecificacionStock;
 import com.bacarsa.inventario.models.EstadoCelular;
 import com.bacarsa.inventario.models.MovimientoStock;
 import com.bacarsa.inventario.models.StockFicha;
@@ -89,6 +91,11 @@ public class StockAbmService {
         if (dto.getTipo() == null || dto.getTipo().isBlank()) {
             throw new IllegalArgumentException("El tipo es obligatorio");
         }
+        String tipoNormLower = dto.getTipo().trim().toLowerCase(Locale.ROOT);
+        boolean esPc = esTipoPcStock(tipoNormLower);
+        if (esPc) {
+            validarSpecPcObligatoria(dto.getCpuModelo(), dto.getRamTotalGb(), dto.getDiscoResumen());
+        }
         String prefijo = prefijoParaTipo(dto.getTipo());
         String codigo = siguienteCodigo(prefijo);
         String actorUid = (uid == null || uid.isBlank()) ? "SISTEMA" : uid.trim();
@@ -98,7 +105,7 @@ public class StockAbmService {
         String id = UUID.randomUUID().toString();
         Map<String, Object> campos = new HashMap<>();
         campos.put("codigo_interno", codigo);
-        campos.put("tipo", dto.getTipo().trim().toLowerCase(Locale.ROOT));
+        campos.put("tipo", tipoNormLower);
         campos.put("cantidad", dto.getCantidad() != null && dto.getCantidad() > 0 ? dto.getCantidad() : 1);
 
         String marca = dto.getMarca() != null ? dto.getMarca().trim() : "";
@@ -106,6 +113,9 @@ public class StockAbmService {
                 ? dto.getModelo().trim()
                 : (dto.getHostname() != null ? dto.getHostname().trim() : "");
         String serie = dto.getSerieOImei() != null ? dto.getSerieOImei().trim() : "";
+        String descSpec = esPc
+                ? ProyeccionStock.descripcionDesdeSpec(armarSpec(dto.getCpuModelo(), dto.getRamTotalGb(), dto.getDiscoResumen()))
+                : "";
 
         campos.put("fabricante", marca);
         campos.put("nombre", modelo);
@@ -124,6 +134,10 @@ public class StockAbmService {
         if (dto.getComentarios() != null && !dto.getComentarios().isBlank()) {
             campos.put("comentarios", dto.getComentarios().trim());
         }
+        if (esPc) {
+            campos.put("especificacion_stock", EspecificacionStockMapper.toFirestoreMap(
+                    armarSpec(dto.getCpuModelo(), dto.getRamTotalGb(), dto.getDiscoResumen())));
+        }
 
         if (perifericoManualRepository != null) {
             perifericoManualRepository.actualizar(id, campos);
@@ -135,7 +149,9 @@ public class StockAbmService {
             List<StockFicha> existentes = stockFichaRepository.findAll();
             if (existentes != null && !existentes.isEmpty()) {
                 String tipoNorm = dto.getTipo().trim().toUpperCase(Locale.ROOT);
-                String desc = !modelo.isBlank() ? (marca + " " + modelo).trim() : tipoNorm;
+                String desc = !descSpec.isBlank()
+                        ? descSpec
+                        : (!modelo.isBlank() ? (marca + " " + modelo).trim() : tipoNorm);
                 Timestamp now = Timestamp.now();
                 StockFicha ficha = StockFicha.builder()
                         .codigoInterno(codigo)
@@ -204,6 +220,22 @@ public class StockAbmService {
             throw new IllegalArgumentException("El cuerpo no puede ser nulo");
         }
 
+        FichaLectura fichaExistente = null;
+        try {
+            fichaExistente = buscarFicha(codigo);
+        } catch (IllegalArgumentException ignored) {
+            // Puede existir solo en stock_fichas.
+        }
+
+        boolean esPc = fichaExistente != null && esTipoPcStock(fichaExistente.getTipo());
+        boolean traeSpec = dto.getCpuModelo() != null || dto.getRamTotalGb() != null || dto.getDiscoResumen() != null;
+        EspecificacionStock specNueva = null;
+        if (esPc && traeSpec) {
+            validarSpecPcObligatoria(dto.getCpuModelo(), dto.getRamTotalGb(), dto.getDiscoResumen());
+            specNueva = armarSpec(dto.getCpuModelo(), dto.getRamTotalGb(), dto.getDiscoResumen());
+        }
+        String descSpec = specNueva != null ? ProyeccionStock.descripcionDesdeSpec(specNueva) : "";
+
         // 1. Actualizar fuente de verdad: stock_fichas
         if (stockFichaRepository != null) {
             StockFicha fichaStock = stockFichaRepository.findById(codigo);
@@ -215,10 +247,14 @@ public class StockAbmService {
                 if (dto.getUbicacion() != null) fichaStock.setUbicacion(dto.getUbicacion().trim());
                 if (dto.getNotas() != null) fichaStock.setNotas(dto.getNotas().trim());
                 if (dto.getCantidad() != null && dto.getCantidad() > 0) fichaStock.setCantidad(dto.getCantidad());
-                String desc = ((fichaStock.getMarca() != null ? fichaStock.getMarca() : "") + " " +
-                               (fichaStock.getModelo() != null ? fichaStock.getModelo() : "")).trim();
-                if (!desc.isBlank()) {
-                    fichaStock.setDescripcion(desc);
+                if (!descSpec.isBlank()) {
+                    fichaStock.setDescripcion(descSpec);
+                } else {
+                    String desc = ((fichaStock.getMarca() != null ? fichaStock.getMarca() : "") + " " +
+                                   (fichaStock.getModelo() != null ? fichaStock.getModelo() : "")).trim();
+                    if (!desc.isBlank()) {
+                        fichaStock.setDescripcion(desc);
+                    }
                 }
                 fichaStock.setUpdatedAt(Timestamp.now());
                 stockFichaRepository.save(fichaStock);
@@ -227,7 +263,7 @@ public class StockAbmService {
 
         // 2. Actualización secundaria en colecciones legacy
         try {
-            FichaLectura ficha = buscarFicha(codigo);
+            FichaLectura ficha = fichaExistente != null ? fichaExistente : buscarFicha(codigo);
             String coleccion = ficha.getColeccion();
             String id = ficha.getId();
 
@@ -240,6 +276,9 @@ public class StockAbmService {
                 if (dto.getCondicion() != null) updates.put("condicion", dto.getCondicion().trim());
                 if (dto.getNotas() != null) updates.put("notas", dto.getNotas().trim());
                 if (dto.getComentarios() != null) updates.put("comentarios", dto.getComentarios().trim());
+                if (specNueva != null) {
+                    updates.put("especificacion_esperada", EspecificacionStockMapper.toFirestoreMap(specNueva));
+                }
                 if (!updates.isEmpty()) {
                     computadoraRepository.mergeUpdates(id, updates);
                 }
@@ -264,6 +303,9 @@ public class StockAbmService {
                 if (dto.getNotas() != null) updates.put("notas", dto.getNotas().trim());
                 if (dto.getComentarios() != null) updates.put("comentarios", dto.getComentarios().trim());
                 if (dto.getCantidad() != null && dto.getCantidad() > 0) updates.put("cantidad", dto.getCantidad());
+                if (specNueva != null) {
+                    updates.put("especificacion_stock", EspecificacionStockMapper.toFirestoreMap(specNueva));
+                }
 
                 if (!updates.isEmpty()) {
                     perifericoManualRepository.actualizar(id, updates);
@@ -509,6 +551,45 @@ public class StockAbmService {
 
     public static String coleccionParaPrefijo(String prefijo) {
         return ColeccionesStock.PERIFERICOS_MANUALES;
+    }
+
+    /** desktop / notebook / computadora / pc / laptop. */
+    public static boolean esTipoPcStock(String tipoRaw) {
+        if (tipoRaw == null || tipoRaw.isBlank()) {
+            return false;
+        }
+        String tipo = tipoRaw.trim().toLowerCase(Locale.ROOT);
+        return "desktop".equals(tipo)
+                || "notebook".equals(tipo)
+                || "computadora".equals(tipo)
+                || "pc".equals(tipo)
+                || "laptop".equals(tipo);
+    }
+
+    static void validarSpecPcObligatoria(String cpuModelo, Integer ramTotalGb, String discoResumen) {
+        if (cpuModelo == null || cpuModelo.isBlank()) {
+            throw new IllegalArgumentException("CPU es obligatoria para desktop/notebook");
+        }
+        if (ramTotalGb == null || ramTotalGb <= 0) {
+            throw new IllegalArgumentException("RAM (GB) es obligatoria y debe ser mayor a 0 para desktop/notebook");
+        }
+        if (discoResumen == null || discoResumen.isBlank()) {
+            throw new IllegalArgumentException("Disco es obligatorio para desktop/notebook");
+        }
+    }
+
+    private static EspecificacionStock armarSpec(String cpuModelo, Integer ramTotalGb, String discoResumen) {
+        EspecificacionStock spec = new EspecificacionStock();
+        if (cpuModelo != null && !cpuModelo.isBlank()) {
+            spec.setCpuModelo(cpuModelo.trim());
+        }
+        if (ramTotalGb != null) {
+            spec.setRamTotalGb(ramTotalGb);
+        }
+        if (discoResumen != null && !discoResumen.isBlank()) {
+            spec.setDiscoResumen(discoResumen.trim());
+        }
+        return spec;
     }
 
     private FichaLectura buscarFicha(String codigo) {

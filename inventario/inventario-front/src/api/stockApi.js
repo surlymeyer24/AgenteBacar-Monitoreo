@@ -1,6 +1,17 @@
 import { API_ORIGIN } from './config';
 import { apiFetch } from './http';
 
+function mensajeErrorApi(errorText, fallback) {
+  if (!errorText) return fallback;
+  try {
+    const parsed = JSON.parse(errorText);
+    if (parsed?.error && typeof parsed.error === 'string') return parsed.error;
+  } catch {
+    /* texto plano */
+  }
+  return errorText;
+}
+
 export async function fetchUnidadesStock() {
   const res = await apiFetch(`${API_ORIGIN}/api/stock/unidades`);
   if (!res.ok) {
@@ -25,7 +36,7 @@ export async function altaUnidadStock(data) {
   });
   if (!res.ok) {
     const errorText = await res.text();
-    throw new Error(errorText || `Error ${res.status}: no se pudo dar de alta la unidad`);
+    throw new Error(mensajeErrorApi(errorText, `Error ${res.status}: no se pudo dar de alta la unidad`));
   }
   return res.json();
 }
@@ -38,7 +49,7 @@ export async function modificarUnidadStock(codigo, data) {
   });
   if (!res.ok) {
     const errorText = await res.text();
-    throw new Error(errorText || `Error ${res.status}: no se pudo modificar la unidad ${codigo}`);
+    throw new Error(mensajeErrorApi(errorText, `Error ${res.status}: no se pudo modificar la unidad ${codigo}`));
   }
   return res.json();
 }

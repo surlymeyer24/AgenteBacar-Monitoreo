@@ -21,4 +21,9 @@ public class AltaUnidadStockDTO {
     private String motivo;
     private Integer cantidad;
     private String comentarios;
+
+    /** Spec obligatoria para desktop/notebook/computadora. */
+    private String cpuModelo;
+    private Integer ramTotalGb;
+    private String discoResumen;
 }
