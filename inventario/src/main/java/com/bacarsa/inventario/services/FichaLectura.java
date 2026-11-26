@@ -24,6 +24,9 @@ public final class FichaLectura {
     private final String comentarios;
     private String descripcionCompleta = "";
     private String tipoEquipo = "";
+    private String cpuModelo = "";
+    private Integer ramTotalGb;
+    private String discoResumen = "";
 
     private FichaLectura(
             String coleccion,
@@ -180,6 +183,9 @@ public final class FichaLectura {
         dto.setComentarios(comentarios);
         dto.setDescripcionCompleta(descripcionCompleta);
         dto.setTipoEquipo(tipoEquipo);
+        dto.setCpuModelo(cpuModelo);
+        dto.setRamTotalGb(ramTotalGb);
+        dto.setDiscoResumen(discoResumen);
         return dto;
     }
 
@@ -189,6 +195,12 @@ public final class FichaLectura {
 
     void setTipoEquipo(String tipoEquipo) {
         this.tipoEquipo = tipoEquipo != null ? tipoEquipo.trim() : "";
+    }
+
+    void setEspecificacion(String cpuModelo, Integer ramTotalGb, String discoResumen) {
+        this.cpuModelo = cpuModelo != null ? cpuModelo.trim() : "";
+        this.ramTotalGb = ramTotalGb;
+        this.discoResumen = discoResumen != null ? discoResumen.trim() : "";
     }
 
     public String referencia() {

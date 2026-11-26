@@ -24,41 +24,49 @@ const inputClass =
   'w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-900 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0c66e4]/20 focus:border-[#0c66e4] transition-colors disabled:opacity-50 disabled:bg-slate-50';
 const labelClass = 'block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1';
 
+function esTipoPcStock(tipo) {
+  const t = (tipo || '').trim().toLowerCase();
+  return t === 'computadora' || t === 'desktop' || t === 'notebook' || t === 'pc' || t === 'laptop';
+}
+
+function validarSpecPcForm(form) {
+  if (!form.cpuModelo?.trim()) return 'CPU es obligatoria para desktop/notebook.';
+  const ram = Number(form.ramTotalGb);
+  if (!Number.isFinite(ram) || ram <= 0) return 'RAM (GB) es obligatoria y debe ser mayor a 0.';
+  if (!form.discoResumen?.trim()) return 'Disco es obligatorio para desktop/notebook.';
+  return '';
+}
+
+const FORM_ALTA_VACIO = {
+  tipo: 'computadora',
+  marca: '',
+  modelo: '',
+  serieOImei: '',
+  condicion: 'Usado',
+  ubicacion: UBICACION_STOCK_DEFAULT,
+  hostname: '',
+  notas: '',
+  comentarios: '',
+  cantidad: 1,
+  cpuModelo: '',
+  ramTotalGb: '',
+  discoResumen: '',
+};
+
 export function ModalAlta({ open, onClose }) {
   const { items: tiposStockItems } = useCatalogo('tipos_stock');
   const { items: ubicStockItems } = useCatalogo('ubicaciones_stock');
-  const [form, setForm] = useState({
-    tipo: 'computadora',
-    marca: '',
-    modelo: '',
-    serieOImei: '',
-    condicion: 'Usado',
-    ubicacion: UBICACION_STOCK_DEFAULT,
-    hostname: '',
-    notas: '',
-    comentarios: '',
-    cantidad: 1,
-  });
+  const [form, setForm] = useState({ ...FORM_ALTA_VACIO });
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
   const { invalidarTodo } = useStockInvalidation();
   const tiposOpciones = opcionesCatalogo(tiposStockItems, form.tipo);
   const ubicOpciones = opcionesCatalogo(ubicStockItems, form.ubicacion);
+  const requiereSpec = esTipoPcStock(form.tipo);
 
   useEffect(() => {
     if (open) {
-      setForm({
-        tipo: 'computadora',
-        marca: '',
-        modelo: '',
-        serieOImei: '',
-        condicion: 'Usado',
-        ubicacion: UBICACION_STOCK_DEFAULT,
-        hostname: '',
-        notas: '',
-        comentarios: '',
-        cantidad: 1,
-      });
+      setForm({ ...FORM_ALTA_VACIO });
       setError('');
     }
   }, [open]);
@@ -71,10 +79,27 @@ export function ModalAlta({ open, onClose }) {
       setError('El tipo de equipo es obligatorio.');
       return;
     }
+    if (requiereSpec) {
+      const errSpec = validarSpecPcForm(form);
+      if (errSpec) {
+        setError(errSpec);
+        return;
+      }
+    }
     setGuardando(true);
     setError('');
     try {
-      await altaUnidadStock(form);
+      const payload = { ...form };
+      if (requiereSpec) {
+        payload.cpuModelo = form.cpuModelo.trim();
+        payload.ramTotalGb = Number(form.ramTotalGb);
+        payload.discoResumen = form.discoResumen.trim();
+      } else {
+        delete payload.cpuModelo;
+        delete payload.ramTotalGb;
+        delete payload.discoResumen;
+      }
+      await altaUnidadStock(payload);
       await invalidarTodo();
       onClose();
     } catch (err) {
@@ -218,6 +243,50 @@ export function ModalAlta({ open, onClose }) {
                 />
               </div>
 
+              {requiereSpec && (
+                <>
+                  <div className="sm:col-span-2 pt-1">
+                    <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                      Especificación (obligatoria)
+                    </p>
+                  </div>
+                  <div>
+                    <label className={labelClass}>CPU *</label>
+                    <input
+                      type="text"
+                      value={form.cpuModelo}
+                      onChange={(e) => setForm({ ...form, cpuModelo: e.target.value })}
+                      placeholder="Ej. Ryzen 5 4600G"
+                      className={inputClass}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>RAM (GB) *</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={form.ramTotalGb}
+                      onChange={(e) => setForm({ ...form, ramTotalGb: e.target.value })}
+                      placeholder="Ej. 16"
+                      className={inputClass}
+                      required
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className={labelClass}>Disco *</label>
+                    <input
+                      type="text"
+                      value={form.discoResumen}
+                      onChange={(e) => setForm({ ...form, discoResumen: e.target.value })}
+                      placeholder="Ej. 512 GB SSD"
+                      className={inputClass}
+                      required
+                    />
+                  </div>
+                </>
+              )}
+
               <div className="sm:col-span-2">
                 <label className={labelClass}>Notas / Observaciones</label>
                 <textarea
@@ -276,11 +345,15 @@ export function ModalEditar({ open, unidad, onClose }) {
     notas: '',
     comentarios: '',
     cantidad: 1,
+    cpuModelo: '',
+    ramTotalGb: '',
+    discoResumen: '',
   });
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
   const { invalidarUnidades } = useStockInvalidation();
   const ubicOpciones = opcionesCatalogo(ubicStockItems, form.ubicacion);
+  const requiereSpec = esTipoPcStock(unidad?.tipo);
 
   useEffect(() => {
     if (unidad) {
@@ -293,6 +366,9 @@ export function ModalEditar({ open, unidad, onClose }) {
         notas: unidad.notas || '',
         comentarios: unidad.comentarios || '',
         cantidad: unidad.cantidad || 1,
+        cpuModelo: unidad.cpuModelo || '',
+        ramTotalGb: unidad.ramTotalGb ?? '',
+        discoResumen: unidad.discoResumen || '',
       });
       setError('');
     }
@@ -302,10 +378,27 @@ export function ModalEditar({ open, unidad, onClose }) {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (requiereSpec) {
+      const errSpec = validarSpecPcForm(form);
+      if (errSpec) {
+        setError(errSpec);
+        return;
+      }
+    }
     setGuardando(true);
     setError('');
     try {
-      await modificarUnidadStock(unidad.codigo, form);
+      const payload = { ...form };
+      if (requiereSpec) {
+        payload.cpuModelo = form.cpuModelo.trim();
+        payload.ramTotalGb = Number(form.ramTotalGb);
+        payload.discoResumen = form.discoResumen.trim();
+      } else {
+        delete payload.cpuModelo;
+        delete payload.ramTotalGb;
+        delete payload.discoResumen;
+      }
+      await modificarUnidadStock(unidad.codigo, payload);
       await invalidarUnidades();
       onClose();
     } catch (err) {
@@ -430,6 +523,50 @@ export function ModalEditar({ open, unidad, onClose }) {
                   className={inputClass}
                 />
               </div>
+
+              {requiereSpec && (
+                <>
+                  <div className="sm:col-span-2 pt-1">
+                    <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                      Especificación (obligatoria)
+                    </p>
+                  </div>
+                  <div>
+                    <label className={labelClass}>CPU *</label>
+                    <input
+                      type="text"
+                      value={form.cpuModelo}
+                      onChange={(e) => setForm({ ...form, cpuModelo: e.target.value })}
+                      placeholder="Ej. Ryzen 5 4600G"
+                      className={inputClass}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>RAM (GB) *</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={form.ramTotalGb}
+                      onChange={(e) => setForm({ ...form, ramTotalGb: e.target.value })}
+                      placeholder="Ej. 16"
+                      className={inputClass}
+                      required
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className={labelClass}>Disco *</label>
+                    <input
+                      type="text"
+                      value={form.discoResumen}
+                      onChange={(e) => setForm({ ...form, discoResumen: e.target.value })}
+                      placeholder="Ej. 512 GB SSD"
+                      className={inputClass}
+                      required
+                    />
+                  </div>
+                </>
+              )}
 
               <div className="sm:col-span-2">
                 <label className={labelClass}>Notas</label>

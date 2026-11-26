@@ -207,6 +207,32 @@ class StockProyeccionTest {
     }
 
     @Test
+    void pcConSpecMuestraDescripcionYNoInventaPcClon() {
+        PerifericoManual pc = new PerifericoManual();
+        pc.setId("pc-spec");
+        pc.setCodigoInterno("PC-64");
+        pc.setTipo("computadora");
+        pc.setCantidad(1);
+        pc.setUbicacion("deposito");
+        pc.setEstadoActual(estado("Sin Asignar"));
+        EspecificacionStock spec = new EspecificacionStock();
+        spec.setCpuModelo("Ryzen 5 4600G");
+        spec.setRamTotalGb(16);
+        spec.setDiscoResumen("512 GB SSD");
+        pc.setEspecificacionStock(spec);
+
+        FichaLectura ficha = ProyeccionStock.desdePeriferico(pc);
+        UnidadStockDTO dto = ficha.aDto();
+
+        assertEquals("desktop", dto.getTipo());
+        assertEquals("", dto.getMarca());
+        assertEquals("Ryzen 5 4600G · 16 GB RAM · 512 GB SSD", dto.getDescripcionCompleta());
+        assertEquals("Ryzen 5 4600G", dto.getCpuModelo());
+        assertEquals(16, dto.getRamTotalGb());
+        assertEquals("512 GB SSD", dto.getDiscoResumen());
+    }
+
+    @Test
     void infraestructuraOperativaEnRackNoEntraEnStock() {
         Router routerOperativo = new Router();
         routerOperativo.setId("rtr-op");

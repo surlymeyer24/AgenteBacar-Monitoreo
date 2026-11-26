@@ -23,4 +23,7 @@ public class UnidadStockDTO {
     private String comentarios;
     private String descripcionCompleta;
     private String tipoEquipo;
+    private String cpuModelo;
+    private Integer ramTotalGb;
+    private String discoResumen;
 }

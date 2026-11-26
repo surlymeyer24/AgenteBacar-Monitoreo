@@ -50,11 +50,13 @@ public final class ProyeccionStock {
                 estado(computadora.getEstadoActual(), null),
                 "",
                 ubicacion(computadora.getUbicacion()));
-        String desc = descripcionDesdeSpec(computadora.getEspecificacionEsperada());
+        EspecificacionStock spec = computadora.getEspecificacionEsperada();
+        String desc = descripcionDesdeSpec(spec);
         if (desc.isEmpty()) {
             desc = descripcionDesdeAgente(computadora);
         }
         ficha.setDescripcionCompleta(desc);
+        aplicarCamposSpec(ficha, spec);
         return ficha;
     }
 
@@ -115,11 +117,23 @@ public final class ProyeccionStock {
             tipo = "notebook";
         }
 
+        EspecificacionStock spec = periferico.getEspecificacionStock();
+        String descSpec = ("desktop".equals(tipo) || "notebook".equals(tipo))
+                ? descripcionDesdeSpec(spec)
+                : "";
+
         String marca = periferico.getFabricante() != null ? periferico.getFabricante().trim() : "";
         String modelo = periferico.getNombre() != null ? periferico.getNombre().trim() : "";
         if (marca.isBlank() && ("desktop".equals(tipo) || "notebook".equals(tipo))) {
-            marca = !modelo.isBlank() ? modelo : "PC Clon";
-            modelo = periferico.getNotas() != null ? periferico.getNotas().trim() : "";
+            if (!modelo.isBlank()) {
+                marca = modelo;
+                modelo = periferico.getNotas() != null ? periferico.getNotas().trim() : "";
+            } else if (descSpec.isEmpty()) {
+                // Legacy sin marca ni spec: último recurso (Depósito muestra «PC Clon»).
+                marca = "PC Clon";
+                modelo = periferico.getNotas() != null ? periferico.getNotas().trim() : "";
+            }
+            // Con spec y sin marca: deja marca vacía; Depósito usa descripcionCompleta.
         } else if (modelo.isBlank() && periferico.getNotas() != null) {
             modelo = periferico.getNotas().trim();
         }
@@ -146,9 +160,17 @@ public final class ProyeccionStock {
                 periferico.getCantidad(),
                 periferico.getComentarios());
         if ("desktop".equals(tipo) || "notebook".equals(tipo)) {
-            ficha.setDescripcionCompleta(descripcionDesdeSpec(periferico.getEspecificacionStock()));
+            ficha.setDescripcionCompleta(descSpec);
+            aplicarCamposSpec(ficha, spec);
         }
         return ficha;
+    }
+
+    private static void aplicarCamposSpec(FichaLectura ficha, EspecificacionStock spec) {
+        if (spec == null) {
+            return;
+        }
+        ficha.setEspecificacion(spec.getCpuModelo(), spec.getRamTotalGb(), spec.getDiscoResumen());
     }
 
     /** Periférico conectado a una PC: no entra como unidad independiente a stock. */
