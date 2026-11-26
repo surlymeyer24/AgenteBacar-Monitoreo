@@ -160,16 +160,30 @@ function getBadgeCondicionClass(condicion) {
   return 'bg-slate-50 text-slate-600 border-slate-200';
 }
 
+/** Normaliza estado para comparar sin confundir SIN_ASIGNAR con ASIGNADA. */
+function normalizarEstado(estado) {
+  return (estado || '').toUpperCase().replace(/_/g, ' ').trim();
+}
+
 /** True si la unidad está libre en depósito y se puede asignar (incl. stock_fichas EN_DEPOSITO). */
 function esEstadoDisponibleParaAsignar(estado) {
-  const e = (estado || '').toLowerCase().trim();
+  const e = normalizarEstado(estado);
   return (
-    e.includes('sin asign') ||
-    e === 'disponible' ||
-    e === 'en_stock' ||
-    e === 'en deposito' ||
-    e === 'en_deposito'
+    e.includes('SIN ASIGN') ||
+    e === 'DISPONIBLE' ||
+    e === 'EN STOCK' ||
+    e === 'EN DEPOSITO'
   );
+}
+
+/**
+ * True si está asignada/operativa y no debe listarse en Depósito.
+ * Ojo: "SIN ASIGNAR" contiene el substring "ASIGNAD" — no usar includes('ASIGNAD') solo.
+ */
+function estaAsignadaOOperativa(estado) {
+  const e = normalizarEstado(estado);
+  if (!e || e.includes('SIN ASIGN')) return false;
+  return e.includes('ASIGNAD') || e.includes('ACTIVA') || e.includes('OPERATIV');
 }
 
 function getBadgeEstadoClass(estado) {
@@ -227,9 +241,9 @@ export default function DepositoTab({ unidades = [], onEditar, onAsignar, onBaja
   const unidadesEnDeposito = useMemo(() => {
     return unidades.filter((u) => {
       if ((u.cantidad ?? 1) <= 0) return false;
-      const e = (u.estadoDeposito || u.estado || '').toUpperCase();
+      const e = normalizarEstado(u.estadoDeposito || u.estado);
       if (e.includes('BAJA') || e.includes('RETIR')) return false;
-      if (e.includes('ASIGNAD') || e.includes('ACTIVA') || e.includes('OPERATIV')) return false;
+      if (estaAsignadaOOperativa(e)) return false;
       return true;
     });
   }, [unidades]);
