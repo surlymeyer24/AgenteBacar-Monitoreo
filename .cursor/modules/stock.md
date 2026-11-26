@@ -43,9 +43,18 @@ Fuera de esta lista, para no tocarlos: `Nvr`, `Servidor`, `InternoIp`, `MaquinaT
 - En cada repositorio de esas colecciones: un método que haga `set` con merge de solo `codigo_interno`. En computadoras, reutilizar `mergeUpdates`.
 - Test del backfill y del GET, sin emulador y sin Firestore real.
 
+## Qué tocar (front — tipos / ubicaciones de alta)
+
+- `inventario/inventario-front/src/components/stock/StockModals.jsx` — `ModalAlta`/`ModalEditar`: tipo con `useCatalogo('tipos_stock')`; ubicación con `useCatalogo('ubicaciones_stock')` (no `UBICACIONES_SUGERIDAS`).
+- `inventario/inventario-front/src/constants/catalogosConfig.js` — entrada `ubicaciones_stock`.
+- `inventario/src/main/java/.../bootstrap/CatalogoBootstrapRunner.java` — seed `ubicaciones_stock` (`deposito`).
+- `StockAbmService.alta` — no crear en `stock_fichas` si la colección está vacía (mismo freno que ComputadoraService).
+- `inventario/inventario-front/src/hooks/useCatalogo.js` — fallback de `tipos_stock` si la API falla.
+- `inventario/inventario-front/src/constants/tiposStock.js` — solo como fallback / labels; no es la fuente del select de alta.
+
 ## Qué NO tocar
 
-- Pantallas, `inventario-front/`, altas, bajas, asignaciones, combos, importación, exportación.
+- Resto de pantallas fuera de StockModals para este fix; bajas, asignaciones, combos, importación, exportación.
 - Historial de computadoras y la rama `feature/computadoras-historial`.
 - El checkout `D:\Desarrollo\MiniAgente-Inventario` (está sucio). Todo el trabajo va en este worktree.
 - NVR, servidores, internos IP, máquinas de tesorería, monitores anidados del agente.

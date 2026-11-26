@@ -9,8 +9,8 @@ import {
   devolverUnidadStock,
 } from '../../api/stockApi';
 import { useStockInvalidation } from '../../hooks/useStockInvalidation';
-import { labelTipoStock, opcionesTipoStock } from '../../constants/tiposStock';
-import { useCatalogo, opcionesEnumCatalogo } from '../../hooks/useCatalogo';
+import { labelTipoStock } from '../../constants/tiposStock';
+import { useCatalogo, opcionesCatalogo, opcionesEnumCatalogo } from '../../hooks/useCatalogo';
 import {
   UBICACIONES_COMPUTADORA,
   UBICACIONES_COMPUTADORA_LABELS,
@@ -18,20 +18,22 @@ import {
 } from '../../constants/ubicaciones';
 
 const CONDICIONES = ['Nuevo', 'Usado', 'Reacondicionado', 'Para repuesto'];
-const UBICACIONES_SUGERIDAS = ['Depósito Central', 'Sistemas', 'Taller', 'Puesto IT', 'Rack Principal'];
+const UBICACION_STOCK_DEFAULT = 'deposito';
 
 const inputClass =
   'w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-900 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0c66e4]/20 focus:border-[#0c66e4] transition-colors disabled:opacity-50 disabled:bg-slate-50';
 const labelClass = 'block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1';
 
 export function ModalAlta({ open, onClose }) {
+  const { items: tiposStockItems } = useCatalogo('tipos_stock');
+  const { items: ubicStockItems } = useCatalogo('ubicaciones_stock');
   const [form, setForm] = useState({
     tipo: 'computadora',
     marca: '',
     modelo: '',
     serieOImei: '',
     condicion: 'Usado',
-    ubicacion: 'Depósito Central',
+    ubicacion: UBICACION_STOCK_DEFAULT,
     hostname: '',
     notas: '',
     comentarios: '',
@@ -40,6 +42,8 @@ export function ModalAlta({ open, onClose }) {
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
   const { invalidarTodo } = useStockInvalidation();
+  const tiposOpciones = opcionesCatalogo(tiposStockItems, form.tipo);
+  const ubicOpciones = opcionesCatalogo(ubicStockItems, form.ubicacion);
 
   useEffect(() => {
     if (open) {
@@ -49,7 +53,7 @@ export function ModalAlta({ open, onClose }) {
         modelo: '',
         serieOImei: '',
         condicion: 'Usado',
-        ubicacion: 'Depósito Central',
+        ubicacion: UBICACION_STOCK_DEFAULT,
         hostname: '',
         notas: '',
         comentarios: '',
@@ -121,9 +125,9 @@ export function ModalAlta({ open, onClose }) {
                   className={inputClass}
                   required
                 >
-                  {opcionesTipoStock().map((t) => (
-                    <option key={t} value={t}>
-                      {labelTipoStock(t)}
+                  {tiposOpciones.map((t) => (
+                    <option key={t.codigo} value={t.codigo}>
+                      {t.label}
                     </option>
                   ))}
                 </select>
@@ -179,19 +183,17 @@ export function ModalAlta({ open, onClose }) {
 
               <div>
                 <label className={labelClass}>Ubicación</label>
-                <input
-                  type="text"
+                <select
                   value={form.ubicacion}
                   onChange={(e) => setForm({ ...form, ubicacion: e.target.value })}
-                  list="lista-ubicaciones-alta"
-                  placeholder="Depósito Central"
                   className={inputClass}
-                />
-                <datalist id="lista-ubicaciones-alta">
-                  {UBICACIONES_SUGERIDAS.map((u) => (
-                    <option key={u} value={u} />
+                >
+                  {ubicOpciones.map((u) => (
+                    <option key={u.codigo} value={u.codigo}>
+                      {u.label}
+                    </option>
                   ))}
-                </datalist>
+                </select>
               </div>
 
               <div>
@@ -264,6 +266,7 @@ export function ModalAlta({ open, onClose }) {
 }
 
 export function ModalEditar({ open, unidad, onClose }) {
+  const { items: ubicStockItems } = useCatalogo('ubicaciones_stock');
   const [form, setForm] = useState({
     marca: '',
     modelo: '',
@@ -277,6 +280,7 @@ export function ModalEditar({ open, unidad, onClose }) {
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
   const { invalidarUnidades } = useStockInvalidation();
+  const ubicOpciones = opcionesCatalogo(ubicStockItems, form.ubicacion);
 
   useEffect(() => {
     if (unidad) {
@@ -285,7 +289,7 @@ export function ModalEditar({ open, unidad, onClose }) {
         modelo: unidad.modelo || '',
         serieOImei: unidad.serieOImei || '',
         condicion: unidad.condicion || 'Usado',
-        ubicacion: unidad.ubicacion || 'Depósito Central',
+        ubicacion: unidad.ubicacion || UBICACION_STOCK_DEFAULT,
         notas: unidad.notas || '',
         comentarios: unidad.comentarios || '',
         cantidad: unidad.cantidad || 1,
@@ -403,18 +407,17 @@ export function ModalEditar({ open, unidad, onClose }) {
 
               <div>
                 <label className={labelClass}>Ubicación</label>
-                <input
-                  type="text"
+                <select
                   value={form.ubicacion}
                   onChange={(e) => setForm({ ...form, ubicacion: e.target.value })}
-                  list="lista-ubicaciones-edit"
                   className={inputClass}
-                />
-                <datalist id="lista-ubicaciones-edit">
-                  {UBICACIONES_SUGERIDAS.map((u) => (
-                    <option key={u} value={u} />
+                >
+                  {ubicOpciones.map((u) => (
+                    <option key={u.codigo} value={u.codigo}>
+                      {u.label}
+                    </option>
                   ))}
-                </datalist>
+                </select>
               </div>
 
               <div>

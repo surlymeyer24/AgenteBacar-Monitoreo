@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import com.bacarsa.inventario.dto.AsignarUnidadStockDTO;
 import com.bacarsa.inventario.dto.DevolverUnidadStockDTO;
 import com.bacarsa.inventario.dto.MovimientoStockDTO;
+import com.bacarsa.inventario.historial.ActorHistorial;
 import com.bacarsa.inventario.historial.ComputadoraHistorialReglas;
 import com.bacarsa.inventario.models.AccessPoint;
 import com.bacarsa.inventario.models.Celular;
@@ -168,21 +169,21 @@ public class StockAsignacionesService {
         try {
             Map<String, Object> updates = new HashMap<>();
             if (ColeccionesStock.COMPUTADORAS.equals(ficha.getColeccion())) {
+                Map<String, Object> fichaPc = new HashMap<>();
+                fichaPc.put("en_deposito", false);
                 if (esArea) {
-                    updates.put("responsable_inventario", null);
-                    updates.put("usuarioActual", null);
-                    updates.put("ubicacion", area);
+                    fichaPc.put("responsableInventario", null);
+                    fichaPc.put("ubicacion", area);
                 } else {
-                    updates.put("responsable_inventario", responsable);
-                    updates.put("usuarioActual", responsable);
+                    fichaPc.put("responsableInventario", responsable);
                     if (!area.isBlank()) {
-                        updates.put("ubicacion", area);
+                        fichaPc.put("ubicacion", area);
                     }
                 }
-                updates.put("en_deposito", false);
-                updates.put("estadoActual", mapaEstado("ASIGNADA", "STOCK", motivo));
-                cerrarTramoLegacyDePc(id, updates);
-                computadoraRepository.mergeUpdates(id, updates);
+                ActorHistorial actor = new ActorHistorial(actorUid, actorUid);
+                computadoraRepository.aplicarHistorial(id, (doc, ts) ->
+                        ComputadoraHistorialReglas.cambiarEstado(
+                                doc, "ASIGNADA", motivo, fichaPc, actor, ts));
             } else if (ColeccionesStock.CELULARES.equals(ficha.getColeccion())) {
                 updates.put("responsable", esArea ? ("Área: " + area) : responsable);
                 if (!area.isBlank()) {

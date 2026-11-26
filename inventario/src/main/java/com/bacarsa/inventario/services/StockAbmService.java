@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
@@ -114,7 +115,7 @@ public class StockAbmService {
         if (dto.getCondicion() != null && !dto.getCondicion().isBlank()) {
             campos.put("condicion", dto.getCondicion().trim());
         }
-        campos.put("ubicacion", dto.getUbicacion() != null && !dto.getUbicacion().isBlank() ? dto.getUbicacion().trim() : "DEPOSITO");
+        campos.put("ubicacion", dto.getUbicacion() != null && !dto.getUbicacion().isBlank() ? dto.getUbicacion().trim() : "deposito");
         campos.put("fechaAlta", LocalDate.now().toString());
         campos.put("estadoActual", mapaEstado("SIN_ASIGNAR", "STOCK", "Alta en stock"));
         if (dto.getNotas() != null && !dto.getNotas().isBlank()) {
@@ -128,31 +129,35 @@ public class StockAbmService {
             perifericoManualRepository.actualizar(id, campos);
         }
 
-        // Fuente de verdad: stock_fichas
+        // stock_fichas solo si ya está en uso. Vacía = listado legacy; crear la primera
+        // ficha haría que Depósito muestre solo esa unidad (mismo freno que a072fd3).
         if (stockFichaRepository != null) {
-            String tipoNorm = dto.getTipo().trim().toUpperCase(Locale.ROOT);
-            String desc = !modelo.isBlank() ? (marca + " " + modelo).trim() : tipoNorm;
-            Timestamp now = Timestamp.now();
-            StockFicha ficha = StockFicha.builder()
-                    .codigoInterno(codigo)
-                    .tipo(tipoNorm)
-                    .descripcion(desc)
-                    .marca(marca)
-                    .modelo(modelo)
-                    .serieOImei(serie)
-                    .estado("EN_DEPOSITO")
-                    .responsableId(null)
-                    .responsableNombre(null)
-                    .area(null)
-                    .ubicacion(dto.getUbicacion() != null && !dto.getUbicacion().isBlank() ? dto.getUbicacion().trim() : "Depósito Sistemas")
-                    .condicion(dto.getCondicion() != null && !dto.getCondicion().isBlank() ? dto.getCondicion().trim() : "USADA")
-                    .refOrigen("perifericos_manuales/" + id)
-                    .cantidad(dto.getCantidad() != null && dto.getCantidad() > 0 ? dto.getCantidad() : 1)
-                    .createdAt(now)
-                    .updatedAt(now)
-                    .notas(dto.getComentarios() != null ? dto.getComentarios().trim() : "")
-                    .build();
-            stockFichaRepository.save(ficha);
+            List<StockFicha> existentes = stockFichaRepository.findAll();
+            if (existentes != null && !existentes.isEmpty()) {
+                String tipoNorm = dto.getTipo().trim().toUpperCase(Locale.ROOT);
+                String desc = !modelo.isBlank() ? (marca + " " + modelo).trim() : tipoNorm;
+                Timestamp now = Timestamp.now();
+                StockFicha ficha = StockFicha.builder()
+                        .codigoInterno(codigo)
+                        .tipo(tipoNorm)
+                        .descripcion(desc)
+                        .marca(marca)
+                        .modelo(modelo)
+                        .serieOImei(serie)
+                        .estado("EN_DEPOSITO")
+                        .responsableId(null)
+                        .responsableNombre(null)
+                        .area(null)
+                        .ubicacion(dto.getUbicacion() != null && !dto.getUbicacion().isBlank() ? dto.getUbicacion().trim() : "Depósito Sistemas")
+                        .condicion(dto.getCondicion() != null && !dto.getCondicion().isBlank() ? dto.getCondicion().trim() : "USADA")
+                        .refOrigen("perifericos_manuales/" + id)
+                        .cantidad(dto.getCantidad() != null && dto.getCantidad() > 0 ? dto.getCantidad() : 1)
+                        .createdAt(now)
+                        .updatedAt(now)
+                        .notas(dto.getComentarios() != null ? dto.getComentarios().trim() : "")
+                        .build();
+                stockFichaRepository.save(ficha);
+            }
         }
 
         if (movimientoStockRepository != null) {
